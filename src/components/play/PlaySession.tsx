@@ -14,7 +14,9 @@ import {
   SidebarClose,
   SidebarOpen,
   PencilLine,
-  Package
+  Package,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { MapCanvas } from '../map/MapCanvas';
 import { ChatPanel } from '../chat/ChatPanel';
@@ -30,6 +32,7 @@ import { useMapStore } from '../../stores/mapStore';
 import { useSession } from '../../hooks/useSession';
 import { useMap } from '../../hooks/useMap';
 import { useToast } from '../shared/Toast';
+import { useSoundEffects } from '../../hooks/useSoundEffects';
 
 type SideTab = 'chat' | 'dice' | 'initiative' | 'notes' | 'inventory' | 'draw';
 
@@ -48,6 +51,7 @@ export const PlaySession: React.FC = () => {
   const { leaveSession, claimGM, releaseGM } = useSession();
   const { updateDrawingData } = useMap();
   const canUseDrawTools = isGM || Boolean(session?.allowPlayersDrawings);
+  const { config: soundConfig, setEnabled: setSoundEnabled } = useSoundEffects();
 
   const [sideTab, setSideTab] = useState<SideTab>('chat');
   const [showGMPanel, setShowGMPanel] = useState(false);
@@ -138,6 +142,16 @@ export const PlaySession: React.FC = () => {
               <Settings className="h-4 w-4" />
             </Button>
           )}
+
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSoundEnabled(!soundConfig.enabled)}
+            title={soundConfig.enabled ? 'Mute all sound effects' : 'Unmute sound effects'}
+          >
+            {soundConfig.enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </Button>
 
           <Button variant="ghost" size="sm" onClick={() => setIsPlayerPanelCollapsed((prev) => !prev)}>
             {isPlayerPanelCollapsed ? <SidebarOpen className="h-4 w-4" /> : <SidebarClose className="h-4 w-4" />}

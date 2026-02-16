@@ -156,7 +156,13 @@ export const GMSettings: React.FC = () => {
           />
         </div>
 
-        {[{ action: 'tokenSelect', label: 'Token Click' }, { action: 'diceRoll', label: 'Dice Roll' }].map((entry) => (
+        {[
+          { action: 'tokenSelect', label: 'Token Click' },
+          { action: 'tokenPickup', label: 'Token Pickup' },
+          { action: 'tokenDrop', label: 'Token Drop' },
+          { action: 'diceRoll', label: 'Dice Roll' },
+          { action: 'chatMessageReceive', label: 'Incoming Chat Message' },
+        ].map((entry) => (
           <div key={entry.action} className="rounded border border-slate-700 p-2 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-300">{entry.label}</span>

@@ -6,6 +6,7 @@ import { useMapStore } from '../stores/mapStore';
 import { useChatStore } from '../stores/chatStore';
 import { useInitiativeStore } from '../stores/initiativeStore';
 import { useSession } from './useSession';
+import { useSoundEffects } from './useSoundEffects';
 import {
   dbSessionToSession,
   dbMapToMap,
@@ -40,6 +41,7 @@ export const useRealtime = () => {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const initiativeChannelRef = useRef<RealtimeChannel | null>(null);
   const shouldResyncRef = useRef(false);
+  const lastChatSoundMessageIdRef = useRef<string | null>(null);
   const mapsRef = useRef<Map[]>([]);
   const currentUserRef = useRef<{
     username: string;
@@ -73,6 +75,15 @@ export const useRealtime = () => {
   } = useMapStore();
   const { addMessage, addDiceRoll, setMessages, setDiceRolls } = useChatStore();
   const { upsertEntry, removeEntry, addRollLog, setEntries, setRollLogs } = useInitiativeStore();
+  const { playSound } = useSoundEffects();
+
+  const maybePlayIncomingChatSound = (message: ChatMessage) => {
+    const activeUser = currentUserRef.current;
+    if (!activeUser || message.username === activeUser.username) return;
+    if (lastChatSoundMessageIdRef.current === message.id) return;
+    lastChatSoundMessageIdRef.current = message.id;
+    void playSound('chatMessageReceive');
+  };
 
   useEffect(() => {
     mapsRef.current = maps;
@@ -333,7 +344,9 @@ export const useRealtime = () => {
         filter: `session_id=eq.${sessionId}`,
       },
       (payload) => {
-        addMessage(dbChatMessageToChatMessage(payload.new as DbChatMessage));
+        const message = dbChatMessageToChatMessage(payload.new as DbChatMessage);
+        addMessage(message);
+        maybePlayIncomingChatSound(message);
       }
     );
 
@@ -507,7 +520,9 @@ export const useRealtime = () => {
       };
 
       if (chatPayload.sessionId !== sessionId) return;
-      addMessage(chatPayload.message as ChatMessage);
+      const message = chatPayload.message as ChatMessage;
+      addMessage(message);
+      maybePlayIncomingChatSound(message);
     });
 
     tokenChannel.on('broadcast', { event: 'dice_roll' }, ({ payload }) => {
@@ -633,6 +648,7 @@ export const useRealtime = () => {
     };
   }, [
     session?.id,
+    playSound,
     currentUser?.username,
     updateSession,
     setPlayers,

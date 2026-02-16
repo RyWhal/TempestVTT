@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
 import { STORAGE_BUCKETS, uploadFile } from '../lib/supabase';
 
-export type SoundEffectAction = 'tokenSelect' | 'diceRoll';
+export type SoundEffectAction = 'tokenSelect' | 'tokenPickup' | 'tokenDrop' | 'diceRoll' | 'chatMessageReceive';
 
 export interface SoundEffectsConfig {
   enabled: boolean;
@@ -15,7 +15,10 @@ const DEFAULT_SOUND_EFFECTS_CONFIG: SoundEffectsConfig = {
   volume: 0.5,
   sounds: {
     tokenSelect: null,
+    tokenPickup: null,
+    tokenDrop: null,
     diceRoll: null,
+    chatMessageReceive: null,
   },
 };
 
@@ -36,7 +39,10 @@ const sanitizeConfig = (value: unknown): SoundEffectsConfig => {
     volume: clampVolume(typeof maybeConfig.volume === 'number' ? maybeConfig.volume : DEFAULT_SOUND_EFFECTS_CONFIG.volume),
     sounds: {
       tokenSelect: maybeSounds?.tokenSelect ?? DEFAULT_SOUND_EFFECTS_CONFIG.sounds.tokenSelect,
+      tokenPickup: maybeSounds?.tokenPickup ?? DEFAULT_SOUND_EFFECTS_CONFIG.sounds.tokenPickup,
+      tokenDrop: maybeSounds?.tokenDrop ?? DEFAULT_SOUND_EFFECTS_CONFIG.sounds.tokenDrop,
       diceRoll: maybeSounds?.diceRoll ?? DEFAULT_SOUND_EFFECTS_CONFIG.sounds.diceRoll,
+      chatMessageReceive: maybeSounds?.chatMessageReceive ?? DEFAULT_SOUND_EFFECTS_CONFIG.sounds.chatMessageReceive,
     },
   };
 };

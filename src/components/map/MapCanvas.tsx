@@ -242,8 +242,9 @@ export const MapCanvas: React.FC = () => {
         tokenType: type,
         username: currentUser.username,
       });
+      void playSound('tokenPickup');
     },
-    [session, currentUser, buildTokenKey, setTokenLock, selectedTokenKeys, characters, currentMapNPCs]
+    [session, currentUser, buildTokenKey, setTokenLock, selectedTokenKeys, characters, currentMapNPCs, playSound]
   );
 
   // Handle token movement
@@ -288,6 +289,7 @@ export const MapCanvas: React.FC = () => {
           tokenType: type,
           username: currentUser.username,
         });
+        void playSound('tokenDrop');
       }
     },
     [
@@ -299,6 +301,7 @@ export const MapCanvas: React.FC = () => {
       selectedTokenKeys,
       groupDragStartPositions,
       clearTokenLock,
+      playSound,
     ]
   );
 
