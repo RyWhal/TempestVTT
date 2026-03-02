@@ -4,7 +4,6 @@ import {
   Map as MapIcon,
   MessageSquare,
   Dices,
-  FileText,
   Settings,
   Users,
   Crown,
@@ -14,15 +13,12 @@ import {
   SidebarClose,
   SidebarOpen,
   PencilLine,
-  Package
 } from 'lucide-react';
 import { MapCanvas } from '../map/MapCanvas';
 import { ChatPanel } from '../chat/ChatPanel';
 import { DicePanel } from '../dice/DicePanel';
-import { NotepadPanel } from '../shared/NotepadPanel';
 import { GMPanel } from '../gm/GMPanel';
 import { DrawingTools } from '../map/DrawingTools';
-import { InventoryPanel } from '../inventory/InventoryPanel';
 import { InitiativePanel } from '../initiative/InitiativePanel';
 import { Button } from '../shared/Button';
 import { useSessionStore, useIsGM } from '../../stores/sessionStore';
@@ -31,7 +27,7 @@ import { useSession } from '../../hooks/useSession';
 import { useMap } from '../../hooks/useMap';
 import { useToast } from '../shared/Toast';
 
-type SideTab = 'chat' | 'dice' | 'initiative' | 'notes' | 'inventory' | 'draw';
+type SideTab = 'chat' | 'dice' | 'initiative' | 'draw';
 
 const PLAYER_PANEL_KEY = 'tempest-player-panel-collapsed';
 
@@ -166,8 +162,6 @@ export const PlaySession: React.FC = () => {
               <TabButton active={sideTab === 'chat'} onClick={() => setSideTab('chat')} icon={<MessageSquare className="h-4 w-4" />} label="Chat" />
               <TabButton active={sideTab === 'dice'} onClick={() => setSideTab('dice')} icon={<Dices className="h-4 w-4" />} label="Dice" />
               {!isGM && <TabButton active={sideTab === 'initiative'} onClick={() => setSideTab('initiative')} icon={<Users className="h-4 w-4" />} label="Init" />}
-              <TabButton active={sideTab === 'notes'} onClick={() => setSideTab('notes')} icon={<FileText className="h-4 w-4" />} label="Notes" />
-              <TabButton active={sideTab === 'inventory'} onClick={() => setSideTab('inventory')} icon={<Package className="h-4 w-4" />} label="Items" />
               {canUseDrawTools && (
                 <TabButton active={sideTab === 'draw'} onClick={() => setSideTab('draw')} icon={<PencilLine className="h-4 w-4" />} label="Draw" />
               )}
@@ -177,8 +171,6 @@ export const PlaySession: React.FC = () => {
               {sideTab === 'chat' && <ChatPanel />}
               {sideTab === 'dice' && <DicePanel />}
               {!isGM && sideTab === 'initiative' && <InitiativePanel />}
-              {sideTab === 'notes' && <NotepadPanel />}
-              {sideTab === 'inventory' && <InventoryPanel />}
               {sideTab === 'draw' && (
                 <div className="h-full space-y-3 overflow-y-auto p-4">
                   <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">

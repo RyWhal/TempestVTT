@@ -7,8 +7,6 @@ import {
   Eye,
   SlidersHorizontal,
   ListOrdered,
-  FileText,
-  Sparkles,
 } from 'lucide-react';
 import { MapManager } from './MapManager';
 import { CharacterManager } from './CharacterManager';
@@ -17,10 +15,8 @@ import { FogTools } from './FogTools';
 import { GMSettings } from './GMSettings';
 import { InitiativePanel } from '../initiative/InitiativePanel';
 import { useMapStore } from '../../stores/mapStore';
-import { HandoutManager } from './HandoutManager';
-import { EffectsTools } from './EffectsTools';
 
-type GMTab = 'maps' | 'characters' | 'npcs' | 'handouts' | 'fog' | 'effects' | 'initiative' | 'settings';
+type GMTab = 'maps' | 'characters' | 'npcs' | 'fog' | 'initiative' | 'settings';
 
 interface GMPanelProps {
   onClose: () => void;
@@ -72,22 +68,10 @@ export const GMPanel: React.FC<GMPanelProps> = ({ onClose }) => {
           label="NPCs"
         />
         <GMTabButton
-          active={activeTab === 'handouts'}
-          onClick={() => handleTabChange('handouts')}
-          icon={<FileText className="w-4 h-4" />}
-          label="Handouts"
-        />
-        <GMTabButton
           active={activeTab === 'fog'}
           onClick={() => handleTabChange('fog')}
           icon={<Eye className="w-4 h-4" />}
           label="Fog"
-        />
-        <GMTabButton
-          active={activeTab === 'effects'}
-          onClick={() => handleTabChange('effects')}
-          icon={<Sparkles className="w-4 h-4" />}
-          label="Effects"
         />
         <GMTabButton
           active={activeTab === 'initiative'}
@@ -107,9 +91,7 @@ export const GMPanel: React.FC<GMPanelProps> = ({ onClose }) => {
         {activeTab === 'maps' && <MapManager />}
         {activeTab === 'characters' && <CharacterManager />}
         {activeTab === 'npcs' && <NPCManager />}
-        {activeTab === 'handouts' && <HandoutManager />}
         {activeTab === 'fog' && <FogTools />}
-        {activeTab === 'effects' && <EffectsTools />}
         {activeTab === 'initiative' && <InitiativePanel gmView />}
         {activeTab === 'settings' && <GMSettings />}
       </div>

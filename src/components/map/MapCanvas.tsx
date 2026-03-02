@@ -22,7 +22,6 @@ import { GridOverlay } from './GridOverlay';
 import { FogLayer } from './FogLayer';
 import { DrawingLayer } from './DrawingLayer';
 import { MapEffectsLayer } from './MapEffectsLayer';
-import { HandoutViewer } from './HandoutViewer';
 import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile } from '../../types';
 import { isDrawingColor } from '../../types';
 import { nanoid } from 'nanoid';
@@ -91,7 +90,6 @@ export const MapCanvas: React.FC = () => {
   const [rectEnd, setRectEnd] = useState<{ x: number; y: number } | null>(null);
   const [currentDrawing, setCurrentDrawing] = useState<DrawingRegion | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'map' | 'handouts'>('map');
   const [selectedTokenKeys, setSelectedTokenKeys] = useState<string[]>([]);
   const [groupDragStartPositions, setGroupDragStartPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [effectPulse, setEffectPulse] = useState(0);
@@ -736,7 +734,6 @@ export const MapCanvas: React.FC = () => {
   const handlePanLeft = () => panBy(panStep, 0);
   const handlePanRight = () => panBy(-panStep, 0);
 
-  const isMapTab = activeTab === 'map';
   const gridCellSize = activeMap?.gridCellSize ?? 0;
   const zoomPercent = Math.round(viewportScale * 100);
   const selectedNpc = useMemo(() => {
@@ -752,30 +749,9 @@ export const MapCanvas: React.FC = () => {
     <div
       ref={containerRef}
       className="w-full h-full bg-slate-950 overflow-hidden relative"
-      style={{ cursor: isMapTab && (effectPaintMode || fogToolMode || (canDrawOnMap && drawingTool)) ? 'crosshair' : 'default' }}
+      style={{ cursor: effectPaintMode || fogToolMode || (canDrawOnMap && drawingTool) ? 'crosshair' : 'default' }}
     >
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/90 backdrop-blur-sm p-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('map')}
-          className={`px-3 py-1.5 text-sm rounded-md transition ${
-            isMapTab ? 'bg-slate-700 text-slate-100' : 'text-slate-300 hover:text-slate-100'
-          }`}
-        >
-          Map
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('handouts')}
-          className={`px-3 py-1.5 text-sm rounded-md transition ${
-            !isMapTab ? 'bg-slate-700 text-slate-100' : 'text-slate-300 hover:text-slate-100'
-          }`}
-        >
-          Handouts
-        </button>
-      </div>
-      {isMapTab ? (
-        activeMap ? (
+      {activeMap ? (
           <Stage
             ref={stageRef}
             width={Math.max(1, stageWidth)}
@@ -951,13 +927,10 @@ export const MapCanvas: React.FC = () => {
               )}
             </div>
           </div>
-        )
-      ) : (
-        <HandoutViewer />
-      )}
+        )}
 
       {/* Fog tool indicator */}
-      {fogToolMode && isMapTab && (
+      {fogToolMode && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-sm rounded-lg px-4 py-2 border border-slate-600">
           <span className="text-slate-100">
             Fog Tool: <span className="font-semibold capitalize">{fogToolMode}</span>
@@ -967,14 +940,14 @@ export const MapCanvas: React.FC = () => {
         </div>
       )}
 
-      {effectPaintMode && isMapTab && (
+      {effectPaintMode && (
         <div className="absolute bottom-4 left-4 bg-slate-900/90 text-white px-3 py-1 rounded-lg text-sm">
           Effect Paint: <span className="font-semibold capitalize">{effectType}</span>
         </div>
       )}
 
       {/* Drawing tool indicator */}
-      {drawingTool && canDrawOnMap && isMapTab && (
+      {drawingTool && canDrawOnMap && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-sm rounded-lg px-4 py-2 border border-slate-600">
           <span className="text-slate-100">
             Drawing Tool: <span className="font-semibold capitalize">{drawingTool}</span>
@@ -983,7 +956,7 @@ export const MapCanvas: React.FC = () => {
       )}
 
       {/* Map controls overlay - Bottom left */}
-      {isMapTab && activeMap && (
+      {activeMap && (
         <div className="absolute bottom-4 left-4 flex flex-col gap-2">
           {/* Zoom controls */}
           <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg border border-slate-700 p-2">
@@ -1096,7 +1069,7 @@ export const MapCanvas: React.FC = () => {
       )}
 
       {/* Map info overlay - Top right */}
-      {isMapTab && activeMap && (
+      {activeMap && (
         <div className="absolute top-4 right-4 bg-slate-900/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-700 pointer-events-none">
           <span className="text-sm text-slate-300">
             {activeMap.name} ({activeMap.width}x{activeMap.height})
