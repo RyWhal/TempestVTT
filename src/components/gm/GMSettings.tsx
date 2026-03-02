@@ -68,7 +68,7 @@ export const GMSettings: React.FC = () => {
         </label>
 
         <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
-          <span>Enable initiative phases (fast/slow)</span>
+          <span>Enable fast/slow turns (Stormlight RPG)</span>
           <input
             type="checkbox"
             checked={session.enableInitiativePhase}
@@ -77,7 +77,7 @@ export const GMSettings: React.FC = () => {
         </label>
 
         <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
-          <span>Enable plot dice</span>
+          <span>Enable plot dice (StormlightRPG)</span>
           <input
             type="checkbox"
             checked={session.enablePlotDice}

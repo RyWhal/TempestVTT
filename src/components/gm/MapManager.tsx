@@ -247,7 +247,6 @@ interface MapSettingsData {
   fogEnabled: boolean;
   fogDefaultState: 'fogged' | 'revealed';
   showPlayerTokens: boolean;
-  effectsEnabled: boolean;
 }
 
 interface MapSettingsProps {
@@ -271,7 +270,6 @@ const MapSettings: React.FC<MapSettingsProps> = ({ map, onUpdate, onClose }) => 
     fogEnabled: map.fogEnabled,
     fogDefaultState: map.fogDefaultState,
     showPlayerTokens: map.showPlayerTokens,
-    effectsEnabled: map.effectsEnabled,
   });
 
   const handleSave = async () => {
@@ -386,18 +384,6 @@ const MapSettings: React.FC<MapSettingsProps> = ({ map, onUpdate, onClose }) => 
             className="rounded border-slate-600 bg-slate-800"
           />
           Show Player Tokens
-        </label>
-
-        <label className="flex items-center gap-2 text-sm text-slate-300">
-          <input
-            type="checkbox"
-            checked={settings.effectsEnabled}
-            onChange={(e) =>
-              setSettings((s) => ({ ...s, effectsEnabled: e.target.checked }))
-            }
-            className="rounded border-slate-600 bg-slate-800"
-          />
-          Enable Grid Effects Layer
         </label>
 
       </div>
