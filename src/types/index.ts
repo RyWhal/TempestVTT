@@ -396,6 +396,7 @@ export interface DbHandout {
 
 export interface DbNPCInstance {
   id: string;
+  session_id: string;
   map_id: string;
   template_id: string | null;
   display_name: string | null;

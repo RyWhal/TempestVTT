@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAdminStore, isAdminSessionValid } from '../stores/adminStore';
+import { useAdminStore } from '../stores/adminStore';
 import {
   dbSessionToSession,
   type DbSession,
@@ -39,41 +39,54 @@ export interface GlobalAsset {
   updatedAt: string;
 }
 
+type RpcError = { message?: string };
+
+const getRpcErrorMessage = (error: RpcError | null, fallback: string): string => {
+  if (!error?.message) return fallback;
+  if (error.message.toLowerCase().includes('invalid or expired')) {
+    return 'Session expired';
+  }
+  return error.message;
+};
+
 export const useAdmin = () => {
-  const { isAuthenticated, setAuthenticated, updateActivity, logout } = useAdminStore();
+  const { sessionToken, setSessionToken, updateActivity, logout } = useAdminStore();
   const [isLoading, setIsLoading] = useState(false);
 
-  /**
-   * Verify admin password
-   */
+  const ensureActiveSession = useCallback((): { ok: true; token: string } | { ok: false; error: string } => {
+    if (!sessionToken) {
+      return { ok: false, error: 'Session expired' };
+    }
+
+    return { ok: true, token: sessionToken };
+  }, [sessionToken]);
+
+  const invalidateSession = useCallback(() => {
+    logout();
+  }, [logout]);
+
   const login = useCallback(
     async (password: string): Promise<{ success: boolean; error?: string }> => {
       setIsLoading(true);
 
       try {
-        const { data, error } = await supabase
-          .from('system_settings')
-          .select('value')
-          .eq('key', 'admin_password')
-          .single();
+        const { data, error } = await supabase.rpc('app_admin_login', {
+          p_password: password,
+        });
 
-        if (error || !data) {
+        if (error) {
           setIsLoading(false);
-          return { success: false, error: 'Failed to verify password' };
+          return { success: false, error: getRpcErrorMessage(error, 'Failed to verify password') };
         }
 
-        if (data.value === password) {
-          setAuthenticated(true);
-
-          // Log admin login
-          await logAdminAction('admin_login', {});
-
+        if (!data || typeof data !== 'string') {
           setIsLoading(false);
-          return { success: true };
+          return { success: false, error: 'Invalid password' };
         }
 
+        setSessionToken(data);
         setIsLoading(false);
-        return { success: false, error: 'Invalid password' };
+        return { success: true };
       } catch (error) {
         setIsLoading(false);
         return {
@@ -82,44 +95,36 @@ export const useAdmin = () => {
         };
       }
     },
-    [setAuthenticated]
+    [setSessionToken]
   );
 
-  /**
-   * Change admin password
-   */
   const changePassword = useCallback(
     async (
       currentPassword: string,
       newPassword: string
     ): Promise<{ success: boolean; error?: string }> => {
-      if (!isAdminSessionValid()) {
-        return { success: false, error: 'Session expired' };
+      const validation = ensureActiveSession();
+      if (!validation.ok) {
+        return { success: false, error: validation.error };
       }
 
       try {
-        // Verify current password
-        const { data: current } = await supabase
-          .from('system_settings')
-          .select('value')
-          .eq('key', 'admin_password')
-          .single();
+        const { data, error } = await supabase.rpc('app_admin_change_password', {
+          p_token: validation.token,
+          p_current_password: currentPassword,
+          p_new_password: newPassword,
+        });
 
-        if (!current || current.value !== currentPassword) {
+        if (error) {
+          const message = getRpcErrorMessage(error, 'Failed to change password');
+          if (message === 'Session expired') invalidateSession();
+          return { success: false, error: message };
+        }
+
+        if (!data) {
           return { success: false, error: 'Current password is incorrect' };
         }
 
-        // Update password
-        const { error } = await supabase
-          .from('system_settings')
-          .update({ value: newPassword })
-          .eq('key', 'admin_password');
-
-        if (error) {
-          return { success: false, error: error.message };
-        }
-
-        await logAdminAction('password_changed', {});
         updateActivity();
         return { success: true };
       } catch (error) {
@@ -129,61 +134,55 @@ export const useAdmin = () => {
         };
       }
     },
-    [updateActivity]
+    [ensureActiveSession, invalidateSession, updateActivity]
   );
 
-  /**
-   * Get all sessions with details
-   */
   const getSessions = useCallback(async (): Promise<SessionWithDetails[]> => {
-    if (!isAdminSessionValid()) return [];
+    const validation = ensureActiveSession();
+    if (!validation.ok) return [];
+
+    const { data, error } = await supabase.rpc('app_admin_get_sessions_with_counts', {
+      p_token: validation.token,
+    });
+
+    if (error) {
+      if (getRpcErrorMessage(error, '') === 'Session expired') {
+        invalidateSession();
+      }
+      return [];
+    }
 
     updateActivity();
 
-    const { data: sessions } = await supabase
-      .from('sessions')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    return ((data || []) as Array<DbSession & {
+      player_count: number;
+      map_count: number;
+      character_count: number;
+      last_activity: string;
+    }>).map((session) => ({
+      ...dbSessionToSession(session),
+      playerCount: Number(session.player_count) || 0,
+      mapCount: Number(session.map_count) || 0,
+      characterCount: Number(session.character_count) || 0,
+      lastActivity: session.last_activity,
+    }));
+  }, [ensureActiveSession, invalidateSession, updateActivity]);
 
-    if (!sessions) return [];
-
-    // Get counts for each session
-    const sessionsWithDetails: SessionWithDetails[] = await Promise.all(
-      sessions.map(async (session: DbSession) => {
-        const [players, maps, characters] = await Promise.all([
-          supabase
-            .from('session_players')
-            .select('id', { count: 'exact', head: true })
-            .eq('session_id', session.id),
-          supabase
-            .from('maps')
-            .select('id', { count: 'exact', head: true })
-            .eq('session_id', session.id),
-          supabase
-            .from('characters')
-            .select('id', { count: 'exact', head: true })
-            .eq('session_id', session.id),
-        ]);
-
-        return {
-          ...dbSessionToSession(session),
-          playerCount: players.count || 0,
-          mapCount: maps.count || 0,
-          characterCount: characters.count || 0,
-          lastActivity: session.updated_at,
-        };
-      })
-    );
-
-    return sessionsWithDetails;
-  }, [updateActivity]);
-
-  /**
-   * Get session players
-   */
   const getSessionPlayers = useCallback(
     async (sessionId: string): Promise<SessionPlayer[]> => {
-      if (!isAdminSessionValid()) return [];
+      const validation = ensureActiveSession();
+      if (!validation.ok) return [];
+
+      const { error: sessionError } = await supabase.rpc('app_require_admin_session', {
+        p_token: validation.token,
+      });
+
+      if (sessionError) {
+        if (getRpcErrorMessage(sessionError, '') === 'Session expired') {
+          invalidateSession();
+        }
+        return [];
+      }
 
       updateActivity();
 
@@ -202,29 +201,39 @@ export const useAdmin = () => {
         lastSeen: p.last_seen,
       }));
     },
-    [updateActivity]
+    [ensureActiveSession, invalidateSession, updateActivity]
   );
 
-  /**
-   * Delete a session
-   */
   const deleteSession = useCallback(
     async (sessionId: string): Promise<{ success: boolean; error?: string }> => {
-      if (!isAdminSessionValid()) {
-        return { success: false, error: 'Session expired' };
+      const validation = ensureActiveSession();
+      if (!validation.ok) {
+        return { success: false, error: validation.error };
       }
 
       try {
-        const { error } = await supabase
-          .from('sessions')
-          .delete()
-          .eq('id', sessionId);
+        const { error: sessionError } = await supabase.rpc('app_require_admin_session', {
+          p_token: validation.token,
+        });
+
+        if (sessionError) {
+          const message = getRpcErrorMessage(sessionError, 'Session expired');
+          if (message === 'Session expired') invalidateSession();
+          return { success: false, error: message };
+        }
+
+        const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
 
         if (error) {
           return { success: false, error: error.message };
         }
 
-        await logAdminAction('session_deleted', { sessionId });
+        await supabase.rpc('app_admin_log_action', {
+          p_token: validation.token,
+          p_action: 'session_deleted',
+          p_details: { sessionId },
+        });
+
         updateActivity();
         return { success: true };
       } catch (error) {
@@ -234,32 +243,42 @@ export const useAdmin = () => {
         };
       }
     },
-    [updateActivity]
+    [ensureActiveSession, invalidateSession, updateActivity]
   );
 
-  /**
-   * Remove a player from session
-   */
   const removePlayer = useCallback(
     async (
       sessionId: string,
       playerId: string
     ): Promise<{ success: boolean; error?: string }> => {
-      if (!isAdminSessionValid()) {
-        return { success: false, error: 'Session expired' };
+      const validation = ensureActiveSession();
+      if (!validation.ok) {
+        return { success: false, error: validation.error };
       }
 
       try {
-        const { error } = await supabase
-          .from('session_players')
-          .delete()
-          .eq('id', playerId);
+        const { error: sessionError } = await supabase.rpc('app_require_admin_session', {
+          p_token: validation.token,
+        });
+
+        if (sessionError) {
+          const message = getRpcErrorMessage(sessionError, 'Session expired');
+          if (message === 'Session expired') invalidateSession();
+          return { success: false, error: message };
+        }
+
+        const { error } = await supabase.from('session_players').delete().eq('id', playerId);
 
         if (error) {
           return { success: false, error: error.message };
         }
 
-        await logAdminAction('player_removed', { sessionId, playerId });
+        await supabase.rpc('app_admin_log_action', {
+          p_token: validation.token,
+          p_action: 'player_removed',
+          p_details: { sessionId, playerId },
+        });
+
         updateActivity();
         return { success: true };
       } catch (error) {
@@ -269,23 +288,27 @@ export const useAdmin = () => {
         };
       }
     },
-    [updateActivity]
+    [ensureActiveSession, invalidateSession, updateActivity]
   );
 
-  /**
-   * Get admin logs
-   */
   const getAdminLogs = useCallback(
     async (limit = 100): Promise<AdminLog[]> => {
-      if (!isAdminSessionValid()) return [];
+      const validation = ensureActiveSession();
+      if (!validation.ok) return [];
+
+      const { data, error } = await supabase.rpc('app_admin_get_logs', {
+        p_token: validation.token,
+        p_limit: limit,
+      });
+
+      if (error) {
+        if (getRpcErrorMessage(error, '') === 'Session expired') {
+          invalidateSession();
+        }
+        return [];
+      }
 
       updateActivity();
-
-      const { data } = await supabase
-        .from('admin_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
 
       return (data || []).map((log: any) => ({
         id: log.id,
@@ -295,15 +318,24 @@ export const useAdmin = () => {
         createdAt: log.created_at,
       }));
     },
-    [updateActivity]
+    [ensureActiveSession, invalidateSession, updateActivity]
   );
 
-  /**
-   * Get global assets
-   */
   const getGlobalAssets = useCallback(
     async (type?: 'token' | 'map'): Promise<GlobalAsset[]> => {
-      if (!isAdminSessionValid()) return [];
+      const validation = ensureActiveSession();
+      if (!validation.ok) return [];
+
+      const { error: sessionError } = await supabase.rpc('app_require_admin_session', {
+        p_token: validation.token,
+      });
+
+      if (sessionError) {
+        if (getRpcErrorMessage(sessionError, '') === 'Session expired') {
+          invalidateSession();
+        }
+        return [];
+      }
 
       updateActivity();
 
@@ -334,21 +366,29 @@ export const useAdmin = () => {
         updatedAt: asset.updated_at,
       }));
     },
-    [updateActivity]
+    [ensureActiveSession, invalidateSession, updateActivity]
   );
 
-  /**
-   * Create global asset
-   */
   const createGlobalAsset = useCallback(
     async (
       asset: Omit<GlobalAsset, 'id' | 'createdAt' | 'updatedAt'>
     ): Promise<{ success: boolean; asset?: GlobalAsset; error?: string }> => {
-      if (!isAdminSessionValid()) {
-        return { success: false, error: 'Session expired' };
+      const validation = ensureActiveSession();
+      if (!validation.ok) {
+        return { success: false, error: validation.error };
       }
 
       try {
+        const { error: sessionError } = await supabase.rpc('app_require_admin_session', {
+          p_token: validation.token,
+        });
+
+        if (sessionError) {
+          const message = getRpcErrorMessage(sessionError, 'Session expired');
+          if (message === 'Session expired') invalidateSession();
+          return { success: false, error: message };
+        }
+
         const { data, error } = await supabase
           .from('global_assets')
           .insert({
@@ -370,7 +410,12 @@ export const useAdmin = () => {
           return { success: false, error: error?.message || 'Failed to create asset' };
         }
 
-        await logAdminAction('asset_created', { assetId: data.id, name: asset.name });
+        await supabase.rpc('app_admin_log_action', {
+          p_token: validation.token,
+          p_action: 'asset_created',
+          p_details: { assetId: data.id, name: asset.name },
+        });
+
         updateActivity();
 
         return {
@@ -398,29 +443,39 @@ export const useAdmin = () => {
         };
       }
     },
-    [updateActivity]
+    [ensureActiveSession, invalidateSession, updateActivity]
   );
 
-  /**
-   * Delete global asset
-   */
   const deleteGlobalAsset = useCallback(
     async (assetId: string): Promise<{ success: boolean; error?: string }> => {
-      if (!isAdminSessionValid()) {
-        return { success: false, error: 'Session expired' };
+      const validation = ensureActiveSession();
+      if (!validation.ok) {
+        return { success: false, error: validation.error };
       }
 
       try {
-        const { error } = await supabase
-          .from('global_assets')
-          .delete()
-          .eq('id', assetId);
+        const { error: sessionError } = await supabase.rpc('app_require_admin_session', {
+          p_token: validation.token,
+        });
+
+        if (sessionError) {
+          const message = getRpcErrorMessage(sessionError, 'Session expired');
+          if (message === 'Session expired') invalidateSession();
+          return { success: false, error: message };
+        }
+
+        const { error } = await supabase.from('global_assets').delete().eq('id', assetId);
 
         if (error) {
           return { success: false, error: error.message };
         }
 
-        await logAdminAction('asset_deleted', { assetId });
+        await supabase.rpc('app_admin_log_action', {
+          p_token: validation.token,
+          p_action: 'asset_deleted',
+          p_details: { assetId },
+        });
+
         updateActivity();
         return { success: true };
       } catch (error) {
@@ -430,14 +485,21 @@ export const useAdmin = () => {
         };
       }
     },
-    [updateActivity]
+    [ensureActiveSession, invalidateSession, updateActivity]
   );
 
+  const adminLogout = useCallback(() => {
+    if (sessionToken) {
+      void supabase.rpc('app_admin_logout', { p_token: sessionToken });
+    }
+    logout();
+  }, [sessionToken, logout]);
+
   return {
-    isAuthenticated: isAuthenticated && isAdminSessionValid(),
+    isAuthenticated: Boolean(sessionToken),
     isLoading,
     login,
-    logout,
+    logout: adminLogout,
     changePassword,
     getSessions,
     getSessionPlayers,
@@ -448,16 +510,4 @@ export const useAdmin = () => {
     createGlobalAsset,
     deleteGlobalAsset,
   };
-};
-
-// Helper to log admin actions
-const logAdminAction = async (action: string, details: Record<string, unknown>) => {
-  try {
-    await supabase.from('admin_logs').insert({
-      action,
-      details,
-    });
-  } catch (e) {
-    console.error('Failed to log admin action:', e);
-  }
 };
