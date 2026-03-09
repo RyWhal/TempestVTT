@@ -173,6 +173,10 @@ export const useNPCs = () => {
       position?: { x: number; y: number },
       customName?: string
     ): Promise<{ success: boolean; instance?: NPCInstance; error?: string }> => {
+      if (!session) {
+        return { success: false, error: 'Not in a session' };
+      }
+
       if (!activeMap) {
         return { success: false, error: 'No active map' };
       }
@@ -193,6 +197,7 @@ export const useNPCs = () => {
         const { data, error } = await supabase
           .from('npc_instances')
           .insert({
+            session_id: session.id,
             map_id: activeMap.id,
             template_id: templateId,
             display_name: displayName,
@@ -220,7 +225,7 @@ export const useNPCs = () => {
         };
       }
     },
-    [activeMap, npcTemplates, npcInstances, addNPCInstance]
+    [session, activeMap, npcTemplates, npcInstances, addNPCInstance]
   );
 
   /**

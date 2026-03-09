@@ -246,10 +246,11 @@ export const useRealtime = () => {
           event: 'INSERT',
           schema: 'public',
           table: 'npc_instances',
+          filter: `session_id=eq.${sessionId}`,
         },
         (payload) => {
           const instance = payload.new as DbNPCInstance;
-          if (maps.some((m) => m.id === instance.map_id)) {
+          if (mapsRef.current.some((m) => m.id === instance.map_id)) {
             addNPCInstance(dbNPCInstanceToNPCInstance(instance));
           }
         }
@@ -260,6 +261,7 @@ export const useRealtime = () => {
           event: 'UPDATE',
           schema: 'public',
           table: 'npc_instances',
+          filter: `session_id=eq.${sessionId}`,
         },
         (payload) => {
           const updated = dbNPCInstanceToNPCInstance(payload.new as DbNPCInstance);
@@ -272,6 +274,7 @@ export const useRealtime = () => {
           event: 'DELETE',
           schema: 'public',
           table: 'npc_instances',
+          filter: `session_id=eq.${sessionId}`,
         },
         (payload) => {
           removeNPCInstance((payload.old as { id: string }).id);

@@ -2,11 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface AdminState {
-  isAuthenticated: boolean;
+  sessionToken: string | null;
   lastActivity: string | null;
 
   // Actions
-  setAuthenticated: (authenticated: boolean) => void;
+  setSessionToken: (token: string | null) => void;
   updateActivity: () => void;
   logout: () => void;
 }
@@ -14,13 +14,13 @@ interface AdminState {
 export const useAdminStore = create<AdminState>()(
   persist(
     (set) => ({
-      isAuthenticated: false,
+      sessionToken: null,
       lastActivity: null,
 
-      setAuthenticated: (authenticated) =>
+      setSessionToken: (token) =>
         set({
-          isAuthenticated: authenticated,
-          lastActivity: authenticated ? new Date().toISOString() : null,
+          sessionToken: token,
+          lastActivity: token ? new Date().toISOString() : null,
         }),
 
       updateActivity: () =>
@@ -28,28 +28,17 @@ export const useAdminStore = create<AdminState>()(
 
       logout: () =>
         set({
-          isAuthenticated: false,
+          sessionToken: null,
           lastActivity: null,
         }),
     }),
     {
       name: 'tempest-table-admin',
       partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
+        sessionToken: state.sessionToken,
         lastActivity: state.lastActivity,
       }),
     }
   )
 );
 
-// Session timeout check (30 minutes)
-export const isAdminSessionValid = (): boolean => {
-  const state = useAdminStore.getState();
-  if (!state.isAuthenticated || !state.lastActivity) return false;
-
-  const lastActivity = new Date(state.lastActivity);
-  const now = new Date();
-  const diffMinutes = (now.getTime() - lastActivity.getTime()) / (1000 * 60);
-
-  return diffMinutes < 30;
-};
