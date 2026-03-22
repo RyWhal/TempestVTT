@@ -5,6 +5,7 @@ import { useSessionStore } from '../stores/sessionStore';
 import { useMapStore } from '../stores/mapStore';
 import { useChatStore } from '../stores/chatStore';
 import { useInitiativeStore } from '../stores/initiativeStore';
+import { useProcgenCampaign } from './useProcgenCampaign';
 import {
   dbSessionToSession,
   dbMapToMap,
@@ -58,6 +59,7 @@ export const useSession = () => {
 
   const { setMessages, setDiceRolls, clearChatState } = useChatStore();
   const { setEntries, setRollLogs, clearInitiativeState } = useInitiativeStore();
+  const { loadCampaignBySession, clearProcgenState } = useProcgenCampaign();
 
   const createSession = useCallback(
     async (
@@ -310,6 +312,8 @@ export const useSession = () => {
         if (isMissingRelationError(handoutError)) {
           console.warn('Handout tables are not available yet; skipping handout hydration.');
         }
+
+        await loadCampaignBySession(sessionId);
       } catch (error) {
         console.error('Error loading session data:', error);
       }
@@ -326,6 +330,7 @@ export const useSession = () => {
       setDiceRolls,
       setEntries,
       setRollLogs,
+      loadCampaignBySession,
     ]
   );
 
@@ -425,7 +430,8 @@ export const useSession = () => {
     clearMapState();
     clearChatState();
     clearInitiativeState();
-  }, [session, currentUser, clearSession, clearMapState, clearChatState, clearInitiativeState]);
+    clearProcgenState();
+  }, [session, currentUser, clearSession, clearMapState, clearChatState, clearInitiativeState, clearProcgenState]);
 
   const updateNotepad = useCallback(
     async (content: string) => {

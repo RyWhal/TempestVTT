@@ -1,6 +1,8 @@
 // types/index.ts - TypeScript type definitions for Tempest Table
+import type { SectionRenderPayload } from '../procgen/types';
 
 export type TokenSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
+export type MapSourceType = 'uploaded' | 'generated';
 
 export const TOKEN_SIZE_MULTIPLIERS: Record<TokenSize, number> = {
   tiny: 0.5,      // Half a grid square
@@ -40,6 +42,9 @@ export interface SessionPlayer {
 export interface Map {
   id: string;
   sessionId: string;
+  sourceType: MapSourceType;
+  generatedSectionId: string | null;
+  generatedRenderPayload: SectionRenderPayload | null;
   name: string;
   imageUrl: string;
   width: number;
@@ -715,6 +720,9 @@ export function dbMapToMap(db: DbMap): Map {
   return {
     id: db.id,
     sessionId: db.session_id,
+    sourceType: 'uploaded',
+    generatedSectionId: null,
+    generatedRenderPayload: null,
     name: db.name,
     imageUrl: db.image_url,
     width: db.width,
@@ -776,6 +784,126 @@ export function dbHandoutToHandout(db: DbHandout): Handout {
     body: db.body,
     sortOrder: db.sort_order,
     createdAt: db.created_at,
+  };
+}
+
+export function dbProcgenCampaignToCampaignWorld(db: DbProcgenCampaign): CampaignWorld {
+  return {
+    id: db.id,
+    sessionId: db.session_id,
+    name: db.name,
+    worldSeed: db.world_seed,
+    campaignGoalId: db.campaign_goal_id,
+    difficultyModel: db.difficulty_model,
+    toneProfile: db.tone_profile ?? {},
+    startingSectionId: db.starting_section_id,
+    activeSectionId: db.active_section_id,
+    dungeonGraph: {
+      nodes: db.dungeon_graph?.nodes ?? [],
+      edges: (db.dungeon_graph?.edges ?? []).map((edge) => ({
+        fromSectionId: edge.from_section_id,
+        fromConnectionId: edge.from_connection_id,
+        toSectionId: edge.to_section_id,
+        toConnectionId: edge.to_connection_id,
+      })),
+    },
+    generationState: db.generation_state ?? {},
+    presentationState: db.presentation_state ?? {},
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
+  };
+}
+
+export function dbProcgenSectionToDungeonSectionRecord(
+  db: DbProcgenSection
+): DungeonSectionRecord {
+  return {
+    id: db.id,
+    campaignId: db.campaign_id,
+    sectionId: db.section_id,
+    name: db.name,
+    state: db.state,
+    primaryBiomeId: db.primary_biome_id,
+    secondaryBiomeIds: db.secondary_biome_ids ?? [],
+    layoutType: db.layout_type,
+    grid: {
+      width: db.grid?.width ?? 100,
+      height: db.grid?.height ?? 100,
+      tileSizeFt: db.grid?.tile_size_ft ?? 5,
+    },
+    roomIds: db.room_ids ?? [],
+    entranceConnectionIds: db.entrance_connection_ids ?? [],
+    exitConnectionIds: db.exit_connection_ids ?? [],
+    generationState: db.generation_state ?? {},
+    presentationState: db.presentation_state ?? {},
+    overrideState: db.override_state ?? {},
+    renderPayloadCache: db.render_payload_cache,
+    lockedAt: db.locked_at,
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
+  };
+}
+
+export function dbProcgenRoomStateToRoomStateRecord(db: DbProcgenRoomState): RoomStateRecord {
+  return {
+    id: db.id,
+    campaignId: db.campaign_id,
+    sectionId: db.section_id,
+    roomId: db.room_id,
+    state: db.state,
+    canonicalState: db.canonical_state ?? {},
+    runtimeState: db.runtime_state ?? {},
+    presentationState: db.presentation_state ?? {},
+    overrideState: db.override_state ?? {},
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
+  };
+}
+
+export function dbProcgenOverrideToGMOverrideRecord(db: DbProcgenOverride): GMOverrideRecord {
+  return {
+    id: db.id,
+    campaignId: db.campaign_id,
+    sectionId: db.section_id,
+    roomStateId: db.room_state_id,
+    targetType: db.target_type,
+    targetId: db.target_id,
+    patchType: db.patch_type,
+    payload: db.payload ?? {},
+    author: db.author,
+    appliedAt: db.applied_at,
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
+  };
+}
+
+export function dbProcgenSectionPreviewToProcgenSectionPreviewRecord(
+  db: DbProcgenSectionPreview
+): ProcgenSectionPreviewRecord {
+  return {
+    id: db.id,
+    campaignId: db.campaign_id,
+    fromSectionId: db.from_section_id,
+    sectionStubId: db.section_stub_id,
+    direction: db.direction,
+    previewState: db.preview_state ?? {},
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
+  };
+}
+
+export function dbSharedAssetToSharedAssetRecord(db: DbSharedAsset): SharedAssetRecord {
+  return {
+    id: db.id,
+    assetKey: db.asset_key,
+    assetType: db.asset_type,
+    generationStatus: db.generation_status,
+    promptVersion: db.prompt_version,
+    sourceFingerprint: db.source_fingerprint,
+    storageUrl: db.storage_url,
+    metadata: db.metadata ?? {},
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
   };
 }
 

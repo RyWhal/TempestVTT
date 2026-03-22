@@ -1,5 +1,8 @@
 export type ProcgenLockState = 'unseen' | 'preview' | 'locked';
 export type SectionKind = 'exploration' | 'settlement';
+export type CardinalDirection = 'north' | 'south' | 'east' | 'west';
+export type OverviewViewer = 'gm' | 'player';
+export type OverviewNodeState = 'visited' | 'known_unvisited' | 'preview';
 export type SectionLayoutType =
   | 'single_chamber'
   | 'linear_path'
@@ -59,6 +62,68 @@ export interface GeneratedSection {
   connections: GeneratedSectionConnection[];
   entranceRoomIds: string[];
   exitRoomIds: string[];
+}
+
+export interface SectionRenderRect {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface SectionRenderLine {
+  id: string;
+  points: [number, number, number, number];
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface SectionRenderMarker {
+  id: string;
+  kind: 'entrance' | 'exit';
+  x: number;
+  y: number;
+  radius: number;
+  fill: string;
+}
+
+export interface SectionRenderAtmosphere {
+  color: string;
+  opacity: number;
+}
+
+export interface SectionRenderPayload {
+  width: number;
+  height: number;
+  tileSizePx: number;
+  backgroundColor: string;
+  floors: SectionRenderRect[];
+  walls: SectionRenderLine[];
+  markers: SectionRenderMarker[];
+  doors?: SectionRenderLine[];
+  hazards?: SectionRenderRect[];
+  objects?: SectionRenderRect[];
+  atmosphere?: SectionRenderAtmosphere | null;
+}
+
+export interface OverviewNode {
+  sectionId: string;
+  label: string;
+  x: number;
+  y: number;
+  state: OverviewNodeState;
+  visitIndex: number | null;
+}
+
+export interface OverviewEdge {
+  id: string;
+  fromSectionId: string;
+  toSectionId: string;
+  state: 'available' | 'blocked' | 'preview';
 }
 
 export interface ProcgenIdentifiedRecord {

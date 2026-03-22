@@ -1,8 +1,15 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Castle, Compass, LibraryBig } from 'lucide-react';
 import { Button } from '../shared/Button';
+import { useSessionStore } from '../../stores/sessionStore';
 
 export const DunGENHome: React.FC = () => {
+  const navigate = useNavigate();
+  const session = useSessionStore((state) => state.session);
+  const currentUser = useSessionStore((state) => state.currentUser);
+  const canOpenCampaign = Boolean(session && currentUser);
+
   return (
     <div className="space-y-10">
       <header className="space-y-4">
@@ -28,8 +35,8 @@ export const DunGENHome: React.FC = () => {
             Start a seeded campaign, choose tone and difficulty, and generate your
             first preview section.
           </p>
-          <Button variant="primary" disabled>
-            Create Campaign
+          <Button variant="primary" disabled={!canOpenCampaign} onClick={() => navigate('/DunGEN/campaign')}>
+            {canOpenCampaign ? 'Open Campaign Surface' : 'Join Session First'}
           </Button>
         </div>
 
@@ -40,7 +47,7 @@ export const DunGENHome: React.FC = () => {
             Open a DunGEN campaign hub to review locked canon, history, and upcoming
             sections.
           </p>
-          <Button variant="secondary" disabled>
+          <Button variant="secondary" disabled={!canOpenCampaign} onClick={() => navigate('/DunGEN/campaign')}>
             Resume Campaign
           </Button>
         </div>

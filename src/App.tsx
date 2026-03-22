@@ -11,6 +11,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AssetCreate } from './components/admin/AssetCreate';
 import { DunGENLayout } from './components/dungen/DunGENLayout';
 import { DunGENHome } from './components/dungen/DunGENHome';
+import { DunGENCampaignView } from './components/dungen/DunGENCampaignView';
 import { useSessionStore } from './stores/sessionStore';
 import { useSession } from './hooks/useSession';
 import { useRealtime } from './hooks/useRealtime';
@@ -75,6 +76,7 @@ const AppContent: React.FC = () => {
       <Route path="/" element={<Home />} />
       <Route path="/DunGEN" element={<DunGENLayout />}>
         <Route index element={<DunGENHome />} />
+        <Route path="campaign" element={<DunGENCampaignView />} />
       </Route>
       <Route path="/create" element={<SessionCreate />} />
       <Route path="/join" element={<SessionJoin />} />
