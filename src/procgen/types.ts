@@ -61,6 +61,52 @@ export interface GeneratedSection {
   exitRoomIds: string[];
 }
 
+export interface SectionRenderRect {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface SectionRenderLine {
+  id: string;
+  points: [number, number, number, number];
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface SectionRenderMarker {
+  id: string;
+  kind: 'entrance' | 'exit';
+  x: number;
+  y: number;
+  radius: number;
+  fill: string;
+}
+
+export interface SectionRenderAtmosphere {
+  color: string;
+  opacity: number;
+}
+
+export interface SectionRenderPayload {
+  width: number;
+  height: number;
+  tileSizePx: number;
+  backgroundColor: string;
+  floors: SectionRenderRect[];
+  walls: SectionRenderLine[];
+  markers: SectionRenderMarker[];
+  doors?: SectionRenderLine[];
+  hazards?: SectionRenderRect[];
+  objects?: SectionRenderRect[];
+  atmosphere?: SectionRenderAtmosphere | null;
+}
+
 export interface ProcgenIdentifiedRecord {
   id: string;
   name?: string;
