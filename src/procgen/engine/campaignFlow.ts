@@ -13,7 +13,7 @@ import type {
 import { generateSection } from './sectionGenerator';
 
 const START_SECTION_ID = 'section_start_village';
-const START_VILLAGE_NAME = 'Bellrest';
+const START_VILLAGE_NAME = 'Hometown';
 const START_VILLAGE_WORLD_SEED = 'dungen-starting-village-v1';
 const CARDINAL_DIRECTIONS: CardinalDirection[] = ['north', 'south', 'east', 'west'];
 

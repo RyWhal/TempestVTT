@@ -73,6 +73,8 @@ export interface SectionRenderRect {
   fill: string;
   stroke?: string;
   strokeWidth?: number;
+  regionType?: 'room' | 'connector' | 'courtyard' | 'street';
+  materialKey?: string;
 }
 
 export interface SectionRenderLine {
@@ -80,6 +82,8 @@ export interface SectionRenderLine {
   points: [number, number, number, number];
   stroke: string;
   strokeWidth: number;
+  surfaceType?: 'wall' | 'threshold';
+  materialKey?: string;
 }
 
 export interface SectionRenderMarker {
@@ -89,6 +93,7 @@ export interface SectionRenderMarker {
   y: number;
   radius: number;
   fill: string;
+  materialKey?: string;
 }
 
 export interface SectionRenderAtmosphere {

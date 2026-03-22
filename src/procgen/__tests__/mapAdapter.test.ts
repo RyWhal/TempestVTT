@@ -18,10 +18,30 @@ describe('buildSectionRenderPayload', () => {
 
     expect(payload.width).toBe(section.grid.width * payload.tileSizePx);
     expect(payload.height).toBe(section.grid.height * payload.tileSizePx);
-    expect(payload.floors.length).toBe(section.rooms.length);
+    expect(payload.floors.length).toBeGreaterThanOrEqual(section.rooms.length);
     expect(payload.walls.length).toBeGreaterThan(0);
     expect(payload.markers.some((marker) => marker.kind === 'entrance')).toBe(true);
     expect(payload.markers.some((marker) => marker.kind === 'exit')).toBe(true);
+  });
+
+  it('adds connector floors and texture-friendly material hooks for settlement sections', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_render_settlement_001',
+      sectionKind: 'settlement',
+    });
+
+    const payload = buildSectionRenderPayload(section);
+    const connectorFloors = payload.floors.filter(
+      (floor) => floor.regionType === 'connector' || floor.regionType === 'street'
+    );
+    const streetLikeFloors = payload.floors.filter((floor) => floor.materialKey?.includes('street'));
+    const thresholdDoors = payload.doors?.filter((door) => door.surfaceType === 'threshold') ?? [];
+
+    expect(connectorFloors.length).toBeGreaterThan(0);
+    expect(streetLikeFloors.length).toBeGreaterThan(0);
+    expect(thresholdDoors.length).toBeGreaterThan(0);
+    expect(payload.floors.every((floor) => typeof floor.materialKey === 'string')).toBe(true);
   });
 });
 

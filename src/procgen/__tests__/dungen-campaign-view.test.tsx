@@ -21,6 +21,6 @@ describe('DunGENCampaignView', () => {
     expect(html).toContain('Visited Sections');
     expect(html).toContain('Overview');
     expect(html).toContain('Campaign Book');
-    expect(html).toContain('Bellrest');
+    expect(html).toContain('Hometown');
   });
 });

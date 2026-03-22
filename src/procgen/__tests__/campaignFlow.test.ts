@@ -20,7 +20,7 @@ describe('campaignFlow', () => {
 
     const startingSection = snapshot.sections[0];
     expect(startingSection.state).toBe('locked');
-    expect(startingSection.name).toBe('Bellrest');
+    expect(startingSection.name).toBe('Hometown');
     expect(startingSection.generationState.visitIndex).toBe(0);
 
     const previewDirections = snapshot.previews.map((preview) => preview.direction).sort();
@@ -29,6 +29,25 @@ describe('campaignFlow', () => {
     for (const preview of snapshot.previews) {
       expect(preview.previewState.playerVisibility).toBe('known_unvisited');
     }
+  });
+
+  it('keeps the starter village structurally fixed even when the campaign world seed changes', () => {
+    const first = createStarterCampaignSnapshot({
+      sessionId: 'session_001',
+      campaignName: 'The Bloom Beneath',
+      worldSeed: 'world_ironbell_042',
+    });
+    const second = createStarterCampaignSnapshot({
+      sessionId: 'session_002',
+      campaignName: 'The Bloom Beneath',
+      worldSeed: 'world_ashenroot_777',
+    });
+
+    expect(first.sections[0].name).toBe('Hometown');
+    expect(second.sections[0].name).toBe('Hometown');
+    expect(first.sections[0].generationState.generatedSection).toEqual(
+      second.sections[0].generationState.generatedSection
+    );
   });
 
   it('promotes a visited preview into a locked section and only generates outward branches', () => {
