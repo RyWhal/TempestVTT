@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle } from 'react-konva';
 import useImage from 'use-image';
 import {
   ZoomIn,
@@ -25,6 +25,7 @@ import { MapEffectsLayer } from './MapEffectsLayer';
 import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile } from '../../types';
 import { isDrawingColor } from '../../types';
 import { nanoid } from 'nanoid';
+import { normalizeSectionRenderPayload } from '../../procgen/integration/mapAdapter';
 
 const TOKEN_SIZE_ORDER: TokenSize[] = [
   'tiny',
@@ -84,6 +85,13 @@ export const MapCanvas: React.FC = () => {
   const canDrawOnMap = isGM || Boolean(session?.allowPlayersDrawings);
 
   const [mapImage] = useImage(activeMap?.imageUrl || '');
+  const generatedRenderPayload = useMemo(() => {
+    if (activeMap?.sourceType !== 'generated' || !activeMap.generatedRenderPayload) {
+      return null;
+    }
+
+    return normalizeSectionRenderPayload(activeMap.generatedRenderPayload);
+  }, [activeMap]);
   const [currentFogStroke, setCurrentFogStroke] = useState<{ x: number; y: number }[]>([]);
   const [isPainting, setIsPainting] = useState(false);
   const [rectStart, setRectStart] = useState<{ x: number; y: number } | null>(null);
@@ -126,12 +134,15 @@ export const MapCanvas: React.FC = () => {
 
   // Fit map to view when map changes or image loads
   useEffect(() => {
-    if (activeMap && stageWidth > 0 && stageHeight > 0 && mapImage) {
+    const hasRenderableSurface =
+      Boolean(mapImage) || (activeMap?.sourceType === 'generated' && Boolean(generatedRenderPayload));
+
+    if (activeMap && stageWidth > 0 && stageHeight > 0 && hasRenderableSurface) {
       // Small delay to ensure stage size is properly set
       const timer = setTimeout(() => fitMapToView(), 100);
       return () => clearTimeout(timer);
     }
-  }, [activeMap?.id, mapImage, stageWidth, stageHeight, fitMapToView]);
+  }, [activeMap?.id, activeMap?.sourceType, generatedRenderPayload, mapImage, stageWidth, stageHeight, fitMapToView]);
 
   useEffect(() => {
     setCurrentDrawing(null);
@@ -785,12 +796,91 @@ export const MapCanvas: React.FC = () => {
           >
             {/* Map image layer */}
             <Layer>
-              <KonvaImage
-                image={mapImage}
-                width={activeMap.width}
-                height={activeMap.height}
-                name="background"
-              />
+              {activeMap.sourceType === 'generated' && generatedRenderPayload ? (
+                <>
+                  <Rect
+                    x={0}
+                    y={0}
+                    width={generatedRenderPayload.width}
+                    height={generatedRenderPayload.height}
+                    fill={generatedRenderPayload.backgroundColor}
+                    name="background"
+                  />
+                  {generatedRenderPayload.floors.map((floor) => (
+                    <Rect
+                      key={floor.id}
+                      x={floor.x}
+                      y={floor.y}
+                      width={floor.width}
+                      height={floor.height}
+                      fill={floor.fill}
+                      stroke={floor.stroke}
+                      strokeWidth={floor.strokeWidth}
+                      name="background"
+                    />
+                  ))}
+                  {generatedRenderPayload.hazards?.map((hazard) => (
+                    <Rect
+                      key={hazard.id}
+                      x={hazard.x}
+                      y={hazard.y}
+                      width={hazard.width}
+                      height={hazard.height}
+                      fill={hazard.fill}
+                      opacity={0.4}
+                      listening={false}
+                    />
+                  ))}
+                  {generatedRenderPayload.objects?.map((objectRect) => (
+                    <Rect
+                      key={objectRect.id}
+                      x={objectRect.x}
+                      y={objectRect.y}
+                      width={objectRect.width}
+                      height={objectRect.height}
+                      fill={objectRect.fill}
+                      stroke={objectRect.stroke}
+                      strokeWidth={objectRect.strokeWidth}
+                      listening={false}
+                    />
+                  ))}
+                  {generatedRenderPayload.walls.map((wall) => (
+                    <Line
+                      key={wall.id}
+                      points={wall.points}
+                      stroke={wall.stroke}
+                      strokeWidth={wall.strokeWidth}
+                      listening={false}
+                    />
+                  ))}
+                  {generatedRenderPayload.doors?.map((door) => (
+                    <Line
+                      key={door.id}
+                      points={door.points}
+                      stroke={door.stroke}
+                      strokeWidth={door.strokeWidth}
+                      listening={false}
+                    />
+                  ))}
+                  {generatedRenderPayload.markers.map((marker) => (
+                    <Circle
+                      key={marker.id}
+                      x={marker.x}
+                      y={marker.y}
+                      radius={marker.radius}
+                      fill={marker.fill}
+                      listening={false}
+                    />
+                  ))}
+                </>
+              ) : (
+                <KonvaImage
+                  image={mapImage}
+                  width={activeMap.width}
+                  height={activeMap.height}
+                  name="background"
+                />
+              )}
             </Layer>
 
             {/* Grid overlay */}

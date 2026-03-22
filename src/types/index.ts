@@ -1,6 +1,8 @@
 // types/index.ts - TypeScript type definitions for Tempest Table
+import type { SectionRenderPayload } from '../procgen/types';
 
 export type TokenSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
+export type MapSourceType = 'uploaded' | 'generated';
 
 export const TOKEN_SIZE_MULTIPLIERS: Record<TokenSize, number> = {
   tiny: 0.5,      // Half a grid square
@@ -40,6 +42,9 @@ export interface SessionPlayer {
 export interface Map {
   id: string;
   sessionId: string;
+  sourceType: MapSourceType;
+  generatedSectionId: string | null;
+  generatedRenderPayload: SectionRenderPayload | null;
   name: string;
   imageUrl: string;
   width: number;
@@ -715,6 +720,9 @@ export function dbMapToMap(db: DbMap): Map {
   return {
     id: db.id,
     sessionId: db.session_id,
+    sourceType: 'uploaded',
+    generatedSectionId: null,
+    generatedRenderPayload: null,
     name: db.name,
     imageUrl: db.image_url,
     width: db.width,
