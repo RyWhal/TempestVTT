@@ -1,5 +1,8 @@
 export type ProcgenLockState = 'unseen' | 'preview' | 'locked';
 export type SectionKind = 'exploration' | 'settlement';
+export type CardinalDirection = 'north' | 'south' | 'east' | 'west';
+export type OverviewViewer = 'gm' | 'player';
+export type OverviewNodeState = 'visited' | 'known_unvisited' | 'preview';
 export type SectionLayoutType =
   | 'single_chamber'
   | 'linear_path'
@@ -105,6 +108,22 @@ export interface SectionRenderPayload {
   hazards?: SectionRenderRect[];
   objects?: SectionRenderRect[];
   atmosphere?: SectionRenderAtmosphere | null;
+}
+
+export interface OverviewNode {
+  sectionId: string;
+  label: string;
+  x: number;
+  y: number;
+  state: OverviewNodeState;
+  visitIndex: number | null;
+}
+
+export interface OverviewEdge {
+  id: string;
+  fromSectionId: string;
+  toSectionId: string;
+  state: 'available' | 'blocked' | 'preview';
 }
 
 export interface ProcgenIdentifiedRecord {
