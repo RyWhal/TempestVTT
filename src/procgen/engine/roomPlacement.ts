@@ -83,8 +83,8 @@ const placeRoomInSlot = (
     max_h: slot.height,
   };
 
-  const densityFloor = sectionKind === 'settlement' ? 0.96 : 0.8;
-  const densityRange = sectionKind === 'settlement' ? 0.03 : 0.18;
+  const densityFloor = sectionKind === 'settlement' ? 0.84 : 0.8;
+  const densityRange = sectionKind === 'settlement' ? 0.1 : 0.18;
   const targetWidth = clampDimension(
     Math.floor(slot.width * (densityFloor + nextRandom() * densityRange)),
     footprint.min_w,
