@@ -16,8 +16,9 @@ describe('buildSectionRenderPayload', () => {
 
     const payload = buildSectionRenderPayload(section);
 
-    expect(payload.width).toBe(section.grid.width * payload.tileSizePx);
-    expect(payload.height).toBe(section.grid.height * payload.tileSizePx);
+    expect(payload.tileSizePx).toBe(28);
+    expect(payload.width).toBe(2100);
+    expect(payload.height).toBe(2100);
     expect(payload.floors.length).toBeGreaterThanOrEqual(section.rooms.length);
     expect(payload.walls.length).toBeGreaterThan(0);
     expect(payload.markers.some((marker) => marker.kind === 'entrance')).toBe(true);
@@ -42,6 +43,37 @@ describe('buildSectionRenderPayload', () => {
     expect(streetLikeFloors.length).toBeGreaterThan(0);
     expect(thresholdDoors.length).toBeGreaterThan(0);
     expect(payload.floors.every((floor) => typeof floor.materialKey === 'string')).toBe(true);
+  });
+
+  it('snaps north-south connectors to tile columns instead of grid lines', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_render_vertical_alignment_001',
+      sectionKind: 'settlement',
+    });
+
+    const payload = buildSectionRenderPayload(section);
+    const verticalStreet = payload.floors.find(
+      (floor) => floor.regionType === 'street' && floor.height > floor.width
+    );
+
+    expect(verticalStreet).toBeDefined();
+    expect((verticalStreet?.x ?? 0) % payload.tileSizePx).toBe(0);
+    expect((verticalStreet?.width ?? 0) % payload.tileSizePx).toBe(0);
+  });
+
+  it('renders corridor primitives as wider segment floors instead of single thin links', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_render_corridor_segments_001',
+      sectionKind: 'exploration',
+    });
+
+    const payload = buildSectionRenderPayload(section);
+    const corridorFloors = payload.floors.filter((floor) => floor.regionType === 'connector');
+
+    expect(corridorFloors.length).toBeGreaterThan(0);
+    expect(corridorFloors.every((floor) => floor.width >= payload.tileSizePx * 2 || floor.height >= payload.tileSizePx * 2)).toBe(true);
   });
 });
 

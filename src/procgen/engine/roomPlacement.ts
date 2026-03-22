@@ -47,11 +47,41 @@ const choosePrimitiveForSlot = (
   });
 
   const ranked = eligible.sort((left, right) => {
+    const familyScore = (primitive: RoomPrimitive) => {
+      const family = primitive.family ?? 'square';
+      const tags = slot.tags ?? [];
+
+      if (tags.includes('courtyard') || tags.includes('hub') || tags.includes('landmark')) {
+        if (family === 'circle' || family === 'oval' || family === 'polygon') {
+          return 40;
+        }
+      }
+
+      if (tags.includes('service') || tags.includes('street_edge')) {
+        if (family === 'rectangle') {
+          return 30;
+        }
+      }
+
+      if (tags.includes('residence')) {
+        if (family === 'rectangle' || family === 'square') {
+          return 20;
+        }
+      }
+
+      return family === 'square' ? 0 : 10;
+    };
+
     const leftFootprint = left.grid_footprint;
     const rightFootprint = right.grid_footprint;
 
     const leftArea = leftFootprint ? leftFootprint.max_w * leftFootprint.max_h : 0;
     const rightArea = rightFootprint ? rightFootprint.max_w * rightFootprint.max_h : 0;
+
+    const familyDelta = familyScore(right) - familyScore(left);
+    if (familyDelta !== 0) {
+      return familyDelta;
+    }
 
     if (sectionKind === 'settlement') {
       return rightArea - leftArea;

@@ -1,5 +1,6 @@
 import type {
   GeneratedSection,
+  GeneratedSectionConnector,
   GeneratedSectionRoom,
   SectionRenderLine,
   SectionRenderMarker,
@@ -7,7 +8,10 @@ import type {
   SectionRenderRect,
 } from '../types';
 
-const DEFAULT_TILE_SIZE_PX = 70;
+const DEFAULT_TILE_SIZE_PX = 28;
+
+const alignToTile = (value: number, tileSizePx: number) =>
+  Math.round(value / tileSizePx) * tileSizePx;
 
 const getRoomMaterialKey = (room: GeneratedSectionRoom, section: GeneratedSection) => {
   if (section.sectionKind === 'settlement') {
@@ -127,59 +131,24 @@ const buildConnectionDoor = (
   };
 };
 
-const buildConnectorFloor = (
-  fromRoom: GeneratedSectionRoom,
-  toRoom: GeneratedSectionRoom,
+const connectorToFloorRects = (
+  connector: GeneratedSectionConnector,
   tileSizePx: number,
   section: GeneratedSection
-): SectionRenderRect => {
-  const fromCenter = getRoomCenter(fromRoom, tileSizePx);
-  const toCenter = getRoomCenter(toRoom, tileSizePx);
-  const horizontal = Math.abs(toCenter.x - fromCenter.x) >= Math.abs(toCenter.y - fromCenter.y);
-  const connectorWidth = section.sectionKind === 'settlement' ? tileSizePx * 0.9 : tileSizePx * 0.6;
-
-  if (horizontal) {
-    const startX =
-      fromCenter.x < toCenter.x
-        ? (fromRoom.bounds.x + fromRoom.bounds.width) * tileSizePx
-        : (toRoom.bounds.x + toRoom.bounds.width) * tileSizePx;
-    const endX =
-      fromCenter.x < toCenter.x
-        ? toRoom.bounds.x * tileSizePx
-        : fromRoom.bounds.x * tileSizePx;
-
-    return {
-      id: `connector_${fromRoom.roomId}_${toRoom.roomId}`,
-      x: startX,
-      y: Math.min(fromCenter.y, toCenter.y) - connectorWidth / 2,
-      width: Math.max(connectorWidth, endX - startX),
-      height: connectorWidth,
-      fill: section.sectionKind === 'settlement' ? '#4d453c' : '#544635',
-      regionType: section.sectionKind === 'settlement' ? 'street' : 'connector',
-      materialKey: section.sectionKind === 'settlement' ? 'settlement_street_flagstone' : 'dungeon_corridor_floor',
-    };
-  }
-
-  const startY =
-    fromCenter.y < toCenter.y
-      ? (fromRoom.bounds.y + fromRoom.bounds.height) * tileSizePx
-      : (toRoom.bounds.y + toRoom.bounds.height) * tileSizePx;
-  const endY =
-    fromCenter.y < toCenter.y
-      ? toRoom.bounds.y * tileSizePx
-      : fromRoom.bounds.y * tileSizePx;
-
-  return {
-    id: `connector_${fromRoom.roomId}_${toRoom.roomId}`,
-    x: Math.min(fromCenter.x, toCenter.x) - connectorWidth / 2,
-    y: startY,
-    width: connectorWidth,
-    height: Math.max(connectorWidth, endY - startY),
+): SectionRenderRect[] =>
+  connector.segmentBounds.map((segment, index) => ({
+    id: `${connector.connectorId}_${index}`,
+    x: alignToTile(segment.x * tileSizePx, tileSizePx),
+    y: alignToTile(segment.y * tileSizePx, tileSizePx),
+    width: Math.max(tileSizePx, alignToTile(segment.width * tileSizePx, tileSizePx)),
+    height: Math.max(tileSizePx, alignToTile(segment.height * tileSizePx, tileSizePx)),
     fill: section.sectionKind === 'settlement' ? '#4d453c' : '#544635',
     regionType: section.sectionKind === 'settlement' ? 'street' : 'connector',
-    materialKey: section.sectionKind === 'settlement' ? 'settlement_street_flagstone' : 'dungeon_corridor_floor',
-  };
-};
+    materialKey:
+      section.sectionKind === 'settlement'
+        ? 'settlement_street_flagstone'
+        : 'dungeon_corridor_floor',
+  }));
 
 const buildMarkers = (
   section: GeneratedSection,
@@ -221,16 +190,9 @@ export const buildSectionRenderPayload = (
   tileSizePx = DEFAULT_TILE_SIZE_PX
 ): SectionRenderPayload => {
   const roomById = new Map(section.rooms.map((room) => [room.roomId, room]));
-  const connectorFloors = section.connections.flatMap((connection) => {
-    const fromRoom = roomById.get(connection.fromRoomId);
-    const toRoom = roomById.get(connection.toRoomId);
-
-    if (!fromRoom || !toRoom) {
-      return [];
-    }
-
-    return [buildConnectorFloor(fromRoom, toRoom, tileSizePx, section)];
-  });
+  const connectorFloors = section.connectors.flatMap((connector) =>
+    connectorToFloorRects(connector, tileSizePx, section)
+  );
 
   return {
     width: section.grid.width * tileSizePx,
