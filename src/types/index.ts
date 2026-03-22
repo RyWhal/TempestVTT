@@ -1,4 +1,4 @@
-// types/index.ts - TypeScript type definitions for Stormlight VTT
+// types/index.ts - TypeScript type definitions for Tempest Table
 
 export type TokenSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
 
@@ -18,6 +18,11 @@ export interface Session {
   activeMapId: string | null;
   currentGmUsername: string | null;
   notepadContent: string;
+  allowPlayersRenameNpcs: boolean;
+  allowPlayersMoveNpcs: boolean;
+  enableInitiativePhase: boolean;
+  enablePlotDice: boolean;
+  allowPlayersDrawings: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +33,7 @@ export interface SessionPlayer {
   username: string;
   characterId: string | null;
   isGm: boolean;
+  initiativeModifier: number;
   lastSeen: string;
 }
 
@@ -52,8 +58,24 @@ export interface Map {
   fogEnabled: boolean;
   fogDefaultState: 'fogged' | 'revealed';
   fogData: FogRegion[];
+  drawingData: DrawingRegion[];
+  effectsEnabled: boolean;
+  effectData: MapEffectTile[];
 
   showPlayerTokens: boolean;
+}
+
+export type HandoutKind = 'image' | 'text';
+
+export interface Handout {
+  id: string;
+  sessionId: string;
+  title: string;
+  kind: HandoutKind;
+  imageUrl: string | null;
+  body: string | null;
+  sortOrder: number;
+  createdAt: string;
 }
 
 export interface FogRegion {
@@ -62,11 +84,66 @@ export interface FogRegion {
   brushSize: number;
 }
 
+export type DrawingShape = 'free' | 'line' | 'square' | 'circle' | 'triangle' | 'emoji';
+export type DrawingAuthorRole = 'gm' | 'player';
+export type MapEffectType = 'fire' | 'poison' | 'water' | 'ice' | 'arcane' | 'darkness';
+
+export interface MapEffectTile {
+  id: string;
+  gridX: number;
+  gridY: number;
+  type: MapEffectType;
+  seed: number;
+}
+
+export const DRAWING_COLORS = {
+  black: '#000000',
+  white: '#ffffff',
+  red: '#ef4444',
+  blue: '#3b82f6',
+  green: '#22c55e',
+  yellow: '#eab308',
+  brown: '#92400e',
+  gray: '#6b7280',
+} as const;
+
+export type DrawingColor = (typeof DRAWING_COLORS)[keyof typeof DRAWING_COLORS];
+
+export const DRAWING_COLOR_OPTIONS: Array<{ label: string; value: DrawingColor }> = [
+  { label: 'Black', value: DRAWING_COLORS.black },
+  { label: 'White', value: DRAWING_COLORS.white },
+  { label: 'Red', value: DRAWING_COLORS.red },
+  { label: 'Blue', value: DRAWING_COLORS.blue },
+  { label: 'Green', value: DRAWING_COLORS.green },
+  { label: 'Yellow', value: DRAWING_COLORS.yellow },
+  { label: 'Brown', value: DRAWING_COLORS.brown },
+  { label: 'Gray', value: DRAWING_COLORS.gray },
+];
+
+export const isDrawingColor = (value: string): value is DrawingColor => {
+  return Object.values(DRAWING_COLORS).includes(value as DrawingColor);
+};
+
+export interface DrawingRegion {
+  id: string;
+  authorRole: DrawingAuthorRole;
+  shape: DrawingShape;
+  points: { x: number; y: number }[];
+  strokeWidth: number;
+  color: DrawingColor;
+  filled: boolean;
+  emoji?: string;
+  emojiScale?: number;
+  createdAt: string;
+}
+
 export interface Character {
   id: string;
   sessionId: string;
   name: string;
   tokenUrl: string | null;
+  size: TokenSize;
+  statusRingColor: string | null;
   positionX: number;
   positionY: number;
   isClaimed: boolean;
@@ -99,6 +176,7 @@ export interface NPCInstance {
   displayName: string | null;
   tokenUrl: string | null;
   size: TokenSize | null;
+  statusRingColor: string | null;
   positionX: number;
   positionY: number;
   isVisible: boolean;
@@ -140,6 +218,43 @@ export interface ChatMessage {
 }
 
 export type RollVisibility = 'public' | 'gm_only' | 'self';
+
+export type InitiativePhase = 'fast' | 'slow';
+export type InitiativeVisibility = 'public' | 'gm_only';
+
+export interface InitiativeEntry {
+  id: string;
+  sessionId: string;
+  sourceType: 'player' | 'npc';
+  sourceId: string | null;
+  sourceName: string;
+  rolledByUsername: string;
+  modifier: number;
+  rollValue: number | null;
+  total: number | null;
+  phase: InitiativePhase;
+  visibility: InitiativeVisibility;
+  isManualOverride: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InitiativeRollLog {
+  id: string;
+  sessionId: string;
+  sourceType: 'player' | 'npc';
+  sourceId: string | null;
+  sourceName: string;
+  rolledByUsername: string;
+  phase: InitiativePhase;
+  visibility: InitiativeVisibility;
+  modifier: number;
+  rollValue: number;
+  total: number;
+  entryId: string | null;
+  createdAt: string;
+}
 
 // Session export/import types
 export interface SessionExport {
@@ -200,6 +315,11 @@ export interface DbSession {
   active_map_id: string | null;
   current_gm_username: string | null;
   notepad_content: string;
+  allow_players_rename_npcs: boolean;
+  allow_players_move_npcs: boolean;
+  enable_initiative_phase: boolean;
+  enable_plot_dice: boolean;
+  allow_players_drawings: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -210,6 +330,7 @@ export interface DbSessionPlayer {
   username: string;
   character_id: string | null;
   is_gm: boolean;
+  initiative_modifier: number;
   last_seen: string;
 }
 
@@ -230,6 +351,9 @@ export interface DbMap {
   fog_enabled: boolean;
   fog_default_state: 'fogged' | 'revealed';
   fog_data: FogRegion[];
+  drawing_data: DrawingRegion[];
+  effects_enabled: boolean;
+  effect_data: MapEffectTile[];
   show_player_tokens: boolean;
 }
 
@@ -238,6 +362,8 @@ export interface DbCharacter {
   session_id: string;
   name: string;
   token_url: string | null;
+  size: TokenSize | null;
+  status_ring_color: string | null;
   position_x: number;
   position_y: number;
   is_claimed: boolean;
@@ -257,13 +383,26 @@ export interface DbNPCTemplate {
   created_at: string;
 }
 
+export interface DbHandout {
+  id: string;
+  session_id: string;
+  title: string;
+  kind: HandoutKind;
+  image_url: string | null;
+  body: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
 export interface DbNPCInstance {
   id: string;
+  session_id: string;
   map_id: string;
   template_id: string | null;
   display_name: string | null;
   token_url: string | null;
   size: TokenSize | null;
+  status_ring_color: string | null;
   position_x: number;
   position_y: number;
   is_visible: boolean;
@@ -280,6 +419,40 @@ export interface DbDiceRoll {
   roll_results: RollResults;
   visibility: RollVisibility;
   plot_dice_results: PlotDieResult[] | null;
+  created_at: string;
+}
+
+export interface DbInitiativeEntry {
+  id: string;
+  session_id: string;
+  source_type: 'player' | 'npc';
+  source_id: string | null;
+  source_name: string;
+  rolled_by_username: string;
+  modifier: number;
+  roll_value: number | null;
+  total: number | null;
+  phase: InitiativePhase;
+  visibility: InitiativeVisibility;
+  is_manual_override: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbInitiativeRollLog {
+  id: string;
+  session_id: string;
+  source_type: 'player' | 'npc';
+  source_id: string | null;
+  source_name: string;
+  rolled_by_username: string;
+  phase: InitiativePhase;
+  visibility: InitiativeVisibility;
+  modifier: number;
+  roll_value: number;
+  total: number;
+  entry_id: string | null;
   created_at: string;
 }
 
@@ -301,6 +474,11 @@ export function dbSessionToSession(db: DbSession): Session {
     activeMapId: db.active_map_id,
     currentGmUsername: db.current_gm_username,
     notepadContent: db.notepad_content,
+    allowPlayersRenameNpcs: db.allow_players_rename_npcs ?? true,
+    allowPlayersMoveNpcs: db.allow_players_move_npcs ?? true,
+    enableInitiativePhase: db.enable_initiative_phase ?? true,
+    enablePlotDice: db.enable_plot_dice ?? true,
+    allowPlayersDrawings: db.allow_players_drawings ?? true,
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };
@@ -324,6 +502,9 @@ export function dbMapToMap(db: DbMap): Map {
     fogEnabled: db.fog_enabled,
     fogDefaultState: db.fog_default_state,
     fogData: db.fog_data || [],
+    drawingData: db.drawing_data || [],
+    effectsEnabled: db.effects_enabled ?? false,
+    effectData: db.effect_data || [],
     showPlayerTokens: db.show_player_tokens,
   };
 }
@@ -334,6 +515,8 @@ export function dbCharacterToCharacter(db: DbCharacter): Character {
     sessionId: db.session_id,
     name: db.name,
     tokenUrl: db.token_url,
+    size: db.size || 'medium',
+    statusRingColor: db.status_ring_color,
     positionX: db.position_x,
     positionY: db.position_y,
     isClaimed: db.is_claimed,
@@ -356,6 +539,19 @@ export function dbNPCTemplateToNPCTemplate(db: DbNPCTemplate): NPCTemplate {
   };
 }
 
+export function dbHandoutToHandout(db: DbHandout): Handout {
+  return {
+    id: db.id,
+    sessionId: db.session_id,
+    title: db.title,
+    kind: db.kind,
+    imageUrl: db.image_url,
+    body: db.body,
+    sortOrder: db.sort_order,
+    createdAt: db.created_at,
+  };
+}
+
 export function dbNPCInstanceToNPCInstance(db: DbNPCInstance): NPCInstance {
   return {
     id: db.id,
@@ -364,6 +560,7 @@ export function dbNPCInstanceToNPCInstance(db: DbNPCInstance): NPCInstance {
     displayName: db.display_name,
     tokenUrl: db.token_url,
     size: db.size,
+    statusRingColor: db.status_ring_color,
     positionX: db.position_x,
     positionY: db.position_y,
     isVisible: db.is_visible,
@@ -386,6 +583,44 @@ export function dbDiceRollToDiceRoll(db: DbDiceRoll): DiceRoll {
   };
 }
 
+export function dbInitiativeEntryToInitiativeEntry(db: DbInitiativeEntry): InitiativeEntry {
+  return {
+    id: db.id,
+    sessionId: db.session_id,
+    sourceType: db.source_type,
+    sourceId: db.source_id,
+    sourceName: db.source_name,
+    rolledByUsername: db.rolled_by_username,
+    modifier: db.modifier ?? 0,
+    rollValue: db.roll_value,
+    total: db.total,
+    phase: db.phase,
+    visibility: db.visibility,
+    isManualOverride: db.is_manual_override ?? false,
+    sortOrder: db.sort_order ?? 0,
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
+  };
+}
+
+export function dbInitiativeRollLogToInitiativeRollLog(db: DbInitiativeRollLog): InitiativeRollLog {
+  return {
+    id: db.id,
+    sessionId: db.session_id,
+    sourceType: db.source_type,
+    sourceId: db.source_id,
+    sourceName: db.source_name,
+    rolledByUsername: db.rolled_by_username,
+    phase: db.phase,
+    visibility: db.visibility,
+    modifier: db.modifier ?? 0,
+    rollValue: db.roll_value,
+    total: db.total,
+    entryId: db.entry_id,
+    createdAt: db.created_at,
+  };
+}
+
 export function dbChatMessageToChatMessage(db: DbChatMessage): ChatMessage {
   return {
     id: db.id,
@@ -404,6 +639,7 @@ export function dbSessionPlayerToSessionPlayer(db: DbSessionPlayer): SessionPlay
     username: db.username,
     characterId: db.character_id,
     isGm: db.is_gm,
+    initiativeModifier: db.initiative_modifier ?? 0,
     lastSeen: db.last_seen,
   };
 }

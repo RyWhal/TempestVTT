@@ -48,7 +48,7 @@ export const ChatPanel: React.FC = () => {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
-          <div className="text-center text-storm-500 py-8">
+          <div className="text-center text-slate-500 py-8">
             No messages yet. Start the conversation!
           </div>
         ) : (
@@ -72,20 +72,20 @@ export const ChatPanel: React.FC = () => {
                   <span
                     className={`
                       font-medium text-sm
-                      ${msg.isGmAnnouncement ? 'text-yellow-400' : 'text-storm-300'}
-                      ${isOwn ? 'text-storm-200' : ''}
+                      ${msg.isGmAnnouncement ? 'text-yellow-400' : 'text-slate-300'}
+                      ${isOwn ? 'text-slate-200' : ''}
                     `}
                   >
                     {msg.username}
                   </span>
-                  <span className="text-xs text-storm-500">
+                  <span className="text-xs text-slate-500">
                     {formatTime(msg.createdAt)}
                   </span>
                 </div>
                 <p
                   className={`
                     text-sm mt-1
-                    ${msg.isGmAnnouncement ? 'text-yellow-100 italic' : 'text-storm-100'}
+                    ${msg.isGmAnnouncement ? 'text-yellow-100 italic' : 'text-slate-100'}
                   `}
                 >
                   {msg.message}
@@ -98,14 +98,14 @@ export const ChatPanel: React.FC = () => {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-storm-700">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-slate-700">
         {isGM && (
-          <label className="flex items-center gap-2 mb-2 text-sm text-storm-400 cursor-pointer">
+          <label className="flex items-center gap-2 mb-2 text-sm text-slate-400 cursor-pointer">
             <input
               type="checkbox"
               checked={isGmAnnouncement}
               onChange={(e) => setIsGmAnnouncement(e.target.checked)}
-              className="rounded border-storm-600 bg-storm-800 text-yellow-500 focus:ring-yellow-500"
+              className="rounded border-slate-600 bg-slate-800 text-yellow-500 focus:ring-yellow-500"
             />
             <Crown className="w-3 h-3" />
             Send as GM announcement
@@ -118,7 +118,7 @@ export const ChatPanel: React.FC = () => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 px-3 py-2 bg-storm-800 border border-storm-600 rounded-lg text-storm-100 placeholder-storm-500 focus:outline-none focus:ring-2 focus:ring-storm-500"
+            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-tempest-400"
           />
           <Button
             type="submit"

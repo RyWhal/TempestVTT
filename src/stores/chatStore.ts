@@ -46,7 +46,7 @@ export const useChatStore = create<ChatState>()((set) => ({
 
   addMessage: (message) =>
     set((state) => ({
-      messages: [...state.messages, message].slice(-MAX_MESSAGES),
+      messages: [...state.messages.filter((m) => m.id !== message.id), message].slice(-MAX_MESSAGES),
     })),
 
   clearMessages: () => set({ messages: [] }),
@@ -56,7 +56,7 @@ export const useChatStore = create<ChatState>()((set) => ({
 
   addDiceRoll: (roll) =>
     set((state) => ({
-      diceRolls: [...state.diceRolls, roll].slice(-MAX_DICE_ROLLS),
+      diceRolls: [...state.diceRolls.filter((existing) => existing.id !== roll.id), roll].slice(-MAX_DICE_ROLLS),
       isNewRollAnimating: true,
     })),
 

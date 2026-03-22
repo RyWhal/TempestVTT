@@ -94,7 +94,7 @@ export const parseAndRoll = (expression: string): RollResults => {
   return rollDice(parsed);
 };
 
-// Stormlight Plot Dice
+// Tempest Plot Dice
 const PLOT_DIE_FACES: PlotDieFace[] = [
   'blank',
   'blank',

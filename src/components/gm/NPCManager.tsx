@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   MapPin,
+  Library,
 } from 'lucide-react';
 import { useNPCs } from '../../hooks/useNPCs';
 import { useMapStore } from '../../stores/mapStore';
@@ -15,12 +16,29 @@ import { Input } from '../shared/Input';
 import { useToast } from '../shared/Toast';
 import { validateTokenUpload } from '../../lib/validation';
 import { TOKEN_SIZE_MULTIPLIERS, type TokenSize } from '../../types';
+import { GlobalAssetBrowser } from './GlobalAssetBrowser';
+import type { GlobalAsset } from '../../hooks/useGlobalAssets';
 
 const SIZE_OPTIONS: TokenSize[] = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
+const STATUS_RING_COLORS = [
+  { label: 'None', value: null },
+  { label: 'Red', value: '#ef4444' },
+  { label: 'Orange', value: '#f59e0b' },
+  { label: 'Yellow', value: '#eab308' },
+  { label: 'Green', value: '#22c55e' },
+  { label: 'Blue', value: '#3b82f6' },
+  { label: 'Purple', value: '#8b5cf6' },
+  { label: 'Pink', value: '#ec4899' },
+] as const;
 
 export const NPCManager: React.FC = () => {
   const { showToast } = useToast();
   const activeMap = useMapStore((state) => state.activeMap);
+  const viewportScale = useMapStore((state) => state.viewportScale);
+  const stageWidth = useMapStore((state) => state.stageWidth);
+  const stageHeight = useMapStore((state) => state.stageHeight);
+  const selectToken = useMapStore((state) => state.selectToken);
+  const setViewportPosition = useMapStore((state) => state.setViewportPosition);
   const {
     npcTemplates,
     currentMapNPCs,
@@ -29,13 +47,16 @@ export const NPCManager: React.FC = () => {
     addNPCToMap,
     toggleNPCVisibility,
     removeNPCFromMap,
+    updateNPCInstanceDetails,
   } = useNPCs();
 
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSize, setNewSize] = useState<TokenSize>('medium');
   const [newTokenFile, setNewTokenFile] = useState<File | null>(null);
+  const [selectedGlobalAsset, setSelectedGlobalAsset] = useState<GlobalAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAssetBrowser, setShowAssetBrowser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +70,15 @@ export const NPCManager: React.FC = () => {
     }
 
     setNewTokenFile(file);
+    setSelectedGlobalAsset(null); // Clear global asset when uploading custom
+  };
+
+  const handleSelectGlobalAsset = (asset: GlobalAsset) => {
+    setSelectedGlobalAsset(asset);
+    setNewTokenFile(null); // Clear file when selecting global asset
+    setNewName(asset.name);
+    setNewSize((asset.defaultSize as TokenSize) || 'medium');
+    setShowAssetBrowser(false);
   };
 
   const handleCreate = async () => {
@@ -58,7 +88,9 @@ export const NPCManager: React.FC = () => {
     const result = await createNPCTemplate(
       newName,
       newSize,
-      newTokenFile || undefined
+      newTokenFile || undefined,
+      undefined,
+      selectedGlobalAsset?.imageUrl
     );
     setIsSubmitting(false);
 
@@ -68,6 +100,7 @@ export const NPCManager: React.FC = () => {
       setNewName('');
       setNewSize('medium');
       setNewTokenFile(null);
+      setSelectedGlobalAsset(null);
     } else {
       showToast(result.error || 'Failed to create NPC template', 'error');
     }
@@ -114,12 +147,25 @@ export const NPCManager: React.FC = () => {
     }
   };
 
+  const handleRenameNPC = async (instanceId: string, displayName: string) => {
+    const trimmed = displayName.trim();
+    if (!trimmed) return;
+    const result = await updateNPCInstanceDetails(instanceId, { displayName: trimmed });
+    if (!result.success) {
+      showToast(result.error || 'Failed to rename NPC', 'error');
+    }
+  };
+
+  const focusToken = (x: number, y: number) => {
+    setViewportPosition(stageWidth / 2 - x * viewportScale, stageHeight / 2 - y * viewportScale);
+  };
+
   return (
     <div className="h-full overflow-y-auto p-4">
       {/* NPC Templates Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-storm-300">NPC Library</h3>
+          <h3 className="text-sm font-medium text-slate-300">NPC Library</h3>
           {!isCreating && (
             <Button
               variant="ghost"
@@ -134,7 +180,7 @@ export const NPCManager: React.FC = () => {
 
         {/* Create form */}
         {isCreating && (
-          <div className="mb-4 p-3 bg-storm-800 rounded-lg border border-storm-600">
+          <div className="mb-4 p-3 bg-slate-800 rounded-lg border border-slate-600">
             <div className="space-y-3">
               <Input
                 placeholder="NPC name (e.g., Goblin)"
@@ -144,11 +190,11 @@ export const NPCManager: React.FC = () => {
               />
 
               <div>
-                <label className="text-xs text-storm-400 block mb-1">Size</label>
+                <label className="text-xs text-slate-400 block mb-1">Size</label>
                 <select
                   value={newSize}
                   onChange={(e) => setNewSize(e.target.value as TokenSize)}
-                  className="w-full px-2 py-1.5 bg-storm-700 border border-storm-600 rounded text-sm text-storm-200"
+                  className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-sm text-slate-200"
                 >
                   {SIZE_OPTIONS.map((size) => (
                     <option key={size} value={size}>
@@ -159,7 +205,7 @@ export const NPCManager: React.FC = () => {
                 </select>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -167,15 +213,48 @@ export const NPCManager: React.FC = () => {
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="w-4 h-4 mr-1" />
-                  {newTokenFile ? newTokenFile.name : 'Upload Token'}
-                </Button>
+
+                {/* Show selected asset preview */}
+                {selectedGlobalAsset && (
+                  <div className="flex items-center gap-2 p-2 bg-slate-700 rounded">
+                    <img
+                      src={selectedGlobalAsset.imageUrl}
+                      alt={selectedGlobalAsset.name}
+                      className="w-10 h-10 rounded object-cover"
+                    />
+                    <span className="text-sm text-slate-200 flex-1 truncate">
+                      {selectedGlobalAsset.name}
+                    </span>
+                    <button
+                      onClick={() => setSelectedGlobalAsset(null)}
+                      className="text-slate-400 hover:text-slate-200"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowAssetBrowser(true)}
+                  >
+                    <Library className="w-4 h-4 mr-1" />
+                    Library
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-1" />
+                    {newTokenFile ? 'Change' : 'Upload'}
+                  </Button>
+                </div>
+                {newTokenFile && (
+                  <p className="text-xs text-slate-400 truncate">{newTokenFile.name}</p>
+                )}
               </div>
 
               <div className="flex gap-2">
@@ -186,6 +265,7 @@ export const NPCManager: React.FC = () => {
                     setIsCreating(false);
                     setNewName('');
                     setNewTokenFile(null);
+                    setSelectedGlobalAsset(null);
                   }}
                   className="flex-1"
                 >
@@ -208,7 +288,7 @@ export const NPCManager: React.FC = () => {
 
         {/* Template list */}
         {npcTemplates.length === 0 ? (
-          <p className="text-storm-500 text-sm text-center py-4">
+          <p className="text-slate-500 text-sm text-center py-4">
             No NPC templates yet
           </p>
         ) : (
@@ -216,9 +296,9 @@ export const NPCManager: React.FC = () => {
             {npcTemplates.map((template) => (
               <div
                 key={template.id}
-                className="flex items-center gap-2 p-2 bg-storm-800/50 rounded border border-storm-700"
+                className="flex items-center gap-2 p-2 bg-slate-800/50 rounded border border-slate-700"
               >
-                <div className="w-8 h-8 rounded bg-storm-700 overflow-hidden flex-shrink-0">
+                <div className="w-8 h-8 rounded bg-slate-700 overflow-hidden flex-shrink-0">
                   {template.tokenUrl ? (
                     <img
                       src={template.tokenUrl}
@@ -227,15 +307,15 @@ export const NPCManager: React.FC = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Skull className="w-4 h-4 text-storm-400" />
+                      <Skull className="w-4 h-4 text-slate-400" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-storm-200 truncate">
+                  <p className="text-sm text-slate-200 truncate">
                     {template.name}
                   </p>
-                  <p className="text-xs text-storm-500 capitalize">
+                  <p className="text-xs text-slate-500 capitalize">
                     {template.defaultSize}
                   </p>
                 </div>
@@ -263,16 +343,16 @@ export const NPCManager: React.FC = () => {
 
       {/* NPCs on Current Map */}
       <div>
-        <h3 className="text-sm font-medium text-storm-300 mb-3">
+        <h3 className="text-sm font-medium text-slate-300 mb-3">
           NPCs on Current Map
         </h3>
 
         {!activeMap ? (
-          <p className="text-storm-500 text-sm text-center py-4">
+          <p className="text-slate-500 text-sm text-center py-4">
             No active map
           </p>
         ) : currentMapNPCs.length === 0 ? (
-          <p className="text-storm-500 text-sm text-center py-4">
+          <p className="text-slate-500 text-sm text-center py-4">
             No NPCs on this map
           </p>
         ) : (
@@ -281,11 +361,15 @@ export const NPCManager: React.FC = () => {
               <div
                 key={npc.id}
                 className={`
-                  flex items-center gap-2 p-2 rounded border
-                  ${npc.isVisible ? 'bg-storm-800/50 border-storm-700' : 'bg-storm-800/30 border-storm-700/50'}
+                  flex items-center gap-2 p-2 rounded border cursor-pointer
+                  ${npc.isVisible ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-800/30 border-slate-700/50'}
                 `}
+                onClick={() => {
+                  selectToken(npc.id, 'npc');
+                  focusToken(npc.positionX, npc.positionY);
+                }}
               >
-                <div className="w-8 h-8 rounded bg-storm-700 overflow-hidden flex-shrink-0">
+                <div className="w-8 h-8 rounded bg-slate-700 overflow-hidden flex-shrink-0">
                   {npc.tokenUrl ? (
                     <img
                       src={npc.tokenUrl}
@@ -294,33 +378,68 @@ export const NPCManager: React.FC = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Skull className="w-4 h-4 text-storm-400" />
+                      <Skull className="w-4 h-4 text-slate-400" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-sm truncate ${npc.isVisible ? 'text-storm-200' : 'text-storm-400'}`}
-                  >
-                    {npc.displayName || 'NPC'}
-                  </p>
+                  <input
+                    type="text"
+                    defaultValue={npc.displayName || 'NPC'}
+                    className={`w-full bg-transparent text-sm truncate focus:outline-none ${
+                      npc.isVisible ? 'text-slate-200' : 'text-slate-400'
+                    }`}
+                    onBlur={(e) => handleRenameNPC(npc.id, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      }
+                    }}
+                  />
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleToggleVisibility(npc.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleToggleVisibility(npc.id);
+                  }}
                   title={npc.isVisible ? 'Hide from players' : 'Show to players'}
                 >
                   {npc.isVisible ? (
                     <Eye className="w-4 h-4 text-green-400" />
                   ) : (
-                    <EyeOff className="w-4 h-4 text-storm-400" />
+                    <EyeOff className="w-4 h-4 text-slate-400" />
                   )}
                 </Button>
+                <select
+                  value={npc.statusRingColor || 'none'}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const selected = STATUS_RING_COLORS.find((color) =>
+                      (color.value ?? 'none') === value
+                    );
+                    void updateNPCInstanceDetails(npc.id, {
+                      statusRingColor: selected?.value ?? null,
+                    });
+                  }}
+                  className="bg-slate-900 border border-slate-600 rounded px-1 py-0.5 text-xs text-slate-300 max-w-[84px]"
+                  title="Status ring color"
+                >
+                  {STATUS_RING_COLORS.map((color) => (
+                    <option key={color.label} value={color.value ?? 'none'}>
+                      {color.label}
+                    </option>
+                  ))}
+                </select>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleRemoveFromMap(npc.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleRemoveFromMap(npc.id);
+                  }}
                 >
                   <Trash2 className="w-4 h-4 text-red-400" />
                 </Button>
@@ -329,6 +448,15 @@ export const NPCManager: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Global Asset Browser Modal */}
+      {showAssetBrowser && (
+        <GlobalAssetBrowser
+          assetType="token"
+          onSelect={handleSelectGlobalAsset}
+          onClose={() => setShowAssetBrowser(false)}
+        />
+      )}
     </div>
   );
 };

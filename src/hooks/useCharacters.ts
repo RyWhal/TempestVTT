@@ -4,10 +4,12 @@ import { useSessionStore } from '../stores/sessionStore';
 import { useMapStore } from '../stores/mapStore';
 import { dbCharacterToCharacter, type DbCharacter, type Character, type InventoryItem } from '../types';
 import { nanoid } from 'nanoid';
+import { broadcastTokenMove } from '../lib/tokenBroadcast';
 
 export const useCharacters = () => {
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
+  const activeMap = useMapStore((state) => state.activeMap);
   const { characters, addCharacter, updateCharacter, removeCharacter, moveCharacter } = useMapStore();
 
   /**
@@ -45,6 +47,7 @@ export const useCharacters = () => {
             session_id: session.id,
             name,
             token_url: tokenUrl,
+            size: 'medium',
           })
           .select()
           .single();
@@ -73,12 +76,16 @@ export const useCharacters = () => {
   const updateCharacterDetails = useCallback(
     async (
       characterId: string,
-      updates: Partial<Pick<Character, 'name' | 'notes'>>
+      updates: Partial<Pick<Character, 'name' | 'notes' | 'size' | 'statusRingColor'>>
     ): Promise<{ success: boolean; error?: string }> => {
       try {
         const dbUpdates: Record<string, unknown> = {};
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+        if (updates.size !== undefined) dbUpdates.size = updates.size;
+        if (updates.statusRingColor !== undefined) {
+          dbUpdates.status_ring_color = updates.statusRingColor;
+        }
 
         const { error } = await supabase
           .from('characters')
@@ -235,8 +242,12 @@ export const useCharacters = () => {
       x: number,
       y: number
     ): Promise<{ success: boolean; error?: string }> => {
+      if (!session) {
+        return { success: false, error: 'Not in a session' };
+      }
+
       // Optimistic update
-      moveCharacter(characterId, x, y);
+      moveCharacter(characterId, x, y, activeMap?.id);
 
       try {
         const { error } = await supabase
@@ -248,10 +259,19 @@ export const useCharacters = () => {
           // Revert on error
           const original = characters.find((c) => c.id === characterId);
           if (original) {
-            moveCharacter(characterId, original.positionX, original.positionY);
+            moveCharacter(characterId, original.positionX, original.positionY, activeMap?.id);
           }
           return { success: false, error: error.message };
         }
+
+        await broadcastTokenMove({
+          sessionId: session.id,
+          tokenId: characterId,
+          tokenType: 'character',
+          mapId: activeMap?.id,
+          x,
+          y,
+        });
 
         return { success: true };
       } catch (error) {
@@ -261,7 +281,7 @@ export const useCharacters = () => {
         };
       }
     },
-    [characters, moveCharacter]
+    [session, characters, moveCharacter, activeMap?.id]
   );
 
   /**

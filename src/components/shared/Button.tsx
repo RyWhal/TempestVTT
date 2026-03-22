@@ -17,23 +17,23 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-storm-950 disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variants = {
     primary:
-      'bg-storm-600 hover:bg-storm-500 text-white focus:ring-storm-500 shadow-lg shadow-storm-900/50',
+      'bg-tempest-500 hover:bg-tempest-400 text-white focus:ring-tempest-400 shadow-lg shadow-tempest-900/40',
     secondary:
-      'bg-storm-800 hover:bg-storm-700 text-storm-100 focus:ring-storm-600 border border-storm-600',
+      'bg-slate-800 hover:bg-slate-700 text-slate-100 focus:ring-slate-500 border border-slate-700',
     danger:
       'bg-red-600 hover:bg-red-500 text-white focus:ring-red-500',
     ghost:
-      'bg-transparent hover:bg-storm-800 text-storm-200 focus:ring-storm-600',
+      'bg-transparent hover:bg-slate-800 text-slate-200 focus:ring-slate-600',
   };
 
   const sizes = {
     sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-base',
   };
 
   return (
@@ -50,14 +50,7 @@ export const Button: React.FC<ButtonProps> = ({
             fill="none"
             viewBox="0 0 24 24"
           >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path
               className="opacity-75"
               fill="currentColor"

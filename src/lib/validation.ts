@@ -51,7 +51,7 @@ export const validateMapUpload = async (file: File): Promise<ValidationResult> =
 
 /**
  * Validate token image upload
- * Max size: 500KB
+ * Max size: 2MB
  * Allowed formats: PNG, JPG, WEBP, GIF
  */
 export const validateTokenUpload = (file: File): ValidationResult => {
@@ -64,12 +64,37 @@ export const validateTokenUpload = (file: File): ValidationResult => {
     };
   }
 
-  // Check file size (500KB max)
-  const maxSize = 500 * 1024;
+  // Check file size (2MB max)
+  const maxSize = 2 * 1024 * 1024;
   if (file.size > maxSize) {
     return {
       valid: false,
-      error: 'Token image must be under 500KB',
+      error: 'Token image must be under 2MB',
+    };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Validate handout image upload
+ * Max size: 10MB
+ * Allowed formats: PNG, JPG, WEBP
+ */
+export const validateHandoutUpload = (file: File): ValidationResult => {
+  const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    return {
+      valid: false,
+      error: 'Invalid file type. Allowed: PNG, JPG, WEBP',
+    };
+  }
+
+  const maxSize = 10 * 1024 * 1024;
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: 'Handout image must be under 10MB',
     };
   }
 

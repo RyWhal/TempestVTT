@@ -1,30 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Map as MapIcon,
   MessageSquare,
   Dices,
-  FileText,
   Settings,
   Users,
   Crown,
   Wifi,
   WifiOff,
   LogOut,
+  SidebarClose,
+  SidebarOpen,
+  PencilLine,
 } from 'lucide-react';
 import { MapCanvas } from '../map/MapCanvas';
 import { ChatPanel } from '../chat/ChatPanel';
 import { DicePanel } from '../dice/DicePanel';
-import { NotepadPanel } from '../shared/NotepadPanel';
 import { GMPanel } from '../gm/GMPanel';
-import { InventoryPanel } from '../inventory/InventoryPanel';
+import { DrawingTools } from '../map/DrawingTools';
+import { InitiativePanel } from '../initiative/InitiativePanel';
 import { Button } from '../shared/Button';
 import { useSessionStore, useIsGM } from '../../stores/sessionStore';
 import { useMapStore } from '../../stores/mapStore';
 import { useSession } from '../../hooks/useSession';
+import { useMap } from '../../hooks/useMap';
 import { useToast } from '../shared/Toast';
 
-type SideTab = 'chat' | 'dice' | 'notes' | 'inventory';
+type SideTab = 'chat' | 'dice' | 'initiative' | 'draw';
+
+const PLAYER_PANEL_KEY = 'tempest-player-panel-collapsed';
 
 export const PlaySession: React.FC = () => {
   const navigate = useNavigate();
@@ -34,183 +39,162 @@ export const PlaySession: React.FC = () => {
   const connectionStatus = useSessionStore((state) => state.connectionStatus);
   const players = useSessionStore((state) => state.players);
   const activeMap = useMapStore((state) => state.activeMap);
+  const drawingData = useMapStore((state) => state.drawingData);
   const isGM = useIsGM();
   const { leaveSession, claimGM, releaseGM } = useSession();
+  const { updateDrawingData } = useMap();
+  const canUseDrawTools = isGM || Boolean(session?.allowPlayersDrawings);
 
   const [sideTab, setSideTab] = useState<SideTab>('chat');
   const [showGMPanel, setShowGMPanel] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [isPlayerPanelCollapsed, setIsPlayerPanelCollapsed] = useState(() => {
+    const stored = localStorage.getItem(PLAYER_PANEL_KEY);
+    return stored === 'true';
+  });
 
   useEffect(() => {
-    // Open GM panel by default for GM
+    localStorage.setItem(PLAYER_PANEL_KEY, String(isPlayerPanelCollapsed));
+  }, [isPlayerPanelCollapsed]);
+
+  useEffect(() => {
     if (isGM) {
       setShowGMPanel(true);
     }
   }, [isGM]);
 
-  if (!session || !currentUser) {
-    return null;
-  }
 
-  const handleLeave = async () => {
-    await leaveSession();
-    navigate('/');
-  };
+  useEffect(() => {
+    if (sideTab === 'draw' && !canUseDrawTools) {
+      setSideTab('chat');
+    }
+  }, [sideTab, canUseDrawTools]);
+
+  if (!session || !currentUser) return null;
 
   const handleClaimGM = async () => {
+    const confirmed = confirm('Assume GM permissions for this table?');
+    if (!confirmed) return;
+
     const result = await claimGM();
-    if (result.success) {
-      showToast('You are now the GM!', 'success');
-    } else {
-      showToast(result.error || 'Failed to claim GM', 'error');
-    }
+    showToast(result.success ? 'You are now the GM.' : result.error || 'Failed to claim GM', result.success ? 'success' : 'error');
   };
 
-  const handleReleaseGM = async () => {
-    const result = await releaseGM();
-    if (result.success) {
-      showToast('GM role released', 'info');
-    } else {
-      showToast(result.error || 'Failed to release GM', 'error');
-    }
+  const handleClearPlayerDrawings = async () => {
+    if (!activeMap) return;
+    const confirmed = confirm('Clear all player drawings on this map?');
+    if (!confirmed) return;
+
+    const remainingDrawings = drawingData.filter((drawing) => drawing.authorRole !== 'player');
+    const result = await updateDrawingData(activeMap.id, remainingDrawings);
+    showToast(result.success ? 'Player drawings cleared.' : result.error || 'Failed to clear drawings', result.success ? 'success' : 'error');
   };
 
   return (
-    <div className="h-screen flex flex-col bg-storm-950">
-      {/* Header */}
-      <header className="flex-shrink-0 h-12 bg-storm-900 border-b border-storm-700 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="font-semibold text-storm-100">{session.name}</h1>
-          <span className="text-sm font-mono text-storm-400 bg-storm-800 px-2 py-0.5 rounded">
+    <div className="tempest-shell flex h-screen flex-col">
+      <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-semibold text-slate-100">{session.name}</h1>
+          <span className="rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 font-mono text-xs text-slate-300">
             {session.code}
           </span>
           {activeMap && (
-            <span className="text-sm text-storm-300 flex items-center gap-1">
-              <MapIcon className="w-4 h-4" />
+            <span className="flex items-center gap-1 text-sm text-slate-400">
+              <MapIcon className="h-4 w-4" />
               {activeMap.name}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Connection status */}
-          <span
-            className={`flex items-center gap-1 text-sm ${
-              connectionStatus === 'connected'
-                ? 'text-green-400'
-                : connectionStatus === 'reconnecting'
-                ? 'text-yellow-400'
-                : 'text-red-400'
-            }`}
-          >
-            {connectionStatus === 'connected' ? (
-              <Wifi className="w-4 h-4" />
-            ) : (
-              <WifiOff className="w-4 h-4" />
-            )}
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${connectionStatus === 'connected' ? 'bg-emerald-500/10 text-emerald-300' : connectionStatus === 'reconnecting' ? 'bg-amber-500/10 text-amber-300' : 'bg-red-500/10 text-red-300'}`}>
+            {connectionStatus === 'connected' ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
           </span>
 
-          {/* Players count */}
-          <span className="text-sm text-storm-300 flex items-center gap-1">
-            <Users className="w-4 h-4" />
+          <span className="inline-flex items-center gap-1 text-sm text-slate-400">
+            <Users className="h-4 w-4" />
             {players.length}
           </span>
 
-          {/* GM badge or claim button */}
           {isGM ? (
             <button
-              onClick={handleReleaseGM}
-              className="flex items-center gap-1 px-2 py-1 bg-yellow-600/20 text-yellow-400 rounded text-sm hover:bg-yellow-600/30 transition-colors"
-              title="Click to release GM role"
+              onClick={() => void releaseGM()}
+              className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-300"
+              title="Release GM role"
             >
-              <Crown className="w-4 h-4" />
-              GM
+              <Crown className="h-3.5 w-3.5" /> GM
             </button>
-          ) : !session.currentGmUsername ? (
+          ) : (
             <Button variant="ghost" size="sm" onClick={handleClaimGM}>
-              <Crown className="w-4 h-4 mr-1" />
-              Claim GM
-            </Button>
-          ) : null}
-
-          {/* Settings */}
-          {isGM && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowGMPanel(!showGMPanel)}
-              className={showGMPanel ? 'bg-storm-800' : ''}
-            >
-              <Settings className="w-4 h-4" />
+              <Crown className="mr-1 h-4 w-4" /> Assume GM
             </Button>
           )}
 
-          {/* Leave */}
-          <Button variant="ghost" size="sm" onClick={handleLeave}>
-            <LogOut className="w-4 h-4" />
+          {isGM && (
+            <Button variant="ghost" size="sm" onClick={() => setShowGMPanel((prev) => !prev)}>
+              <Settings className="h-4 w-4" />
+            </Button>
+          )}
+
+          <Button variant="ghost" size="sm" onClick={() => setIsPlayerPanelCollapsed((prev) => !prev)}>
+            {isPlayerPanelCollapsed ? <SidebarOpen className="h-4 w-4" /> : <SidebarClose className="h-4 w-4" />}
+          </Button>
+
+          <Button variant="ghost" size="sm" onClick={async () => { await leaveSession(); navigate('/'); }}>
+            <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
-      {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* GM Panel (collapsible) */}
+      <div className="flex flex-1 overflow-hidden">
         {isGM && showGMPanel && (
-          <div className="w-80 flex-shrink-0 border-r border-storm-700 bg-storm-900 overflow-hidden">
+          <aside className="w-80 flex-shrink-0 overflow-hidden border-r border-slate-800 bg-slate-900">
             <GMPanel onClose={() => setShowGMPanel(false)} />
-          </div>
+          </aside>
         )}
 
-        {/* Map canvas */}
-        <div className="flex-1 relative overflow-hidden">
+        <section className="relative flex-1 overflow-hidden">
           <MapCanvas />
+        </section>
 
-          {/* Map controls overlay */}
-          <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-storm-900/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-storm-700">
-            <span className="text-sm text-storm-300">
-              {activeMap ? `${activeMap.width}x${activeMap.height}` : 'No map'}
-            </span>
-          </div>
-        </div>
+        {!isPlayerPanelCollapsed && (
+          <aside className="flex w-96 flex-shrink-0 flex-col border-l border-slate-800 bg-slate-900">
+            <nav className="flex border-b border-slate-800 overflow-x-auto">
+              <TabButton active={sideTab === 'chat'} onClick={() => setSideTab('chat')} icon={<MessageSquare className="h-4 w-4" />} label="Chat" />
+              <TabButton active={sideTab === 'dice'} onClick={() => setSideTab('dice')} icon={<Dices className="h-4 w-4" />} label="Dice" />
+              {!isGM && <TabButton active={sideTab === 'initiative'} onClick={() => setSideTab('initiative')} icon={<Users className="h-4 w-4" />} label="Init" />}
+              {canUseDrawTools && (
+                <TabButton active={sideTab === 'draw'} onClick={() => setSideTab('draw')} icon={<PencilLine className="h-4 w-4" />} label="Draw" />
+              )}
+            </nav>
 
-        {/* Side panel */}
-        <div className="w-96 flex-shrink-0 border-l border-storm-700 bg-storm-900 flex flex-col">
-          {/* Tabs */}
-          <div className="flex border-b border-storm-700">
-            <TabButton
-              active={sideTab === 'chat'}
-              onClick={() => setSideTab('chat')}
-              icon={<MessageSquare className="w-4 h-4" />}
-              label="Chat"
-            />
-            <TabButton
-              active={sideTab === 'dice'}
-              onClick={() => setSideTab('dice')}
-              icon={<Dices className="w-4 h-4" />}
-              label="Dice"
-            />
-            <TabButton
-              active={sideTab === 'notes'}
-              onClick={() => setSideTab('notes')}
-              icon={<FileText className="w-4 h-4" />}
-              label="Notes"
-            />
-            <TabButton
-              active={sideTab === 'inventory'}
-              onClick={() => setSideTab('inventory')}
-              icon={<FileText className="w-4 h-4" />}
-              label="Items"
-            />
-          </div>
-
-          {/* Tab content */}
-          <div className="flex-1 overflow-hidden">
-            {sideTab === 'chat' && <ChatPanel />}
-            {sideTab === 'dice' && <DicePanel />}
-            {sideTab === 'notes' && <NotepadPanel />}
-            {sideTab === 'inventory' && <InventoryPanel />}
-          </div>
-        </div>
+            <div className="flex-1 overflow-hidden">
+              {sideTab === 'chat' && <ChatPanel />}
+              {sideTab === 'dice' && <DicePanel />}
+              {!isGM && sideTab === 'initiative' && <InitiativePanel />}
+              {sideTab === 'draw' && (
+                <div className="h-full space-y-3 overflow-y-auto p-4">
+                  <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+                    <h3 className="text-sm font-semibold text-slate-100">Drawing Tools</h3>
+                    <p className="mt-1 text-xs text-slate-400">Quick annotations and planning marks.</p>
+                    <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+                      <span>Player drawings: {drawingData.filter((drawing) => drawing.authorRole === 'player').length}</span>
+                      <button
+                        onClick={handleClearPlayerDrawings}
+                        className="rounded bg-red-500/20 px-2 py-1 text-red-300 hover:bg-red-500/30"
+                        disabled={!activeMap || drawingData.every((drawing) => drawing.authorRole !== 'player')}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="mt-3 max-h-72 overflow-y-auto pr-2">
+                      <DrawingTools />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );
@@ -226,15 +210,11 @@ interface TabButtonProps {
 const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, label }) => (
   <button
     onClick={onClick}
-    className={`
-      flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium
-      transition-colors border-b-2
-      ${
-        active
-          ? 'text-storm-100 border-storm-400 bg-storm-800/50'
-          : 'text-storm-400 border-transparent hover:text-storm-200 hover:bg-storm-800/30'
-      }
-    `}
+    className={`flex min-w-[82px] flex-1 items-center justify-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+      active
+        ? 'border-tempest-400 bg-slate-800/80 text-slate-100'
+        : 'border-transparent text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+    }`}
   >
     {icon}
     {label}

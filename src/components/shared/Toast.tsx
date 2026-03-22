@@ -74,7 +74,7 @@ const ToastItem: React.FC<{
   const backgrounds = {
     success: 'bg-green-900/90 border-green-700',
     error: 'bg-red-900/90 border-red-700',
-    info: 'bg-storm-800/90 border-storm-600',
+    info: 'bg-slate-800/90 border-slate-600',
   };
 
   return (
@@ -87,10 +87,10 @@ const ToastItem: React.FC<{
       `}
     >
       {icons[toast.type]}
-      <span className="text-storm-100">{toast.message}</span>
+      <span className="text-slate-100">{toast.message}</span>
       <button
         onClick={() => onRemove(toast.id)}
-        className="ml-2 text-storm-400 hover:text-storm-200 transition-colors"
+        className="ml-2 text-slate-400 hover:text-slate-200 transition-colors"
       >
         <X className="w-4 h-4" />
       </button>

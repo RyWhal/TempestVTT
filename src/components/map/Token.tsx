@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Group, Circle, Text, Image as KonvaImage, Ring } from 'react-konva';
 import useImage from 'use-image';
 import { TOKEN_SIZE_MULTIPLIERS, type TokenSize } from '../../types';
@@ -16,8 +16,13 @@ interface TokenProps {
   isDraggable: boolean;
   isHidden: boolean;
   isGM: boolean;
-  onSelect: () => void;
+  statusRingColor?: string | null;
+  isSpotlighted?: boolean;
+  onSelect: (event: any) => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  showResizeControls?: boolean;
+  onResize?: (direction: 'increase' | 'decrease') => void;
 }
 
 // Color palette for tokens without images
@@ -41,8 +46,6 @@ const getColorForName = (name: string): string => {
 };
 
 export const Token: React.FC<TokenProps> = ({
-  id,
-  type,
   name,
   imageUrl,
   x,
@@ -54,7 +57,12 @@ export const Token: React.FC<TokenProps> = ({
   isHidden,
   isGM,
   onSelect,
+  statusRingColor,
+  isSpotlighted,
+  onDragStart,
   onDragEnd,
+  showResizeControls,
+  onResize,
 }) => {
   const groupRef = useRef<any>(null);
   const [image] = useImage(imageUrl || '');
@@ -73,7 +81,18 @@ export const Token: React.FC<TokenProps> = ({
     onDragEnd(node.x(), node.y());
   };
 
+  const handleDragStart = () => {
+    onDragStart?.();
+  };
+
   const opacity = isHidden ? 0.4 : 1;
+  const showControls = Boolean(showResizeControls && onResize && isSelected);
+  const controlSize = Math.max(14, Math.min(20, pixelSize * 0.2));
+
+  const handleResize = (direction: 'increase' | 'decrease') => (e: any) => {
+    e.cancelBubble = true;
+    onResize?.(direction);
+  };
 
   return (
     <Group
@@ -81,6 +100,7 @@ export const Token: React.FC<TokenProps> = ({
       x={x}
       y={y}
       draggable={isDraggable}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={onSelect}
       onTap={onSelect}
@@ -95,6 +115,18 @@ export const Token: React.FC<TokenProps> = ({
           outerRadius={radius + 4}
           fill="rgba(59, 130, 246, 0.5)"
           stroke="#3b82f6"
+          strokeWidth={2}
+        />
+      )}
+
+      {isSpotlighted && (
+        <Ring
+          x={radius}
+          y={radius}
+          innerRadius={radius + 4}
+          outerRadius={radius + 10}
+          fill="rgba(251, 191, 36, 0.35)"
+          stroke="#f59e0b"
           strokeWidth={2}
         />
       )}
@@ -154,11 +186,25 @@ export const Token: React.FC<TokenProps> = ({
         </Group>
       )}
 
+      {/* Optional status ring */}
+      {statusRingColor && (
+        <Ring
+          x={radius}
+          y={radius}
+          innerRadius={radius + 2}
+          outerRadius={radius + 8}
+          fill={statusRingColor}
+          stroke={statusRingColor}
+          strokeWidth={1}
+          opacity={0.9}
+        />
+      )}
+
       {/* Name label */}
       <Text
-        x={0}
+        x={-(Math.max(pixelSize, gridCellSize * 1.8) - pixelSize) / 2}
         y={pixelSize + 4}
-        width={pixelSize}
+        width={Math.max(pixelSize, gridCellSize * 1.8)}
         text={name}
         fontSize={12}
         fill="#e5e7eb"
@@ -166,6 +212,63 @@ export const Token: React.FC<TokenProps> = ({
         ellipsis
         wrap="none"
       />
+
+      {showControls && (
+        <Group>
+          <Group
+            x={pixelSize - controlSize}
+            y={-controlSize * 0.6}
+            onClick={handleResize('increase')}
+            onTap={handleResize('increase')}
+          >
+            <Circle
+              x={controlSize / 2}
+              y={controlSize / 2}
+              radius={controlSize / 2}
+              fill="#1f2937"
+              stroke="#3b82f6"
+              strokeWidth={1}
+            />
+            <Text
+              x={0}
+              y={controlSize * 0.1}
+              width={controlSize}
+              height={controlSize}
+              text="+"
+              fontSize={controlSize * 0.8}
+              fill="#e5e7eb"
+              align="center"
+              verticalAlign="middle"
+            />
+          </Group>
+          <Group
+            x={pixelSize - controlSize}
+            y={pixelSize - controlSize * 0.4}
+            onClick={handleResize('decrease')}
+            onTap={handleResize('decrease')}
+          >
+            <Circle
+              x={controlSize / 2}
+              y={controlSize / 2}
+              radius={controlSize / 2}
+              fill="#1f2937"
+              stroke="#3b82f6"
+              strokeWidth={1}
+            />
+            <Text
+              x={0}
+              y={controlSize * 0.1}
+              width={controlSize}
+              height={controlSize}
+              text="-"
+              fontSize={controlSize * 0.8}
+              fill="#e5e7eb"
+              align="center"
+              verticalAlign="middle"
+            />
+          </Group>
+        </Group>
+      )}
 
       {/* Hidden indicator for GM */}
       {isHidden && isGM && (

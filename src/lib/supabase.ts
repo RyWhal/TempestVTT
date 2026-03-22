@@ -25,6 +25,7 @@ export const supabase = createClient(
 export const STORAGE_BUCKETS = {
   MAPS: 'maps',
   TOKENS: 'tokens',
+  HANDOUTS: 'handouts',
 } as const;
 
 // Helper to get public URL for storage items

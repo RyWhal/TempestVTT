@@ -1,4 +1,4 @@
--- Stormlight VTT Initial Schema
+-- Tempest Table Initial Schema
 -- Run this SQL in your Supabase SQL Editor to set up the database
 
 -- Enable UUID extension (should already be enabled in Supabase)

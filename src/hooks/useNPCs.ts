@@ -12,6 +12,7 @@ import {
   type TokenSize,
 } from '../types';
 import { nanoid } from 'nanoid';
+import { broadcastTokenMove } from '../lib/tokenBroadcast';
 
 export const useNPCs = () => {
   const session = useSessionStore((state) => state.session);
@@ -36,17 +37,18 @@ export const useNPCs = () => {
       name: string,
       defaultSize: TokenSize,
       tokenFile?: File,
-      notes?: string
+      notes?: string,
+      existingTokenUrl?: string // For using global asset URLs
     ): Promise<{ success: boolean; template?: NPCTemplate; error?: string }> => {
       if (!session) {
         return { success: false, error: 'Not in a session' };
       }
 
       try {
-        let tokenUrl: string | null = null;
+        let tokenUrl: string | null = existingTokenUrl || null;
 
-        // Upload token if provided
-        if (tokenFile) {
+        // Upload token if provided (only if no existing URL given)
+        if (tokenFile && !existingTokenUrl) {
           const fileId = nanoid();
           const extension = tokenFile.name.split('.').pop() || 'png';
           const storagePath = `npcs/${session.id}/${fileId}.${extension}`;
@@ -171,6 +173,10 @@ export const useNPCs = () => {
       position?: { x: number; y: number },
       customName?: string
     ): Promise<{ success: boolean; instance?: NPCInstance; error?: string }> => {
+      if (!session) {
+        return { success: false, error: 'Not in a session' };
+      }
+
       if (!activeMap) {
         return { success: false, error: 'No active map' };
       }
@@ -191,6 +197,7 @@ export const useNPCs = () => {
         const { data, error } = await supabase
           .from('npc_instances')
           .insert({
+            session_id: session.id,
             map_id: activeMap.id,
             template_id: templateId,
             display_name: displayName,
@@ -218,7 +225,7 @@ export const useNPCs = () => {
         };
       }
     },
-    [activeMap, npcTemplates, npcInstances, addNPCInstance]
+    [session, activeMap, npcTemplates, npcInstances, addNPCInstance]
   );
 
   /**
@@ -227,7 +234,7 @@ export const useNPCs = () => {
   const updateNPCInstanceDetails = useCallback(
     async (
       instanceId: string,
-      updates: Partial<Pick<NPCInstance, 'displayName' | 'size' | 'isVisible' | 'notes'>>
+      updates: Partial<Pick<NPCInstance, 'displayName' | 'size' | 'isVisible' | 'notes' | 'statusRingColor'>>
     ): Promise<{ success: boolean; error?: string }> => {
       try {
         const dbUpdates: Record<string, unknown> = {};
@@ -235,6 +242,7 @@ export const useNPCs = () => {
         if (updates.size !== undefined) dbUpdates.size = updates.size;
         if (updates.isVisible !== undefined) dbUpdates.is_visible = updates.isVisible;
         if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+        if (updates.statusRingColor !== undefined) dbUpdates.status_ring_color = updates.statusRingColor;
 
         const { error } = await supabase
           .from('npc_instances')
@@ -245,7 +253,25 @@ export const useNPCs = () => {
           return { success: false, error: error.message };
         }
 
+        let initiativeErrorMessage: string | null = null;
+        if (updates.displayName !== undefined) {
+          const { error: initiativeError } = await supabase
+            .from('initiative_entries')
+            .update({ source_name: updates.displayName })
+            .eq('source_type', 'npc')
+            .eq('source_id', instanceId);
+
+          if (initiativeError) {
+            initiativeErrorMessage = initiativeError.message;
+          }
+        }
+
         updateNPCInstance(instanceId, updates);
+
+        if (initiativeErrorMessage) {
+          return { success: false, error: initiativeErrorMessage };
+        }
+
         return { success: true };
       } catch (error) {
         return {
@@ -281,8 +307,13 @@ export const useNPCs = () => {
       x: number,
       y: number
     ): Promise<{ success: boolean; error?: string }> => {
+      if (!session) {
+        return { success: false, error: 'Not in a session' };
+      }
+
       // Optimistic update
-      moveNPCInstance(instanceId, x, y);
+      const instance = npcInstances.find((i) => i.id === instanceId);
+      moveNPCInstance(instanceId, x, y, instance?.mapId);
 
       try {
         const { error } = await supabase
@@ -294,10 +325,19 @@ export const useNPCs = () => {
           // Revert on error
           const original = npcInstances.find((i) => i.id === instanceId);
           if (original) {
-            moveNPCInstance(instanceId, original.positionX, original.positionY);
+            moveNPCInstance(instanceId, original.positionX, original.positionY, original.mapId);
           }
           return { success: false, error: error.message };
         }
+
+        await broadcastTokenMove({
+          sessionId: session.id,
+          tokenId: instanceId,
+          tokenType: 'npc',
+          mapId: instance?.mapId,
+          x,
+          y,
+        });
 
         return { success: true };
       } catch (error) {
@@ -307,7 +347,7 @@ export const useNPCs = () => {
         };
       }
     },
-    [npcInstances, moveNPCInstance]
+    [session, npcInstances, moveNPCInstance]
   );
 
   /**

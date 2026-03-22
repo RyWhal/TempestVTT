@@ -1,24 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #e0efff;
-  background-color: #00274a;
+  color: #f5f7fb;
+  background-color: #0a0f1d;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(57, 112, 255, 0.15), transparent 40%),
+    #0a0f1d;
 }
 
 #root {
   width: 100%;
   height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  letter-spacing: -0.015em;
 }
 
 /* Scrollbar styling */
@@ -28,22 +41,33 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #003d71;
+  background: #131a2b;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #006dcd;
+  background: #283654;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #0c8af0;
+  background: #3a4e78;
 }
 
-/* Custom utility classes */
-@layer utilities {
-  .text-shadow-glow {
-    text-shadow: 0 0 10px rgba(124, 197, 255, 0.5);
+@layer components {
+  .tempest-shell {
+    @apply min-h-screen bg-slate-950 text-slate-100;
+  }
+
+  .tempest-panel {
+    @apply rounded-2xl border border-slate-800/90 bg-slate-900/80 shadow-2xl shadow-slate-950/40 backdrop-blur;
+  }
+
+  .tempest-heading {
+    @apply text-slate-50;
+  }
+
+  .tempest-copy {
+    @apply text-slate-400;
   }
 }

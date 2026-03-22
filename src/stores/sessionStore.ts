@@ -86,14 +86,18 @@ export const useSessionStore = create<SessionState>()(
         }),
     }),
     {
-      name: 'stormlight-vtt-session',
+      name: 'tempest-table-session',
       partialize: (state) => ({
         // Only persist essential data for session reconnection
         session: state.session
-          ? { code: state.session.code, name: state.session.name }
+          ? { id: state.session.id, code: state.session.code, name: state.session.name }
           : null,
         currentUser: state.currentUser
-          ? { username: state.currentUser.username }
+          ? {
+              username: state.currentUser.username,
+              characterId: state.currentUser.characterId,
+              isGm: state.currentUser.isGm,
+            }
           : null,
       }),
     }

@@ -1,197 +1,324 @@
-# Stormlight VTT - Setup Guide
+# Tempest Table - Product + Setup + Deployment Guide
 
-Complete setup instructions for running the Stormlight Virtual Tabletop application.
+This guide is a full walkthrough for:
 
-## Prerequisites
+1. What the VTT can do (GM + player workflows)
+2. What the Admin page can do
+3. Local development setup
+4. Supabase project creation + migration setup
+5. Cloudflare Pages deployment from your own fork
+6. Managing environment secrets/variables for dev and production
 
-- **Node.js** 18+ (recommend 20 LTS)
-- **npm** 9+ (comes with Node.js)
-- A **Supabase** account (free tier is sufficient)
+---
 
-## Step 1: Create a Supabase Project
+## 1) VTT feature guide (GM + players)
 
-1. Go to [supabase.com](https://supabase.com) and sign up/log in
-2. Click **"New Project"**
-3. Fill in the details:
-   - **Name**: `stormlight-vtt` (or any name you prefer)
-   - **Database Password**: Generate a strong password and save it
-   - **Region**: Choose the closest to your players
-4. Click **"Create new project"** and wait for it to initialize (~2 minutes)
+The app has two main user surfaces:
 
-## Step 2: Get Your Supabase Credentials
+- **Session VTT** (`/`, `/create`, `/join`, `/lobby`, `/play`)
+- **Admin console** (`/admin`, `/admin/dashboard`, `/admin/assets/new`)
 
-1. In your Supabase project dashboard, go to **Settings** (gear icon) → **API**
-2. Copy these two values:
-   - **Project URL** (looks like `https://xxxxx.supabase.co`)
-   - **anon public** key (under "Project API keys")
+### 1.1 Session and lobby flow
 
-## Step 3: Set Up the Database
+- Create a session with a generated code to share with players.
+- Join an existing session using code + username.
+- Move into a lobby and then the play screen.
+- Session routes are protected so users without a valid session are redirected home.
 
-### 3a. Run the Schema Migration
+### 1.2 Main play screen layout
 
-1. In Supabase, go to **SQL Editor** (left sidebar)
-2. Click **"New query"**
-3. Copy the entire contents of `supabase/migrations/001_initial_schema.sql` and paste it
-4. Click **"Run"** (or press Cmd/Ctrl + Enter)
-5. You should see "Success. No rows returned" - this is normal
+The in-session layout has three zones:
 
-### 3b. Create Storage Buckets
+- **Center:** Map canvas (the active battle map)
+- **Left (GM only):** GM Controls panel
+- **Right:** Player utility panel (chat, dice, notes, inventory, drawing, etc.)
 
-The storage SQL may not work directly. It's easier to create buckets via the dashboard:
+Header features include:
 
-1. Go to **Storage** (left sidebar)
-2. Click **"New bucket"**
-3. Create a bucket named `maps`:
-   - Name: `maps`
-   - Public bucket: **Yes** (toggle on)
-   - Click "Create bucket"
-4. Create another bucket named `tokens`:
-   - Name: `tokens`
-   - Public bucket: **Yes** (toggle on)
-   - Click "Create bucket"
+- Session name + session code
+- Active map name
+- Realtime connection status indicator
+- Player count
+- Claim/release GM role
+- Collapse/expand right panel
+- Leave session
 
-### 3c. Set Storage Policies (Important!)
+### 1.3 Player features
 
-For each bucket (`maps` and `tokens`), you need to add policies:
+Players can use the right-side tabs to access:
 
-1. Click on the bucket name
-2. Click **"Policies"** tab
-3. Click **"New Policy"**
-4. Choose **"For full customization"**
-5. Add these policies for EACH bucket:
+- **Chat:** shared session chat
+- **Dice:** in-app dice rolling with roll logs
+- **Initiative:** (player-focused view) initiative tracker
+- **Notes:** shared notepad space
+- **Items:** inventory interactions
+- **Draw:** map annotation tools
+- **Session:** quick layout/help panel
 
-**SELECT Policy (Read):**
-- Policy name: `Public read access`
-- Allowed operation: `SELECT`
-- Target roles: Leave empty (applies to all)
-- USING expression: `true`
+### 1.4 GM features
 
-**INSERT Policy (Upload):**
-- Policy name: `Allow uploads`
-- Allowed operation: `INSERT`
-- Target roles: Leave empty
-- WITH CHECK expression: `true`
+GM controls are grouped in dedicated tabs:
 
-**UPDATE Policy:**
-- Policy name: `Allow updates`
-- Allowed operation: `UPDATE`
-- Target roles: Leave empty
-- USING expression: `true`
+- **Maps:** map management and active map selection
+- **PCs:** character management
+- **NPCs:** NPC template/instance management
+- **Handouts:** session handout management
+- **Fog:** fog of war controls/tools
+- **Initiative:** GM initiative tracker controls
+- **Settings:** gameplay permissions + drawing cleanup + session export/import
 
-**DELETE Policy:**
-- Policy name: `Allow deletes`
-- Allowed operation: `DELETE`
-- Target roles: Leave empty
-- USING expression: `true`
+GM settings include toggles for:
 
-## Step 4: Configure the Application
+- Allow players to rename NPCs
+- Allow players to move NPCs
 
-1. In the project root, copy the example environment file:
-   ```bash
-   cp .env.example .env.local
-   ```
+GM utility actions include:
 
-2. Edit `.env.local` with your Supabase credentials:
-   ```
-   VITE_SUPABASE_URL=https://your-project-id.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-   ```
+- Clearing all drawings (or only player drawings from the player draw tab)
+- Session export/import support
 
-## Step 5: Install Dependencies and Run
+### 1.5 Realtime and persistence behavior
+
+- Session data is persisted in Supabase Postgres.
+- Map/token/handout assets use Supabase Storage public buckets.
+- Realtime table updates sync state across connected users.
+- Client state is managed via Zustand stores and synchronized through domain hooks.
+
+---
+
+## 2) Admin page feature guide
+
+The Admin UI supports lightweight system moderation and global asset curation.
+
+### 2.1 Admin login
+
+- Password-based admin sign-in at `/admin`.
+- Password is checked against `system_settings.admin_password`.
+- Successful login creates a local admin session and records an admin log entry.
+
+> Important: the default seeded admin password is `tempest-admin-2024` from migration `003_admin_and_assets.sql`. Change it immediately.
+
+### 2.2 Admin dashboard tabs
+
+- **Sessions**
+  - View all sessions
+  - Expand to inspect players + session metadata
+  - Remove players from sessions
+  - Delete sessions
+
+- **Global Assets**
+  - View all global map/token assets
+  - Delete assets
+  - Navigate to add-new asset workflow
+
+- **Activity Logs**
+  - Review admin action history
+
+- **Settings**
+  - Change admin password
+
+### 2.3 Global asset creation
+
+`/admin/assets/new` supports:
+
+- Asset type selection (`token` or `map`)
+- Image upload + preview
+- Validation rules (size/dimensions/type)
+- Category/tags/metadata
+- Upload to storage and save record into `global_assets`
+
+---
+
+## 3) Prerequisites
+
+- **Git**
+- **GitHub account**
+- **Node.js 18+** (Node 20 LTS recommended)
+- **npm 9+**
+- **Supabase account**
+- **Cloudflare account** (for Pages deployment)
+
+---
+
+## 4) Fork + clone your own copy
+
+1. Open the repository on GitHub.
+2. Click **Fork** → choose your account/org.
+3. Clone your fork:
 
 ```bash
-# Install all dependencies
-npm install
+git clone https://github.com/<your-username>/StormlightVTT.git
+cd StormlightVTT
+```
 
-# Start the development server
+4. (Recommended) Add upstream remote:
+
+```bash
+git remote add upstream https://github.com/<original-owner>/StormlightVTT.git
+git remote -v
+```
+
+---
+
+## 5) Create Supabase project
+
+1. In Supabase dashboard, click **New project**.
+2. Choose org, project name, database password, region.
+3. Wait for provisioning.
+4. Copy API values from **Project Settings → API**:
+   - `Project URL`
+   - `anon public` key
+
+---
+
+## 6) Run database/storage migrations
+
+You can run these in Supabase SQL Editor as separate scripts, in order:
+
+1. `001_initial_schema.sql`
+2. `002_storage_setup.sql`
+3. `003_admin_and_assets.sql`
+4. `004_initiative_and_gm_settings.sql`
+5. `005_initiative_roll_logs_and_unique_entries.sql`
+6. `006_add_drawing_data.sql`
+7. `007_handouts_and_folders.sql`
+8. `008_handouts_storage.sql`
+9. `009_token_size_and_status_rings.sql`
+
+### 6.1 Notes about storage policies
+
+The storage migrations create buckets/policies for:
+
+- `maps`
+- `tokens`
+- `handouts`
+
+If your project already has similarly named policies, Supabase may raise policy-name conflicts. If that happens:
+
+- remove conflicting policy names first, or
+- rename policies in your SQL before running.
+
+---
+
+## 7) Local development setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Create your local env file:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Fill in `.env.local`:
+
+```dotenv
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
+```
+
+4. Start dev server:
+
+```bash
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+5. Open the app at `http://localhost:5173`.
 
-## Step 6: Test the Application
+---
 
-1. Open `http://localhost:5173` in your browser
-2. Click **"Create Session"**
-3. Enter a session name (e.g., "Test Session") and your username
-4. You should be taken to the session lobby
-5. Note the session code (e.g., "ABCD-1234") - share this with players
+## 8) Cloudflare Pages deployment (from your fork)
 
-### Testing with Multiple Users
+### 8.1 Connect repo to Cloudflare Pages
 
-Open the app in an incognito/private window or different browser to simulate another player joining with the session code.
+1. Go to **Cloudflare Dashboard → Workers & Pages → Create application → Pages**.
+2. Choose **Connect to Git**.
+3. Authorize GitHub if prompted.
+4. Select your **fork** repository.
 
-## Deployment to Cloudflare Pages
+### 8.2 Configure build settings
 
-### Build for Production
+Use:
 
-```bash
-npm run build
+- **Framework preset:** Vite (or None + manual commands)
+- **Build command:** `npm run build`
+- **Build output directory:** `dist`
+- **Node version:** 20 (recommended)
+
+### 8.3 Add environment variables in Pages
+
+In Pages project settings, add for both **Preview** and **Production** environments:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Then redeploy.
+
+### 8.4 SPA routing note
+
+Tempest Table uses client-side routes (e.g. `/play`, `/admin/dashboard`).
+
+For Cloudflare Pages, add a `public/_redirects` file containing:
+
+```text
+/* /index.html 200
 ```
 
-This creates a `dist` folder with the production build.
+This ensures direct-link refreshes on nested routes resolve correctly.
 
-### Deploy to Cloudflare Pages
+---
 
-1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com) → Pages
-2. Click **"Create a project"** → **"Connect to Git"**
-3. Select your repository
-4. Configure build settings:
-   - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
-5. Add environment variables:
-   - `VITE_SUPABASE_URL` = your Supabase URL
-   - `VITE_SUPABASE_ANON_KEY` = your anon key
-6. Click **"Save and Deploy"**
+## 9) Dev vs production secret/variable strategy (Cloudflare)
 
-Your app will be available at `https://your-project.pages.dev`
+Even though Vite `VITE_*` values are client-exposed, you should still maintain clean environment separation.
 
-## Troubleshooting
+### 9.1 Recommended setup
 
-### "Failed to fetch" errors
-- Check that your Supabase URL and anon key are correct in `.env.local`
-- Ensure the Supabase project is active (free tier pauses after 1 week of inactivity)
+- **Preview environment**
+  - Use a separate Supabase project (staging/dev)
+  - Set Preview vars to staging values
 
-### Storage upload errors
-- Verify storage buckets exist and are public
-- Check that all 4 policies (SELECT, INSERT, UPDATE, DELETE) are added to each bucket
+- **Production environment**
+  - Use your production Supabase project
+  - Set Production vars to production values
 
-### Real-time not working
-- Go to Supabase → Database → Replication
-- Ensure all tables are listed under "supabase_realtime" publication
-- If not, run this SQL:
-  ```sql
-  ALTER PUBLICATION supabase_realtime ADD TABLE sessions;
-  ALTER PUBLICATION supabase_realtime ADD TABLE maps;
-  ALTER PUBLICATION supabase_realtime ADD TABLE characters;
-  ALTER PUBLICATION supabase_realtime ADD TABLE session_players;
-  ALTER PUBLICATION supabase_realtime ADD TABLE npc_templates;
-  ALTER PUBLICATION supabase_realtime ADD TABLE npc_instances;
-  ALTER PUBLICATION supabase_realtime ADD TABLE dice_rolls;
-  ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
-  ```
+### 9.2 Where to set values
 
-### Database errors
-- Check the Supabase SQL editor for any failed migrations
-- Look at the Supabase logs (Database → Logs)
+In Cloudflare Pages:
 
-## File Size Limits
+- **Pages project → Settings → Environment variables**
+  - Add variables per environment (Preview/Production)
 
-- **Map images**: Max 25MB, 5000x5000 pixels
-- **Token images**: Max 500KB
+Optional CLI workflow (`wrangler pages`) can also manage deployments, but dashboard setup is usually fastest.
 
-## Free Tier Limits (Supabase)
+### 9.3 Security expectations
 
-- Database: 500 MB
-- Storage: 1 GB
-- Bandwidth: 2 GB/month
-- Realtime: 200 concurrent connections
+- `VITE_SUPABASE_ANON_KEY` is intended for public client usage.
+- Do **not** place Supabase service role keys in Vite `VITE_*` variables.
+- Admin authentication in this app is app-level/password-based, so change default password immediately and restrict who gets it.
 
-These limits are more than sufficient for personal use with a small group.
+---
 
-## Getting Help
+## 10) Post-deploy checklist
 
-If you encounter issues:
-1. Check the browser console (F12 → Console) for error messages
-2. Check Supabase logs (Database → Logs)
-3. Verify all environment variables are set correctly
+- [ ] Session create/join works
+- [ ] Realtime sync works across two browser windows
+- [ ] Map/token uploads work
+- [ ] Handout uploads work
+- [ ] Admin login works
+- [ ] Default admin password changed
+- [ ] Cloudflare Preview + Production env vars both set
+- [ ] SPA route refresh (`/play`, `/admin/dashboard`) works
+
+---
+
+## 11) Helpful operational notes
+
+- Supabase free tier can pause inactive projects; first request after idle may be slow.
+- Keep migrations versioned and run them in order for each new environment.
+- For production stability, pin Node version in Cloudflare Pages.
+- Consider maintaining a small seed/testing session in staging to validate releases.

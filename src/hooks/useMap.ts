@@ -2,8 +2,9 @@ import { useCallback } from 'react';
 import { supabase, uploadFile, deleteFile, STORAGE_BUCKETS } from '../lib/supabase';
 import { useSessionStore } from '../stores/sessionStore';
 import { useMapStore } from '../stores/mapStore';
-import { dbMapToMap, type DbMap, type Map, type FogRegion } from '../types';
+import { dbMapToMap, type DbMap, type Map, type FogRegion, type DrawingRegion, type MapEffectTile } from '../types';
 import { nanoid } from 'nanoid';
+import { broadcastActiveMap } from '../lib/tokenBroadcast';
 
 export const useMap = () => {
   const session = useSessionStore((state) => state.session);
@@ -74,6 +75,58 @@ export const useMap = () => {
   );
 
   /**
+   * Add a map from a global asset (pre-existing URL)
+   */
+  const addMapFromGlobalAsset = useCallback(
+    async (
+      name: string,
+      imageUrl: string,
+      width: number,
+      height: number
+    ): Promise<{ success: boolean; map?: Map; error?: string }> => {
+      if (!session) {
+        return { success: false, error: 'Not in a session' };
+      }
+
+      try {
+        // Create map record with existing URL
+        const { data, error } = await supabase
+          .from('maps')
+          .insert({
+            session_id: session.id,
+            name,
+            image_url: imageUrl,
+            width,
+            height,
+            sort_order: maps.length,
+          })
+          .select()
+          .single();
+
+        if (error || !data) {
+          return { success: false, error: error?.message || 'Failed to create map' };
+        }
+
+        const newMap = dbMapToMap(data as DbMap);
+        addMap(newMap);
+
+        // If this is the first map, set it as active
+        if (maps.length === 0) {
+          await setMapActive(newMap.id);
+        }
+
+        return { success: true, map: newMap };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+    [session, maps, addMap]
+  );
+
+  /**
    * Set a map as active
    */
   const setMapActive = useCallback(
@@ -98,6 +151,7 @@ export const useMap = () => {
         }
 
         setActiveMap(map);
+        await broadcastActiveMap({ sessionId: session.id, mapId });
         return { success: true };
       } catch (error) {
         return {
@@ -115,7 +169,21 @@ export const useMap = () => {
   const updateMapSettings = useCallback(
     async (
       mapId: string,
-      settings: Partial<Pick<Map, 'name' | 'gridEnabled' | 'gridOffsetX' | 'gridOffsetY' | 'gridCellSize' | 'gridColor' | 'fogEnabled' | 'fogDefaultState' | 'showPlayerTokens'>>
+      settings: Partial<
+        Pick<
+          Map,
+          | 'name'
+          | 'gridEnabled'
+          | 'gridOffsetX'
+          | 'gridOffsetY'
+          | 'gridCellSize'
+          | 'gridColor'
+          | 'fogEnabled'
+          | 'fogDefaultState'
+          | 'showPlayerTokens'
+          | 'effectsEnabled'
+        >
+      >
     ): Promise<{ success: boolean; error?: string }> => {
       try {
         const dbSettings: Record<string, unknown> = {};
@@ -128,6 +196,7 @@ export const useMap = () => {
         if (settings.fogEnabled !== undefined) dbSettings.fog_enabled = settings.fogEnabled;
         if (settings.fogDefaultState !== undefined) dbSettings.fog_default_state = settings.fogDefaultState;
         if (settings.showPlayerTokens !== undefined) dbSettings.show_player_tokens = settings.showPlayerTokens;
+        if (settings.effectsEnabled !== undefined) dbSettings.effects_enabled = settings.effectsEnabled;
 
         const { error } = await supabase
           .from('maps')
@@ -166,6 +235,63 @@ export const useMap = () => {
         }
 
         updateMap(mapId, { fogData });
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+    [updateMap]
+  );
+
+  /**
+   * Update drawing data
+   */
+  const updateDrawingData = useCallback(
+    async (
+      mapId: string,
+      drawingData: DrawingRegion[]
+    ): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const { error } = await supabase
+          .from('maps')
+          .update({ drawing_data: drawingData })
+          .eq('id', mapId);
+
+        if (error) {
+          return { success: false, error: error.message };
+        }
+
+        updateMap(mapId, { drawingData });
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+    [updateMap]
+  );
+
+  /**
+   * Update map effect tiles
+   */
+  const updateEffectData = useCallback(
+    async (mapId: string, effectData: MapEffectTile[]): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const { error } = await supabase
+          .from('maps')
+          .update({ effect_data: effectData })
+          .eq('id', mapId);
+
+        if (error) {
+          return { success: false, error: error.message };
+        }
+
+        updateMap(mapId, { effectData });
         return { success: true };
       } catch (error) {
         return {
@@ -226,9 +352,12 @@ export const useMap = () => {
     maps,
     activeMap,
     uploadMap,
+    addMapFromGlobalAsset,
     setMapActive,
     updateMapSettings,
     updateFogData,
+    updateDrawingData,
+    updateEffectData,
     deleteMap,
   };
 };

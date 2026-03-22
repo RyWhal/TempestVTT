@@ -1,4 +1,4 @@
--- Storage bucket setup for Stormlight VTT
+-- Storage bucket setup for Tempest Table
 -- Run this in the Supabase SQL Editor or configure via Dashboard
 
 -- Create storage buckets (if using SQL - you may need to do this via Dashboard)

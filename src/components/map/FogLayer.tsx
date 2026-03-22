@@ -33,6 +33,16 @@ export const FogLayer: React.FC<FogLayerProps> = ({
   const fogElements = useMemo(() => {
     const elements: JSX.Element[] = [];
 
+    const isAxisAlignedRect = (points: FogRegion['points']) => {
+      if (points.length !== 5) return false;
+      const [first, ...rest] = points;
+      const last = rest[rest.length - 1];
+      if (!last || first.x !== last.x || first.y !== last.y) return false;
+      const uniqueX = new Set(points.map((p) => p.x));
+      const uniqueY = new Set(points.map((p) => p.y));
+      return uniqueX.size === 2 && uniqueY.size === 2;
+    };
+
     // Base fog layer if default is fogged
     if (defaultState === 'fogged') {
       elements.push(
@@ -53,6 +63,34 @@ export const FogLayer: React.FC<FogLayerProps> = ({
     fogData.forEach((region, idx) => {
       if (region.points.length < 2) return;
 
+      if (isAxisAlignedRect(region.points)) {
+        const xs = region.points.map((point) => point.x);
+        const ys = region.points.map((point) => point.y);
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        const maxX = Math.max(...xs);
+        const maxY = Math.max(...ys);
+        const width = maxX - minX;
+        const height = maxY - minY;
+
+        elements.push(
+          <Rect
+            key={`${region.type}-rect-${idx}`}
+            x={minX}
+            y={minY}
+            width={width}
+            height={height}
+            fill={fogColor}
+            opacity={region.type === 'hide' ? fogOpacity : 1}
+            listening={false}
+            globalCompositeOperation={
+              region.type === 'reveal' ? 'destination-out' : 'source-over'
+            }
+          />
+        );
+        return;
+      }
+
       const flatPoints = region.points.flatMap((p) => [p.x, p.y]);
 
       if (region.type === 'reveal') {
@@ -63,7 +101,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({
           <Line
             key={`reveal-${idx}`}
             points={flatPoints}
-            stroke={isGM ? 'rgba(0, 100, 0, 0.3)' : 'transparent'}
+            stroke={'#000000'}
             strokeWidth={region.brushSize}
             lineCap="round"
             lineJoin="round"

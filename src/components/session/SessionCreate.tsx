@@ -19,7 +19,6 @@ export const SessionCreate: React.FC = () => {
   const clearMapState = useMapStore((state) => state.clearMapState);
   const clearChatState = useChatStore((state) => state.clearChatState);
 
-  // Clear any existing session state when entering create page
   useEffect(() => {
     clearSession();
     clearMapState();
@@ -33,58 +32,49 @@ export const SessionCreate: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate
     const sessionNameValidation = validateSessionName(sessionName);
     const usernameValidation = validateUsername(username);
 
     if (!sessionNameValidation.valid || !usernameValidation.valid) {
-      setErrors({
-        sessionName: sessionNameValidation.error,
-        username: usernameValidation.error,
-      });
+      setErrors({ sessionName: sessionNameValidation.error, username: usernameValidation.error });
       return;
     }
 
     setErrors({});
     setIsLoading(true);
-
     const result = await createSession(sessionName, username);
-
     setIsLoading(false);
 
     if (result.success && result.code) {
       showToast(`Session created! Code: ${result.code}`, 'success');
       navigate('/play');
-    } else {
-      showToast(result.error || 'Failed to create session', 'error');
+      return;
     }
+
+    showToast(result.error || 'Failed to create session', 'error');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-storm-950 to-storm-900">
+    <main className="tempest-shell flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        <Button
-          variant="ghost"
-          className="mb-4"
-          onClick={() => navigate('/')}
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+        <Button variant="ghost" className="mb-4" onClick={() => navigate('/')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-storm-400" />
+              <Sparkles className="h-5 w-5 text-tempest-300" />
               Create Session
             </CardTitle>
+            <p className="mt-2 text-sm text-slate-400">Start a new Tempest table and invite players with a code.</p>
           </CardHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Session Name"
-              placeholder="e.g., Bridge Four Campaign"
+              placeholder="e.g., Saturday Night Campaign"
               value={sessionName}
               onChange={(e) => setSessionName(e.target.value)}
               error={errors.sessionName}
@@ -97,25 +87,15 @@ export const SessionCreate: React.FC = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               error={errors.username}
-              helperText="You'll automatically be the GM"
+              helperText="You will enter as GM."
             />
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full"
-              isLoading={isLoading}
-            >
+            <Button type="submit" variant="primary" size="lg" className="w-full" isLoading={isLoading}>
               Create Session
             </Button>
           </form>
-
-          <p className="mt-4 text-sm text-storm-400 text-center">
-            A unique session code will be generated for players to join.
-          </p>
         </Card>
       </div>
-    </div>
+    </main>
   );
 };
