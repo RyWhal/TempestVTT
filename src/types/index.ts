@@ -465,6 +465,233 @@ export interface DbChatMessage {
   created_at: string;
 }
 
+export type ProcgenRecordState = 'unseen' | 'preview' | 'locked';
+export type SharedAssetGenerationStatus = 'pending' | 'ready' | 'failed';
+
+export interface DungeonGraphEdge {
+  fromSectionId: string;
+  fromConnectionId: string;
+  toSectionId: string;
+  toConnectionId: string;
+}
+
+export interface DungeonGraph {
+  nodes: string[];
+  edges: DungeonGraphEdge[];
+}
+
+export interface CampaignWorld {
+  id: string;
+  sessionId: string;
+  name: string;
+  worldSeed: string;
+  campaignGoalId: string | null;
+  difficultyModel: string;
+  toneProfile: Record<string, unknown>;
+  startingSectionId: string | null;
+  activeSectionId: string | null;
+  dungeonGraph: DungeonGraph;
+  generationState: Record<string, unknown>;
+  presentationState: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProcgenCampaignSummary {
+  id: string;
+  sessionId: string;
+  name: string;
+  worldSeed: string;
+  activeSectionId: string | null;
+  sectionCount: number;
+  lockedSectionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DungeonSectionRecord {
+  id: string;
+  campaignId: string;
+  sectionId: string;
+  name: string;
+  state: ProcgenRecordState;
+  primaryBiomeId: string;
+  secondaryBiomeIds: string[];
+  layoutType: string;
+  grid: {
+    width: number;
+    height: number;
+    tileSizeFt: number;
+  };
+  roomIds: string[];
+  entranceConnectionIds: string[];
+  exitConnectionIds: string[];
+  generationState: Record<string, unknown>;
+  presentationState: Record<string, unknown>;
+  overrideState: Record<string, unknown>;
+  renderPayloadCache: Record<string, unknown> | null;
+  lockedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoomStateRecord {
+  id: string;
+  campaignId: string;
+  sectionId: string;
+  roomId: string;
+  state: ProcgenRecordState;
+  canonicalState: Record<string, unknown>;
+  runtimeState: Record<string, unknown>;
+  presentationState: Record<string, unknown>;
+  overrideState: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProcgenSectionPreviewRecord {
+  id: string;
+  campaignId: string;
+  fromSectionId: string | null;
+  sectionStubId: string;
+  direction: string | null;
+  previewState: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GMOverrideRecord {
+  id: string;
+  campaignId: string;
+  sectionId: string | null;
+  roomStateId: string | null;
+  targetType: string;
+  targetId: string;
+  patchType: string;
+  payload: Record<string, unknown>;
+  author: string;
+  appliedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SharedAssetRecord {
+  id: string;
+  assetKey: string;
+  assetType: string;
+  generationStatus: SharedAssetGenerationStatus;
+  promptVersion: string | null;
+  sourceFingerprint: string;
+  storageUrl: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DbProcgenCampaign {
+  id: string;
+  session_id: string;
+  name: string;
+  world_seed: string;
+  campaign_goal_id: string | null;
+  difficulty_model: string;
+  tone_profile: Record<string, unknown>;
+  starting_section_id: string | null;
+  active_section_id: string | null;
+  dungeon_graph: {
+    nodes: string[];
+    edges: Array<{
+      from_section_id: string;
+      from_connection_id: string;
+      to_section_id: string;
+      to_connection_id: string;
+    }>;
+  };
+  generation_state: Record<string, unknown>;
+  presentation_state: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbProcgenSection {
+  id: string;
+  campaign_id: string;
+  section_id: string;
+  name: string;
+  state: ProcgenRecordState;
+  primary_biome_id: string;
+  secondary_biome_ids: string[];
+  layout_type: string;
+  grid: {
+    width: number;
+    height: number;
+    tile_size_ft: number;
+  };
+  room_ids: string[];
+  entrance_connection_ids: string[];
+  exit_connection_ids: string[];
+  generation_state: Record<string, unknown>;
+  presentation_state: Record<string, unknown>;
+  override_state: Record<string, unknown>;
+  render_payload_cache: Record<string, unknown> | null;
+  locked_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbProcgenRoomState {
+  id: string;
+  campaign_id: string;
+  section_id: string;
+  room_id: string;
+  state: ProcgenRecordState;
+  canonical_state: Record<string, unknown>;
+  runtime_state: Record<string, unknown>;
+  presentation_state: Record<string, unknown>;
+  override_state: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbProcgenOverride {
+  id: string;
+  campaign_id: string;
+  section_id: string | null;
+  room_state_id: string | null;
+  target_type: string;
+  target_id: string;
+  patch_type: string;
+  payload: Record<string, unknown>;
+  author: string;
+  applied_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbProcgenSectionPreview {
+  id: string;
+  campaign_id: string;
+  from_section_id: string | null;
+  section_stub_id: string;
+  direction: string | null;
+  preview_state: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbSharedAsset {
+  id: string;
+  asset_key: string;
+  asset_type: string;
+  generation_status: SharedAssetGenerationStatus;
+  prompt_version: string | null;
+  source_fingerprint: string;
+  storage_url: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 // Utility type converters
 export function dbSessionToSession(db: DbSession): Session {
   return {

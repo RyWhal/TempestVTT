@@ -1,0 +1,119 @@
+export type ProcgenLockState = 'unseen' | 'preview' | 'locked';
+
+export interface SectionSeedInput {
+  worldSeed: string;
+  sectionId: string;
+  state?: ProcgenLockState;
+}
+
+export interface ProcgenIdentifiedRecord {
+  id: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+export interface Biome extends ProcgenIdentifiedRecord {}
+export interface CreatureFamily extends ProcgenIdentifiedRecord {}
+export interface CreatureVariant extends ProcgenIdentifiedRecord {}
+export interface NamePhonemeSet extends ProcgenIdentifiedRecord {}
+export interface NpcAnchorTemplate extends ProcgenIdentifiedRecord {}
+export interface NpcRoleToAnchorMapping {
+  role_id: string;
+  anchor_template_id: string;
+  tier?: string;
+  [key: string]: unknown;
+}
+export interface NpcRole extends ProcgenIdentifiedRecord {}
+export interface NpcModifier extends ProcgenIdentifiedRecord {}
+export interface VillageArchetype extends ProcgenIdentifiedRecord {}
+export interface ShopType extends ProcgenIdentifiedRecord {}
+export interface RoomPrimitive extends ProcgenIdentifiedRecord {}
+export interface RoomType extends ProcgenIdentifiedRecord {}
+export interface ItemTemplate extends ProcgenIdentifiedRecord {}
+export interface NpcGenerationSchema {
+  [key: string]: unknown;
+}
+export interface GenAiDescriptionSchema {
+  [key: string]: unknown;
+}
+
+export interface BiomesPack {
+  biomes: Biome[];
+}
+
+export interface CreatureFamiliesPack {
+  creatureFamilies: CreatureFamily[];
+}
+
+export interface CreatureVariantsPack {
+  creatureVariants: CreatureVariant[];
+}
+
+export interface NamePhonemesPack {
+  namePhonemes: NamePhonemeSet[];
+}
+
+export interface NpcAnchorTemplatesPack {
+  npcAnchorTemplates: NpcAnchorTemplate[];
+}
+
+export interface NpcRoleToAnchorMappingPack {
+  npcRoleToAnchorMapping: NpcRoleToAnchorMapping[];
+}
+
+export interface NpcRolesPack {
+  npcRoles: NpcRole[];
+}
+
+export interface NpcModifiersPack {
+  npcModifiers: NpcModifier[];
+}
+
+export interface VillageArchetypesPack {
+  villageArchetypes: VillageArchetype[];
+}
+
+export interface NpcGenerationSchemaPack {
+  npcGenerationSchema: NpcGenerationSchema;
+}
+
+export interface GenAiDescriptionSchemaPack {
+  genAiDescriptionSchema: GenAiDescriptionSchema;
+}
+
+export interface ShopTypesPack {
+  shopTypes: ShopType[];
+}
+
+export interface RoomPrimitivesPack {
+  roomPrimitives: RoomPrimitive[];
+}
+
+export interface RoomTypeLibraryPack {
+  roomTypes: RoomType[];
+}
+
+export interface ItemTablesPack {
+  itemTemplates: ItemTemplate[];
+  itemCategories: ProcgenIdentifiedRecord[];
+}
+
+export interface ProcgenContentPackMap {
+  biomes: BiomesPack;
+  creature_families: CreatureFamiliesPack;
+  creature_variants: CreatureVariantsPack;
+  name_phonemes: NamePhonemesPack;
+  npc_anchor_templates: NpcAnchorTemplatesPack;
+  npc_generation_schema: NpcGenerationSchemaPack;
+  npc_modifiers: NpcModifiersPack;
+  npc_role_to_anchor_mapping: NpcRoleToAnchorMappingPack;
+  npc_roles: NpcRolesPack;
+  village_archetypes: VillageArchetypesPack;
+  genai_description_schema: GenAiDescriptionSchemaPack;
+  shop_types: ShopTypesPack;
+  room_primitives: RoomPrimitivesPack;
+  room_type_library: RoomTypeLibraryPack;
+  item_tables: ItemTablesPack;
+}
+
+export type ProcgenContentPackId = keyof ProcgenContentPackMap;
