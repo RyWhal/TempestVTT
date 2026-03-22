@@ -1,0 +1,156 @@
+import { describe, expect, it } from 'vitest';
+import { generateSection } from '../engine/sectionGenerator';
+
+const computeOccupiedArea = (
+  rooms: Array<{ bounds: { x: number; y: number; width: number; height: number } }>
+) => rooms.reduce((total, room) => total + room.bounds.width * room.bounds.height, 0);
+
+const hasOverlap = (
+  rooms: Array<{ bounds: { x: number; y: number; width: number; height: number } }>
+) => {
+  for (let i = 0; i < rooms.length; i++) {
+    const a = rooms[i].bounds;
+    const aRight = a.x + a.width;
+    const aBottom = a.y + a.height;
+
+    for (let j = i + 1; j < rooms.length; j++) {
+      const b = rooms[j].bounds;
+      const bRight = b.x + b.width;
+      const bBottom = b.y + b.height;
+
+      const separated =
+        aRight <= b.x ||
+        bRight <= a.x ||
+        aBottom <= b.y ||
+        bBottom <= a.y;
+
+      if (!separated) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+const collectReachableRoomIds = (
+  section: ReturnType<typeof generateSection>
+) => {
+  const visited = new Set<string>();
+  const queue = [...section.entranceRoomIds];
+
+  while (queue.length > 0) {
+    const roomId = queue.shift();
+
+    if (!roomId || visited.has(roomId)) {
+      continue;
+    }
+
+    visited.add(roomId);
+    const room = section.rooms.find((candidate) => candidate.roomId === roomId);
+
+    if (!room) {
+      continue;
+    }
+
+    for (const nextRoomId of room.connectedRoomIds) {
+      if (!visited.has(nextRoomId)) {
+        queue.push(nextRoomId);
+      }
+    }
+  }
+
+  return visited;
+};
+
+describe('generateSection', () => {
+  it('returns the same section for the same seed and section id', () => {
+    const first = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_start_001',
+    });
+
+    const second = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_start_001',
+    });
+
+    expect(second).toEqual(first);
+  });
+
+  it('returns a different section for a different section id', () => {
+    const first = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_start_001',
+    });
+
+    const second = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_002',
+    });
+
+    expect(second).not.toEqual(first);
+  });
+
+  it('keeps ordinary exploration sections sparse and readable', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_sparse_001',
+      sectionKind: 'exploration',
+    });
+
+    expect(section.grid.width).toBe(100);
+    expect(section.grid.height).toBe(100);
+    expect(section.rooms.length).toBeGreaterThanOrEqual(4);
+    expect(section.rooms.length).toBeLessThanOrEqual(8);
+
+    const occupiedArea = computeOccupiedArea(section.rooms);
+    expect(occupiedArea).toBeLessThan(3600);
+  });
+
+  it('allows settlement sections to occupy much more of the map footprint', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_village_001',
+      sectionKind: 'settlement',
+    });
+
+    expect(section.rooms.length).toBeGreaterThanOrEqual(8);
+
+    const occupiedArea = computeOccupiedArea(section.rooms);
+    expect(occupiedArea).toBeGreaterThan(3000);
+  });
+
+  it('places rooms within the 100x100 section bounds without overlap', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_bounds_001',
+    });
+
+    for (const room of section.rooms) {
+      expect(room.bounds.x).toBeGreaterThanOrEqual(0);
+      expect(room.bounds.y).toBeGreaterThanOrEqual(0);
+      expect(room.bounds.x + room.bounds.width).toBeLessThanOrEqual(section.grid.width);
+      expect(room.bounds.y + room.bounds.height).toBeLessThanOrEqual(section.grid.height);
+    }
+
+    expect(hasOverlap(section.rooms)).toBe(false);
+  });
+
+  it('guarantees at least one entrance, one exit, and full room reachability', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_connectivity_001',
+    });
+
+    expect(section.entranceRoomIds.length).toBeGreaterThanOrEqual(1);
+    expect(section.exitRoomIds.length).toBeGreaterThanOrEqual(1);
+
+    const reachableRoomIds = collectReachableRoomIds(section);
+    expect(reachableRoomIds.size).toBe(section.rooms.length);
+
+    for (const exitRoomId of section.exitRoomIds) {
+      expect(reachableRoomIds.has(exitRoomId)).toBe(true);
+    }
+  });
+});

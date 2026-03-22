@@ -1,9 +1,64 @@
 export type ProcgenLockState = 'unseen' | 'preview' | 'locked';
+export type SectionKind = 'exploration' | 'settlement';
+export type SectionLayoutType =
+  | 'single_chamber'
+  | 'linear_path'
+  | 'branching_paths'
+  | 'central_hub'
+  | 'clustered_rooms';
 
 export interface SectionSeedInput {
   worldSeed: string;
   sectionId: string;
   state?: ProcgenLockState;
+}
+
+export interface GeneratedSectionInput {
+  worldSeed: string;
+  sectionId: string;
+  sectionKind?: SectionKind;
+}
+
+export interface RectBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface GeneratedSectionConnection {
+  connectionId: string;
+  fromRoomId: string;
+  toRoomId: string;
+}
+
+export interface GeneratedSectionRoom {
+  roomId: string;
+  primitiveId: string;
+  roomTypeId: string;
+  biomeId: string;
+  bounds: RectBounds;
+  connectedRoomIds: string[];
+  isEntrance: boolean;
+  isExit: boolean;
+  tags: string[];
+}
+
+export interface GeneratedSection {
+  sectionId: string;
+  seed: string;
+  sectionKind: SectionKind;
+  layoutType: SectionLayoutType;
+  grid: {
+    width: number;
+    height: number;
+    tileSizeFt: number;
+  };
+  primaryBiomeId: string;
+  rooms: GeneratedSectionRoom[];
+  connections: GeneratedSectionConnection[];
+  entranceRoomIds: string[];
+  exitRoomIds: string[];
 }
 
 export interface ProcgenIdentifiedRecord {
@@ -17,6 +72,12 @@ export interface CreatureFamily extends ProcgenIdentifiedRecord {}
 export interface CreatureVariant extends ProcgenIdentifiedRecord {}
 export interface NamePhonemeSet extends ProcgenIdentifiedRecord {}
 export interface NpcAnchorTemplate extends ProcgenIdentifiedRecord {}
+export interface PrimitiveGridFootprint {
+  min_w: number;
+  max_w: number;
+  min_h: number;
+  max_h: number;
+}
 export interface NpcRoleToAnchorMapping {
   role_id: string;
   anchor_template_id: string;
@@ -27,7 +88,12 @@ export interface NpcRole extends ProcgenIdentifiedRecord {}
 export interface NpcModifier extends ProcgenIdentifiedRecord {}
 export interface VillageArchetype extends ProcgenIdentifiedRecord {}
 export interface ShopType extends ProcgenIdentifiedRecord {}
-export interface RoomPrimitive extends ProcgenIdentifiedRecord {}
+export interface RoomPrimitive extends ProcgenIdentifiedRecord {
+  family?: string;
+  grid_footprint?: PrimitiveGridFootprint;
+  supports_rotation?: boolean;
+  [key: string]: unknown;
+}
 export interface RoomType extends ProcgenIdentifiedRecord {}
 export interface ItemTemplate extends ProcgenIdentifiedRecord {}
 export interface NpcGenerationSchema {
