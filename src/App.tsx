@@ -9,6 +9,8 @@ import { PlaySession } from './components/play/PlaySession';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AssetCreate } from './components/admin/AssetCreate';
+import { DunGENLayout } from './components/dungen/DunGENLayout';
+import { DunGENHome } from './components/dungen/DunGENHome';
 import { useSessionStore } from './stores/sessionStore';
 import { useSession } from './hooks/useSession';
 import { useRealtime } from './hooks/useRealtime';
@@ -71,6 +73,9 @@ const AppContent: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/DunGEN" element={<DunGENLayout />}>
+        <Route index element={<DunGENHome />} />
+      </Route>
       <Route path="/create" element={<SessionCreate />} />
       <Route path="/join" element={<SessionJoin />} />
       <Route
