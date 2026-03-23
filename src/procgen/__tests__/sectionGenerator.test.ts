@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { generateSection } from '../engine/sectionGenerator';
+import { getLayoutPresets } from '../engine/layoutPresets';
+import { getRoomCells, getOuterBoundarySpans } from '../geometry/roomGeometry';
+import { contentRegistry } from '../content/contentRegistry';
 
 const computeOccupiedArea = (
   rooms: Array<{ bounds: { x: number; y: number; width: number; height: number } }>
@@ -173,5 +176,87 @@ describe('generateSection', () => {
     expect(
       section.rooms.some((room) => !room.primitiveId.startsWith('square_'))
     ).toBe(true);
+  });
+
+  it('keeps settlement preset edges aligned to real slots', () => {
+    const presets = getLayoutPresets('settlement');
+
+    for (const preset of presets) {
+      const slotIds = new Set(preset.slots.map((slot) => slot.id));
+
+      for (const [fromSlotId, toSlotId] of preset.edges) {
+        expect(slotIds.has(fromSlotId)).toBe(true);
+        expect(slotIds.has(toSlotId)).toBe(true);
+      }
+    }
+  });
+
+  it('keeps settlement sections fully reachable without orphaned rooms', () => {
+    const section = generateSection({
+      worldSeed: 'starter_hub_seed',
+      sectionId: 'section_hometown',
+      sectionKind: 'settlement',
+    });
+
+    const reachableRoomIds = collectReachableRoomIds(section);
+
+    expect(reachableRoomIds.size).toBe(section.rooms.length);
+    expect(section.rooms.every((room) => room.connectedRoomIds.length > 0)).toBe(true);
+  });
+
+  it('gives the starter settlement four cardinal exits', () => {
+    const section = generateSection({
+      worldSeed: 'starter_hub_seed',
+      sectionId: 'section_hometown',
+      sectionKind: 'settlement',
+    });
+
+    expect(section.entranceRoomIds.length).toBe(1);
+    expect(section.exitRoomIds.length).toBe(4);
+  });
+
+  it('keeps Hometown room footprints non-overlapping after settlement placement', () => {
+    const section = generateSection({
+      worldSeed: 'starter_hub_seed',
+      sectionId: 'section_hometown',
+      sectionKind: 'settlement',
+    });
+
+    expect(hasOverlap(section.rooms)).toBe(false);
+  });
+
+  it('anchors every connector to the actual primitive footprint boundary', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_footprint_anchor_001',
+      sectionKind: 'exploration',
+    });
+    const primitiveMap = new Map(
+      contentRegistry.loadPack('room_primitives').roomPrimitives.map((primitive) => [primitive.id, primitive] as const)
+    );
+
+    for (const connector of section.connectors) {
+      for (const anchor of connector.roomAnchors) {
+        const room = section.rooms.find((candidate) => candidate.roomId === anchor.roomId);
+
+        expect(room).toBeDefined();
+
+        if (!room) {
+          continue;
+        }
+
+        const roomCells = getRoomCells(room, primitiveMap.get(room.primitiveId));
+        const spans = getOuterBoundarySpans(roomCells, anchor.side);
+        const matchingSpan = spans.find((span) => {
+          if (anchor.side === 'north' || anchor.side === 'south') {
+            return span.line === anchor.y && anchor.x >= span.start && anchor.x <= span.end;
+          }
+
+          return span.line === anchor.x && anchor.y >= span.start && anchor.y <= span.end;
+        });
+
+        expect(matchingSpan).toBeDefined();
+      }
+    }
   });
 });

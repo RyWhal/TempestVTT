@@ -1,5 +1,13 @@
 // types/index.ts - TypeScript type definitions for Tempest Table
-import type { SectionRenderPayload } from '../procgen/types';
+import type {
+  CardinalDirection,
+  GeneratedCampaignBook,
+  GeneratedSection,
+  GeneratedSectionContent,
+  SectionContentRerollState,
+  SectionKind,
+  SectionRenderPayload,
+} from '../procgen/types';
 
 export type TokenSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
 export type MapSourceType = 'uploaded' | 'generated';
@@ -531,7 +539,7 @@ export interface DungeonSectionRecord {
   roomIds: string[];
   entranceConnectionIds: string[];
   exitConnectionIds: string[];
-  generationState: Record<string, unknown>;
+  generationState: DungeonSectionGenerationState;
   presentationState: Record<string, unknown>;
   overrideState: Record<string, unknown>;
   renderPayloadCache: Record<string, unknown> | null;
@@ -560,9 +568,39 @@ export interface ProcgenSectionPreviewRecord {
   fromSectionId: string | null;
   sectionStubId: string;
   direction: string | null;
-  previewState: Record<string, unknown>;
+  previewState: ProcgenSectionPreviewState;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface DungeonSectionGenerationState {
+  generatedSection?: GeneratedSection;
+  generatedContent?: GeneratedSectionContent;
+  generatedCampaignBook?: GeneratedCampaignBook;
+  contentRerollState?: SectionContentRerollState;
+  settlementArchetypeId?: string | null;
+  coordinates?: { x: number; y: number };
+  visitIndex?: number;
+  enteredFromDirection?: CardinalDirection | null;
+  sectionKind?: SectionKind;
+  [key: string]: unknown;
+}
+
+export interface ProcgenSectionPreviewState {
+  generatedSection?: GeneratedSection;
+  generatedContent?: GeneratedSectionContent;
+  generatedCampaignBook?: GeneratedCampaignBook;
+  contentRerollState?: SectionContentRerollState;
+  settlementArchetypeId?: string | null;
+  coordinates?: { x: number; y: number };
+  label?: string;
+  parentSectionId?: string;
+  playerVisibility?: 'unknown' | 'known_unvisited';
+  returnDirection?: CardinalDirection;
+  adjacentFromSectionIds?: string[];
+  branchDirectionsBySectionId?: Record<string, CardinalDirection>;
+  returnDirectionsBySectionId?: Record<string, CardinalDirection>;
+  [key: string]: unknown;
 }
 
 export interface GMOverrideRecord {

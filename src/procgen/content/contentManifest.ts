@@ -1,15 +1,24 @@
 import biomesRaw from '../../../DunGEN/biomes.json';
 import creatureFamiliesRaw from '../../../DunGEN/creatures.json';
 import creatureVariantsRaw from '../../../DunGEN/creature_variant_modifiers.json';
+import encounterTemplatesRaw from '../../../DunGEN/encounter_templates.json';
 import genAiDescriptionSchemaRaw from '../../../DunGEN/genai_description_schema.json';
+import hookFragmentsRaw from '../../../DunGEN/hook_fragments.json';
 import itemTablesRaw from '../../../DunGEN/item_tables.json';
 import namePhonemesRaw from '../../../DunGEN/gen_names_phonemes.json';
 import npcAnchorTemplatesRaw from '../../../DunGEN/npc_anchor_templates.json';
+import npcArchetypesRaw from '../../../DunGEN/npc_archetypes.json';
+import npcBackstoryFragmentsRaw from '../../../DunGEN/npc_backstory_fragments.json';
+import npcContextModifiersRaw from '../../../DunGEN/npc_context_modifiers.json';
 import npcGenerationSchemaRaw from '../../../DunGEN/npc_generation_schema.json';
 import npcModifiersRaw from '../../../DunGEN/npc_modifiers.json';
+import npcPhysicalDescriptionsRaw from '../../../DunGEN/npc_physical_descriptions.json';
+import npcRoleplayingRaw from '../../../DunGEN/npc_roleplaying.json';
 import npcRoleToAnchorMappingRaw from '../../../DunGEN/npc_role_to_anchor_mapping.json';
 import npcRolesRaw from '../../../DunGEN/npc_roles.json';
 import roomPrimitivesRaw from '../../../DunGEN/room_primitives.json';
+import rumorFragmentsRaw from '../../../DunGEN/rumor_fragments.json';
+import shopFlavorFragmentsRaw from '../../../DunGEN/shop_flavor_fragments.json';
 import shopsRaw from '../../../DunGEN/shops.json';
 import villageArchetypesRaw from '../../../DunGEN/village_archetypes.json';
 import type { ProcgenContentPackId } from '../types';
@@ -40,6 +49,18 @@ export const contentManifest: Partial<Record<ProcgenContentPackId, ContentManife
     required: true,
     rawData: creatureVariantsRaw,
   },
+  encounter_templates: {
+    id: 'encounter_templates',
+    filePath: 'DunGEN/encounter_templates.json',
+    required: true,
+    rawData: encounterTemplatesRaw,
+  },
+  hook_fragments: {
+    id: 'hook_fragments',
+    filePath: 'DunGEN/hook_fragments.json',
+    required: true,
+    rawData: hookFragmentsRaw,
+  },
   name_phonemes: {
     id: 'name_phonemes',
     filePath: 'DunGEN/gen_names_phonemes.json',
@@ -64,6 +85,36 @@ export const contentManifest: Partial<Record<ProcgenContentPackId, ContentManife
     required: true,
     rawData: npcModifiersRaw,
   },
+  npc_archetypes: {
+    id: 'npc_archetypes',
+    filePath: 'DunGEN/npc_archetypes.json',
+    required: true,
+    rawData: npcArchetypesRaw,
+  },
+  npc_physical_descriptions: {
+    id: 'npc_physical_descriptions',
+    filePath: 'DunGEN/npc_physical_descriptions.json',
+    required: true,
+    rawData: npcPhysicalDescriptionsRaw,
+  },
+  npc_roleplaying: {
+    id: 'npc_roleplaying',
+    filePath: 'DunGEN/npc_roleplaying.json',
+    required: true,
+    rawData: npcRoleplayingRaw,
+  },
+  npc_backstory_fragments: {
+    id: 'npc_backstory_fragments',
+    filePath: 'DunGEN/npc_backstory_fragments.json',
+    required: true,
+    rawData: npcBackstoryFragmentsRaw,
+  },
+  npc_context_modifiers: {
+    id: 'npc_context_modifiers',
+    filePath: 'DunGEN/npc_context_modifiers.json',
+    required: true,
+    rawData: npcContextModifiersRaw,
+  },
   npc_role_to_anchor_mapping: {
     id: 'npc_role_to_anchor_mapping',
     filePath: 'DunGEN/npc_role_to_anchor_mapping.json',
@@ -81,6 +132,18 @@ export const contentManifest: Partial<Record<ProcgenContentPackId, ContentManife
     filePath: 'DunGEN/village_archetypes.json',
     required: true,
     rawData: villageArchetypesRaw,
+  },
+  rumor_fragments: {
+    id: 'rumor_fragments',
+    filePath: 'DunGEN/rumor_fragments.json',
+    required: true,
+    rawData: rumorFragmentsRaw,
+  },
+  shop_flavor_fragments: {
+    id: 'shop_flavor_fragments',
+    filePath: 'DunGEN/shop_flavor_fragments.json',
+    required: true,
+    rawData: shopFlavorFragmentsRaw,
   },
   genai_description_schema: {
     id: 'genai_description_schema',

@@ -16,6 +16,7 @@ This means:
 - canonical content state is the source of truth
 - the play interface is allowed to evolve away from the current VTT patterns when the content needs it
 - bespoke tracking, dice, map, journal, history, and reveal workflows are in scope if they improve the generated campaign experience
+- the runtime should remain permissive and table-like rather than behaving like a rules-enforcing video game
 
 ## Core Design Principles
 
@@ -31,6 +32,30 @@ This means:
    Automatic asset generation should only happen for locked content, not preview churn.
 6. Rules-light runtime  
    Players bring their own RPG rules; DunGEN provides content, context, and optional structured support where useful.
+7. Permissive table-first play  
+   The platform should not police ordinary table judgment calls that humans can handle themselves.
+
+## Permissive Play Principle
+
+DunGEN and Tempest Table should mimic a group playing around a physical table more than a restrictive video game.
+
+That means:
+
+- tokens are not movement-policed by generated geometry
+- players can move tokens freely, even if placement is a little sloppy or intersects walls visually
+- walls, halls, props, traps, and other generated features are visual and informational first
+- the GM decides when a trap, hazard, rumor, or encounter becomes true in play
+- generated content is suggestive, not mandatory
+- the GM may ignore, rewrite, replace, or skip any generated detail without breaking the system
+- the platform should not track or enforce mundane campaign bookkeeping like food, light, prices, or gold spending unless a GM explicitly wants optional support later
+
+### Design consequences
+
+- no collision or pathfinding enforcement by default
+- no hard validation of legal token placement
+- no automatic trigger logic for generated traps or hazards
+- no assumption that generated prices, inventories, or resources are binding
+- future assistive tools should remain optional and non-blocking
 
 ## Recommended Route Strategy
 

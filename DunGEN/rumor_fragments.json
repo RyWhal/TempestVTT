@@ -1,0 +1,60 @@
+{
+  "entries": [
+    {
+      "id": "settlement_problem_rumor",
+      "category": "settlement_problem",
+      "text": "{problem}",
+      "source": "{settlement_name}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_section_kinds": ["settlement"],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    },
+    {
+      "id": "npc_rumor_fragment",
+      "category": "npc_rumor",
+      "text": "{npc_rumor}",
+      "source": "{npc_role_name}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_section_kinds": ["settlement", "exploration"],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    },
+    {
+      "id": "creature_rumor_fragment",
+      "category": "creature_rumor",
+      "text": "{creature_label} have been spotted deeper along this route.",
+      "source": "expedition talk",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_section_kinds": ["settlement", "exploration"],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    },
+    {
+      "id": "biome_warning_fragment",
+      "category": "biome_warning",
+      "text": "People coming back through {section_name} keep describing the same wrong detail in slightly different ways.",
+      "source": "{biome_name}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_section_kinds": ["exploration"],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    }
+  ]
+}

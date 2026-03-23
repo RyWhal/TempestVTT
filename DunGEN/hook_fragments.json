@@ -1,0 +1,49 @@
+{
+  "entries": [
+    {
+      "id": "hook_from_rumor",
+      "category": "rumor",
+      "title": "A local problem worth following",
+      "text": "{rumor_text} The party could pick this up as a rumor, request, or complication without the section forcing a single right answer.",
+      "source": "{rumor_source}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_section_kinds": ["settlement", "exploration"],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    },
+    {
+      "id": "hook_from_encounter",
+      "category": "encounter",
+      "title": "Pressure waiting to harden",
+      "text": "{encounter_summary} If the table wants it, this can stay as background tension or sharpen into a more direct problem.",
+      "source": "{encounter_title}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_section_kinds": ["settlement", "exploration"],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    },
+    {
+      "id": "hook_from_npc",
+      "category": "npc",
+      "title": "Someone here needs help",
+      "text": "{npc_name} may pull the party toward this thread if they seem useful: {npc_need}.",
+      "source": "{npc_role_name}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_section_kinds": ["settlement"],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    }
+  ]
+}

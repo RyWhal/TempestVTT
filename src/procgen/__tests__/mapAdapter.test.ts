@@ -37,11 +37,10 @@ describe('buildSectionRenderPayload', () => {
       (floor) => floor.regionType === 'connector' || floor.regionType === 'street'
     );
     const streetLikeFloors = payload.floors.filter((floor) => floor.materialKey?.includes('street'));
-    const thresholdDoors = payload.doors?.filter((door) => door.surfaceType === 'threshold') ?? [];
 
     expect(connectorFloors.length).toBeGreaterThan(0);
     expect(streetLikeFloors.length).toBeGreaterThan(0);
-    expect(thresholdDoors.length).toBeGreaterThan(0);
+    expect(payload.doors).toEqual([]);
     expect(payload.floors.every((floor) => typeof floor.materialKey === 'string')).toBe(true);
   });
 
@@ -74,6 +73,83 @@ describe('buildSectionRenderPayload', () => {
 
     expect(corridorFloors.length).toBeGreaterThan(0);
     expect(corridorFloors.every((floor) => floor.width >= payload.tileSizePx * 2 || floor.height >= payload.tileSizePx * 2)).toBe(true);
+  });
+
+  it('renders non-rect room primitives as multi-segment footprints instead of plain bounding boxes', () => {
+    const section = generateSection({
+      worldSeed: 'starter_hub_seed',
+      sectionId: 'section_hometown',
+      sectionKind: 'settlement',
+    });
+
+    const nonRectRoom = section.rooms.find((room) =>
+      ['circle_', 'oval_', 'hexagon_', 'octagon_', 'cross_', 't_shape', 'l_shape', 'u_shape', 'ring_room'].some(
+        (prefix) => room.primitiveId.startsWith(prefix)
+      )
+    );
+
+    expect(nonRectRoom).toBeDefined();
+
+    const payload = buildSectionRenderPayload(section);
+    const roomFloors = payload.floors.filter((floor) => floor.sourceRoomId === nonRectRoom?.roomId);
+
+    expect(roomFloors.length).toBeGreaterThan(1);
+  });
+
+  it('leaves hallway-to-room joins open instead of drawing generated thresholds', () => {
+    const section = generateSection({
+      worldSeed: 'starter_hub_seed',
+      sectionId: 'section_hometown',
+      sectionKind: 'settlement',
+    });
+
+    const payload = buildSectionRenderPayload(section);
+    expect(payload.doors).toEqual([]);
+  });
+
+  it('preserves connector geometry as explicit rendered floor spans', () => {
+    const section = generateSection({
+      worldSeed: 'starter_hub_seed',
+      sectionId: 'section_hometown',
+      sectionKind: 'settlement',
+    });
+
+    const payload = buildSectionRenderPayload(section);
+    const connectorIds = new Set(payload.floors.map((floor) => floor.sourceConnectorId).filter(Boolean));
+
+    expect(connectorIds.size).toBe(section.connectors.length);
+    expect(payload.floors.some((floor) => floor.sourceConnectorId && floor.width > payload.tileSizePx)).toBe(true);
+  });
+
+  it('caps hallway thickness by the actual connector run length', () => {
+    const section = generateSection({
+      worldSeed: 'starter_hub_seed',
+      sectionId: 'section_hometown',
+      sectionKind: 'settlement',
+    });
+
+    const straightConnectors = section.connectors.filter(
+      (connector) => connector.primitiveId !== 'bent_corridor'
+    );
+
+    expect(straightConnectors.length).toBeGreaterThan(0);
+    expect(
+      straightConnectors.every((connector) => {
+        const [fromAnchor, toAnchor] = connector.roomAnchors;
+        const segment = connector.segmentBounds[0];
+
+        if (
+          (fromAnchor.side === 'east' || fromAnchor.side === 'west') &&
+          (toAnchor.side === 'east' || toAnchor.side === 'west')
+        ) {
+          const runLength = Math.abs(toAnchor.x - fromAnchor.x);
+          return segment.height <= Math.max(1, runLength);
+        }
+
+        const runLength = Math.abs(toAnchor.y - fromAnchor.y);
+        return segment.width <= Math.max(1, runLength);
+      })
+    ).toBe(true);
   });
 });
 

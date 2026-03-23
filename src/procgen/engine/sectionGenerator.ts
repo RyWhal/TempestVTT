@@ -1,101 +1,277 @@
 import { contentRegistry } from '../content/contentRegistry';
+import {
+  chooseBoundarySpan,
+  clampCoordinateToSpan,
+  getOuterBoundarySpans,
+  getRoomCells,
+  type BoundarySpan,
+} from '../geometry/roomGeometry';
 import type {
+  CardinalDirection,
+  GeneratedConnectorAnchor,
   GeneratedSectionConnector,
   GeneratedSection,
   GeneratedSectionConnection,
   GeneratedSectionInput,
   GeneratedSectionRoom,
   RectBounds,
+  RoomPrimitive,
   SectionKind,
 } from '../types';
-import { deriveSectionSeed } from './seed';
+import { createSeededRandom, deriveSectionSeed } from './seed';
 import { getLayoutPresets } from './layoutPresets';
 import { placeRoomsForPreset } from './roomPlacement';
 import { assignRooms } from './roomAssignment';
-
-const createSeededRandom = (seed: string) => {
-  let state = 0;
-
-  for (let index = 0; index < seed.length; index++) {
-    state = (state * 31 + seed.charCodeAt(index)) >>> 0;
-  }
-
-  return () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 0x100000000;
-  };
-};
 
 const chooseSectionKind = (sectionKind: SectionKind | undefined): SectionKind => {
   return sectionKind ?? 'exploration';
 };
 
-const toBoundsRange = (start: number, size: number) => ({
-  start,
-  end: start + size,
+const resolveConnectorThickness = (baseThickness: number, runLengths: number[]) => {
+  const boundedRuns = runLengths
+    .map((runLength) => Math.max(1, Math.round(runLength)))
+    .filter((runLength) => runLength > 0);
+
+  const maxAllowedThickness =
+    boundedRuns.length > 0 ? Math.min(...boundedRuns) : 1;
+
+  return Math.max(1, Math.min(baseThickness, maxAllowedThickness));
+};
+
+interface RoomGeometry {
+  room: GeneratedSectionRoom;
+  sideSpans: Record<CardinalDirection, BoundarySpan[]>;
+}
+
+const createRoomGeometry = (room: GeneratedSectionRoom, primitive: RoomPrimitive | undefined): RoomGeometry => {
+  const cells = getRoomCells(room, primitive);
+
+  return {
+    room,
+    sideSpans: {
+      north: getOuterBoundarySpans(cells, 'north'),
+      south: getOuterBoundarySpans(cells, 'south'),
+      east: getOuterBoundarySpans(cells, 'east'),
+      west: getOuterBoundarySpans(cells, 'west'),
+    },
+  };
+};
+
+const chooseSpanOverlap = (
+  leftSpans: BoundarySpan[],
+  rightSpans: BoundarySpan[],
+  preferred: number
+) => {
+  const overlaps = leftSpans.flatMap((leftSpan) =>
+    rightSpans.flatMap((rightSpan) => {
+      const start = Math.max(leftSpan.start, rightSpan.start);
+      const end = Math.min(leftSpan.end, rightSpan.end);
+
+      if (end - start < 1) {
+        return [];
+      }
+
+      return [
+        {
+          leftSpan,
+          rightSpan,
+          start,
+          end,
+        },
+      ];
+    })
+  );
+
+  if (overlaps.length === 0) {
+    return null;
+  }
+
+  return (
+    overlaps.sort((left, right) => {
+      const leftCenter = (left.start + left.end) / 2;
+      const rightCenter = (right.start + right.end) / 2;
+      return Math.abs(leftCenter - preferred) - Math.abs(rightCenter - preferred);
+    })[0] ?? null
+  );
+};
+
+const buildAnchorFromSpan = (
+  roomId: string,
+  side: CardinalDirection,
+  span: BoundarySpan,
+  preferred: number,
+  thickness: number
+): GeneratedConnectorAnchor => {
+  const coordinate = clampCoordinateToSpan(preferred, span, thickness);
+
+  if (side === 'north' || side === 'south') {
+    return {
+      roomId,
+      side,
+      x: coordinate,
+      y: span.line,
+    };
+  }
+
+  return {
+    roomId,
+    side,
+    x: span.line,
+    y: coordinate,
+  };
+};
+
+const createHorizontalSegment = (
+  startX: number,
+  endX: number,
+  centerY: number,
+  thickness: number
+): RectBounds => ({
+  x: Math.min(startX, endX),
+  y: Math.round(centerY - thickness / 2),
+  width: Math.max(thickness, Math.abs(endX - startX)),
+  height: thickness,
+});
+
+const createVerticalSegment = (
+  centerX: number,
+  startY: number,
+  endY: number,
+  thickness: number
+): RectBounds => ({
+  x: Math.round(centerX - thickness / 2),
+  y: Math.min(startY, endY),
+  width: thickness,
+  height: Math.max(thickness, Math.abs(endY - startY)),
 });
 
 const buildStraightConnector = ({
   connectorId,
-  fromRoom,
-  toRoom,
+  fromGeometry,
+  toGeometry,
   sectionKind,
 }: {
   connectorId: string;
-  fromRoom: GeneratedSectionRoom;
-  toRoom: GeneratedSectionRoom;
+  fromGeometry: RoomGeometry;
+  toGeometry: RoomGeometry;
   sectionKind: SectionKind;
 }): GeneratedSectionConnector | null => {
-  const thickness = sectionKind === 'settlement' ? 3 : 2;
-  const fromX = toBoundsRange(fromRoom.bounds.x, fromRoom.bounds.width);
-  const fromY = toBoundsRange(fromRoom.bounds.y, fromRoom.bounds.height);
-  const toX = toBoundsRange(toRoom.bounds.x, toRoom.bounds.width);
-  const toY = toBoundsRange(toRoom.bounds.y, toRoom.bounds.height);
+  const baseThickness = sectionKind === 'settlement' ? 3 : 2;
+  const fromRoom = fromGeometry.room;
+  const toRoom = toGeometry.room;
+  const fromCenterX = fromRoom.bounds.x + fromRoom.bounds.width / 2;
+  const fromCenterY = fromRoom.bounds.y + fromRoom.bounds.height / 2;
+  const toCenterX = toRoom.bounds.x + toRoom.bounds.width / 2;
+  const toCenterY = toRoom.bounds.y + toRoom.bounds.height / 2;
 
-  const overlapTop = Math.max(fromY.start, toY.start);
-  const overlapBottom = Math.min(fromY.end, toY.end);
-  if (overlapBottom - overlapTop >= thickness) {
-    const y = Math.floor((overlapTop + overlapBottom - thickness) / 2);
-    const left = Math.min(fromX.end, toX.end);
-    const right = Math.max(fromX.start, toX.start);
+  const fromOnLeft = fromCenterX <= toCenterX;
+  const horizontalOverlap = chooseSpanOverlap(
+    fromOnLeft ? fromGeometry.sideSpans.east : fromGeometry.sideSpans.west,
+    fromOnLeft ? toGeometry.sideSpans.west : toGeometry.sideSpans.east,
+    (fromCenterY + toCenterY) / 2
+  );
+
+  if (horizontalOverlap) {
+    const targetY = (horizontalOverlap.start + horizontalOverlap.end) / 2;
+    const initialLeftAnchor = buildAnchorFromSpan(
+      fromRoom.roomId,
+      fromOnLeft ? 'east' : 'west',
+      horizontalOverlap.leftSpan,
+      targetY,
+      1
+    );
+    const initialRightAnchor = buildAnchorFromSpan(
+      toRoom.roomId,
+      fromOnLeft ? 'west' : 'east',
+      horizontalOverlap.rightSpan,
+      targetY,
+      1
+    );
+    const thickness = resolveConnectorThickness(baseThickness, [
+      Math.abs(initialRightAnchor.x - initialLeftAnchor.x),
+      horizontalOverlap.end - horizontalOverlap.start,
+    ]);
+    const leftAnchor = buildAnchorFromSpan(
+      fromRoom.roomId,
+      fromOnLeft ? 'east' : 'west',
+      horizontalOverlap.leftSpan,
+      targetY,
+      thickness
+    );
+    const rightAnchor = buildAnchorFromSpan(
+      toRoom.roomId,
+      fromOnLeft ? 'west' : 'east',
+      horizontalOverlap.rightSpan,
+      targetY,
+      thickness
+    );
 
     return {
       connectorId,
-      primitiveId: right - left >= 10 ? 'straight_corridor_long' : 'straight_corridor_short',
+      primitiveId:
+        Math.abs(rightAnchor.x - leftAnchor.x) >= 10
+          ? 'straight_corridor_long'
+          : 'straight_corridor_short',
       family: 'corridor',
-      segmentBounds: [
-        {
-          x: left,
-          y,
-          width: Math.max(thickness, right - left),
-          height: thickness,
-        },
-      ],
+      segmentBounds: [createHorizontalSegment(leftAnchor.x, rightAnchor.x, targetY, thickness)],
       connectedRoomIds: [fromRoom.roomId, toRoom.roomId],
+      roomAnchors: [leftAnchor, rightAnchor],
       tags: [sectionKind === 'settlement' ? 'street' : 'corridor'],
     };
   }
 
-  const overlapLeft = Math.max(fromX.start, toX.start);
-  const overlapRight = Math.min(fromX.end, toX.end);
-  if (overlapRight - overlapLeft >= thickness) {
-    const x = Math.floor((overlapLeft + overlapRight - thickness) / 2);
-    const top = Math.min(fromY.end, toY.end);
-    const bottom = Math.max(fromY.start, toY.start);
+  const fromOnTop = fromCenterY <= toCenterY;
+  const verticalOverlap = chooseSpanOverlap(
+    fromOnTop ? fromGeometry.sideSpans.south : fromGeometry.sideSpans.north,
+    fromOnTop ? toGeometry.sideSpans.north : toGeometry.sideSpans.south,
+    (fromCenterX + toCenterX) / 2
+  );
+
+  if (verticalOverlap) {
+    const targetX = (verticalOverlap.start + verticalOverlap.end) / 2;
+    const initialTopAnchor = buildAnchorFromSpan(
+      fromRoom.roomId,
+      fromOnTop ? 'south' : 'north',
+      verticalOverlap.leftSpan,
+      targetX,
+      1
+    );
+    const initialBottomAnchor = buildAnchorFromSpan(
+      toRoom.roomId,
+      fromOnTop ? 'north' : 'south',
+      verticalOverlap.rightSpan,
+      targetX,
+      1
+    );
+    const thickness = resolveConnectorThickness(baseThickness, [
+      Math.abs(initialBottomAnchor.y - initialTopAnchor.y),
+      verticalOverlap.end - verticalOverlap.start,
+    ]);
+    const topAnchor = buildAnchorFromSpan(
+      fromRoom.roomId,
+      fromOnTop ? 'south' : 'north',
+      verticalOverlap.leftSpan,
+      targetX,
+      thickness
+    );
+    const bottomAnchor = buildAnchorFromSpan(
+      toRoom.roomId,
+      fromOnTop ? 'north' : 'south',
+      verticalOverlap.rightSpan,
+      targetX,
+      thickness
+    );
 
     return {
       connectorId,
-      primitiveId: bottom - top >= 10 ? 'straight_corridor_long' : 'straight_corridor_short',
+      primitiveId:
+        Math.abs(bottomAnchor.y - topAnchor.y) >= 10
+          ? 'straight_corridor_long'
+          : 'straight_corridor_short',
       family: 'corridor',
-      segmentBounds: [
-        {
-          x,
-          y: top,
-          width: thickness,
-          height: Math.max(thickness, bottom - top),
-        },
-      ],
+      segmentBounds: [createVerticalSegment(targetX, topAnchor.y, bottomAnchor.y, thickness)],
       connectedRoomIds: [fromRoom.roomId, toRoom.roomId],
+      roomAnchors: [topAnchor, bottomAnchor],
       tags: [sectionKind === 'settlement' ? 'street' : 'corridor'],
     };
   }
@@ -105,46 +281,113 @@ const buildStraightConnector = ({
 
 const buildBentConnector = ({
   connectorId,
-  fromRoom,
-  toRoom,
+  fromGeometry,
+  toGeometry,
   sectionKind,
 }: {
   connectorId: string;
-  fromRoom: GeneratedSectionRoom;
-  toRoom: GeneratedSectionRoom;
+  fromGeometry: RoomGeometry;
+  toGeometry: RoomGeometry;
   sectionKind: SectionKind;
 }): GeneratedSectionConnector => {
-  const thickness = sectionKind === 'settlement' ? 3 : 2;
+  const baseThickness = sectionKind === 'settlement' ? 3 : 2;
+  const fromRoom = fromGeometry.room;
+  const toRoom = toGeometry.room;
   const fromCenterX = Math.floor(fromRoom.bounds.x + fromRoom.bounds.width / 2);
   const fromCenterY = Math.floor(fromRoom.bounds.y + fromRoom.bounds.height / 2);
   const toCenterX = Math.floor(toRoom.bounds.x + toRoom.bounds.width / 2);
   const toCenterY = Math.floor(toRoom.bounds.y + toRoom.bounds.height / 2);
+  const horizontalFirst = Math.abs(toCenterX - fromCenterX) >= Math.abs(toCenterY - fromCenterY);
 
-  const horizontalStart = Math.min(fromCenterX, toCenterX);
-  const horizontalEnd = Math.max(fromCenterX, toCenterX);
-  const verticalStart = Math.min(fromCenterY, toCenterY);
-  const verticalEnd = Math.max(fromCenterY, toCenterY);
+  if (horizontalFirst) {
+    const fromSide: CardinalDirection = toCenterX >= fromCenterX ? 'east' : 'west';
+    const toSide: CardinalDirection = toCenterY >= fromCenterY ? 'north' : 'south';
+    const fromSpan = chooseBoundarySpan(fromGeometry.sideSpans[fromSide], fromCenterY);
+    const toSpan = chooseBoundarySpan(toGeometry.sideSpans[toSide], toCenterX);
 
-  const firstSegment: RectBounds = {
-    x: horizontalStart,
-    y: fromCenterY,
-    width: Math.max(thickness, horizontalEnd - horizontalStart),
-    height: thickness,
-  };
+    if (!fromSpan || !toSpan) {
+      return {
+        connectorId,
+        primitiveId: 'straight_corridor_short',
+        family: 'corridor',
+        segmentBounds: [],
+        connectedRoomIds: [fromRoom.roomId, toRoom.roomId],
+        roomAnchors: [],
+        tags: [sectionKind === 'settlement' ? 'street' : 'corridor'],
+      };
+    }
 
-  const secondSegment: RectBounds = {
-    x: toCenterX,
-    y: verticalStart,
-    width: thickness,
-    height: Math.max(thickness, verticalEnd - verticalStart),
-  };
+    const initialFromAnchor = buildAnchorFromSpan(fromRoom.roomId, fromSide, fromSpan, fromCenterY, 1);
+    const initialToAnchor = buildAnchorFromSpan(toRoom.roomId, toSide, toSpan, toCenterX, 1);
+    const initialElbowX = initialToAnchor.x;
+    const initialElbowY = initialFromAnchor.y;
+    const thickness = resolveConnectorThickness(baseThickness, [
+      Math.abs(initialElbowX - initialFromAnchor.x),
+      Math.abs(initialToAnchor.y - initialElbowY),
+      fromSpan.end - fromSpan.start,
+      toSpan.end - toSpan.start,
+    ]);
+    const fromAnchor = buildAnchorFromSpan(fromRoom.roomId, fromSide, fromSpan, fromCenterY, thickness);
+    const toAnchor = buildAnchorFromSpan(toRoom.roomId, toSide, toSpan, toCenterX, thickness);
+    const elbowX = toAnchor.x;
+    const elbowY = fromAnchor.y;
+
+    return {
+      connectorId,
+      primitiveId: 'bent_corridor',
+      family: 'corridor',
+      segmentBounds: [
+        createHorizontalSegment(fromAnchor.x, elbowX, elbowY, thickness),
+        createVerticalSegment(elbowX, elbowY, toAnchor.y, thickness),
+      ],
+      connectedRoomIds: [fromRoom.roomId, toRoom.roomId],
+      roomAnchors: [fromAnchor, toAnchor],
+      tags: [sectionKind === 'settlement' ? 'street' : 'corridor', 'turn'],
+    };
+  }
+
+  const fromSide: CardinalDirection = toCenterY >= fromCenterY ? 'south' : 'north';
+  const toSide: CardinalDirection = toCenterX >= fromCenterX ? 'west' : 'east';
+  const fromSpan = chooseBoundarySpan(fromGeometry.sideSpans[fromSide], fromCenterX);
+  const toSpan = chooseBoundarySpan(toGeometry.sideSpans[toSide], toCenterY);
+
+  if (!fromSpan || !toSpan) {
+    return {
+      connectorId,
+      primitiveId: 'straight_corridor_short',
+      family: 'corridor',
+      segmentBounds: [],
+      connectedRoomIds: [fromRoom.roomId, toRoom.roomId],
+      roomAnchors: [],
+      tags: [sectionKind === 'settlement' ? 'street' : 'corridor'],
+    };
+  }
+
+  const initialFromAnchor = buildAnchorFromSpan(fromRoom.roomId, fromSide, fromSpan, fromCenterX, 1);
+  const initialToAnchor = buildAnchorFromSpan(toRoom.roomId, toSide, toSpan, toCenterY, 1);
+  const initialElbowX = initialFromAnchor.x;
+  const initialElbowY = initialToAnchor.y;
+  const thickness = resolveConnectorThickness(baseThickness, [
+    Math.abs(initialElbowY - initialFromAnchor.y),
+    Math.abs(initialToAnchor.x - initialElbowX),
+    fromSpan.end - fromSpan.start,
+    toSpan.end - toSpan.start,
+  ]);
+  const fromAnchor = buildAnchorFromSpan(fromRoom.roomId, fromSide, fromSpan, fromCenterX, thickness);
+  const toAnchor = buildAnchorFromSpan(toRoom.roomId, toSide, toSpan, toCenterY, thickness);
+  const elbowX = fromAnchor.x;
+  const elbowY = toAnchor.y;
 
   return {
     connectorId,
     primitiveId: 'bent_corridor',
     family: 'corridor',
-    segmentBounds: [firstSegment, secondSegment],
+    segmentBounds: [
+      createVerticalSegment(elbowX, fromAnchor.y, elbowY, thickness),
+      createHorizontalSegment(elbowX, toAnchor.x, elbowY, thickness),
+    ],
     connectedRoomIds: [fromRoom.roomId, toRoom.roomId],
+    roomAnchors: [fromAnchor, toAnchor],
     tags: [sectionKind === 'settlement' ? 'street' : 'corridor', 'turn'],
   };
 };
@@ -153,35 +396,40 @@ const buildSectionConnectors = ({
   rooms,
   connections,
   sectionKind,
+  primitiveMap,
 }: {
   rooms: GeneratedSectionRoom[];
   connections: GeneratedSectionConnection[];
   sectionKind: SectionKind;
+  primitiveMap: Map<string, RoomPrimitive>;
 }): GeneratedSectionConnector[] => {
-  const roomById = new Map(rooms.map((room) => [room.roomId, room]));
+  const roomGeometryById = new Map(
+    rooms.map((room) => [room.roomId, createRoomGeometry(room, primitiveMap.get(room.primitiveId))])
+  );
 
   return connections.flatMap((connection) => {
-    const fromRoom = roomById.get(connection.fromRoomId);
-    const toRoom = roomById.get(connection.toRoomId);
+    const fromGeometry = roomGeometryById.get(connection.fromRoomId);
+    const toGeometry = roomGeometryById.get(connection.toRoomId);
 
-    if (!fromRoom || !toRoom) {
+    if (!fromGeometry || !toGeometry) {
       return [];
     }
 
-    return [
+    const connector =
       buildStraightConnector({
         connectorId: `connector_${connection.connectionId}`,
-        fromRoom,
-        toRoom,
+        fromGeometry,
+        toGeometry,
         sectionKind,
       }) ??
-        buildBentConnector({
-          connectorId: `connector_${connection.connectionId}`,
-          fromRoom,
-          toRoom,
-          sectionKind,
-        }),
-    ];
+      buildBentConnector({
+        connectorId: `connector_${connection.connectionId}`,
+        fromGeometry,
+        toGeometry,
+        sectionKind,
+      });
+
+    return connector.segmentBounds.length > 0 ? [connector] : [];
   });
 };
 
@@ -248,6 +496,9 @@ export const generateSection = ({
     rooms,
     connections,
     sectionKind,
+    primitiveMap: new Map(
+      roomPrimitivePack.roomPrimitives.map((primitive) => [primitive.id, primitive] as const)
+    ),
   });
 
   return {

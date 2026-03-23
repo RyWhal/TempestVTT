@@ -5,12 +5,22 @@ import type {
   ProcgenSectionPreviewRecord,
 } from '../../types';
 import type {
+  CampaignBookEntryStatus,
   CardinalDirection,
+  GeneratedSection,
+  GeneratedSectionContent,
   OverviewEdge,
   OverviewNode,
   OverviewViewer,
+  SectionContentRerollScope,
+  SectionContentRerollState,
 } from '../types';
 import { generateSection } from './sectionGenerator';
+import {
+  generateSectionContent,
+  getNextContentRerollState,
+} from './sectionContentGenerator';
+import { generateSectionLabel } from './sectionNaming';
 
 const START_SECTION_ID = 'section_start_village';
 const START_VILLAGE_NAME = 'Hometown';
@@ -44,22 +54,121 @@ export interface CampaignSnapshot {
 const createCampaignId = (sessionId: string) => `campaign_${sessionId}`;
 const createSectionRecordId = (sectionId: string) => `section_record_${sectionId}`;
 const createPreviewId = (sectionId: string) => `preview_${sectionId}`;
+const toCoordinateKey = (coordinates: { x: number; y: number }) =>
+  `${coordinates.x},${coordinates.y}`;
+const DEFAULT_CONTENT_REROLL_STATE: SectionContentRerollState = {
+  summary: 0,
+  npcs: 0,
+  creatures: 0,
+  encounters: 0,
+  shops: 0,
+  hazards: 0,
+  rumors: 0,
+};
 
-const sectionLabelForDirection = (direction: CardinalDirection) =>
-  ({
-    north: 'North Road',
-    south: 'South Road',
-    east: 'East Road',
-    west: 'West Road',
-  })[direction];
+const getSectionCoordinates = (section: DungeonSectionRecord) =>
+  (section.generationState.coordinates ?? { x: 0, y: 0 }) as { x: number; y: number };
 
-const nestedSectionLabelForDirection = (direction: CardinalDirection) =>
-  ({
-    north: 'Northern Reach',
-    south: 'Southern Reach',
-    east: 'Eastern Reach',
-    west: 'Western Reach',
-  })[direction];
+const getPreviewCoordinates = (preview: ProcgenSectionPreviewRecord) =>
+  (preview.previewState.coordinates ?? { x: 0, y: 0 }) as { x: number; y: number };
+
+const getPreviewAdjacentFromSectionIds = (preview: ProcgenSectionPreviewRecord) => {
+  const ids = new Set<string>();
+
+  if (preview.fromSectionId) {
+    ids.add(preview.fromSectionId);
+  }
+
+  const adjacentIds = preview.previewState.adjacentFromSectionIds as string[] | undefined;
+  for (const id of adjacentIds ?? []) {
+    ids.add(id);
+  }
+
+  return [...ids];
+};
+
+const getPreviewDirectionForSection = (
+  preview: ProcgenSectionPreviewRecord,
+  fromSectionRecordId: string | null
+): CardinalDirection | null => {
+  const mappedDirections = preview.previewState.branchDirectionsBySectionId as
+    | Record<string, CardinalDirection>
+    | undefined;
+
+  if (fromSectionRecordId && mappedDirections?.[fromSectionRecordId]) {
+    return mappedDirections[fromSectionRecordId];
+  }
+
+  return preview.direction as CardinalDirection | null;
+};
+
+const getPreviewReturnDirectionForSection = (
+  preview: ProcgenSectionPreviewRecord,
+  fromSectionRecordId: string | null
+): CardinalDirection | null => {
+  const mappedDirections = preview.previewState.returnDirectionsBySectionId as
+    | Record<string, CardinalDirection>
+    | undefined;
+
+  if (fromSectionRecordId && mappedDirections?.[fromSectionRecordId]) {
+    return mappedDirections[fromSectionRecordId];
+  }
+
+  return (preview.previewState.returnDirection as CardinalDirection | undefined) ?? null;
+};
+
+const mergePreviewAdjacency = ({
+  preview,
+  fromSectionRecordId,
+  direction,
+  playerVisibility,
+}: {
+  preview: ProcgenSectionPreviewRecord;
+  fromSectionRecordId: string;
+  direction: CardinalDirection;
+  playerVisibility: 'unknown' | 'known_unvisited';
+}): ProcgenSectionPreviewRecord => {
+  const adjacentFromSectionIds = new Set(getPreviewAdjacentFromSectionIds(preview));
+  adjacentFromSectionIds.add(fromSectionRecordId);
+
+  const existingBranchDirections = (preview.previewState.branchDirectionsBySectionId as
+    | Record<string, CardinalDirection>
+    | undefined) ?? {};
+  const existingReturnDirections = (preview.previewState.returnDirectionsBySectionId as
+    | Record<string, CardinalDirection>
+    | undefined) ?? {};
+
+  if (preview.fromSectionId && preview.direction) {
+    existingBranchDirections[preview.fromSectionId] = preview.direction as CardinalDirection;
+  }
+
+  if (preview.fromSectionId && preview.previewState.returnDirection) {
+    existingReturnDirections[preview.fromSectionId] =
+      preview.previewState.returnDirection as CardinalDirection;
+  }
+
+  return {
+    ...preview,
+    previewState: {
+      ...preview.previewState,
+      adjacentFromSectionIds: [...adjacentFromSectionIds],
+      branchDirectionsBySectionId: {
+        ...existingBranchDirections,
+        [fromSectionRecordId]: direction,
+      },
+      returnDirectionsBySectionId: {
+        ...existingReturnDirections,
+        [fromSectionRecordId]: OPPOSITE_DIRECTION[direction],
+      },
+      playerVisibility:
+        preview.previewState.playerVisibility === 'known_unvisited' ||
+        playerVisibility === 'known_unvisited'
+          ? 'known_unvisited'
+          : 'unknown',
+    },
+    updatedAt: new Date().toISOString(),
+  };
+};
 
 const appendGraphNode = (graph: DungeonGraph, sectionId: string): DungeonGraph => ({
   ...graph,
@@ -105,6 +214,10 @@ const createSectionRecord = ({
   coordinates,
   enteredFromDirection,
   sectionKind,
+  settlementArchetypeId = null,
+  generatedSectionOverride = null,
+  generatedContentOverride = null,
+  contentRerollState = DEFAULT_CONTENT_REROLL_STATE,
 }: {
   campaignId: string;
   sectionId: string;
@@ -114,12 +227,26 @@ const createSectionRecord = ({
   coordinates: { x: number; y: number };
   enteredFromDirection: CardinalDirection | null;
   sectionKind: 'exploration' | 'settlement';
+  settlementArchetypeId?: string | null;
+  generatedSectionOverride?: GeneratedSection | null;
+  generatedContentOverride?: GeneratedSectionContent | null;
+  contentRerollState?: SectionContentRerollState;
 }): DungeonSectionRecord => {
-  const generatedSection = generateSection({
-    worldSeed,
-    sectionId,
-    sectionKind,
-  });
+  const generatedSection =
+    generatedSectionOverride ??
+    generateSection({
+      worldSeed,
+      sectionId,
+      sectionKind,
+    });
+  const generatedContent =
+    generatedContentOverride ??
+    generateSectionContent({
+      section: generatedSection,
+      sectionName: name,
+      settlementArchetypeId,
+      rerollState: contentRerollState,
+    });
   const timestamp = new Date().toISOString();
 
   return {
@@ -137,6 +264,9 @@ const createSectionRecord = ({
     exitConnectionIds: generatedSection.exitRoomIds,
     generationState: {
       generatedSection,
+      generatedContent,
+      contentRerollState,
+      settlementArchetypeId,
       coordinates,
       visitIndex,
       enteredFromDirection,
@@ -162,7 +292,9 @@ const createPreviewRecord = ({
   coordinates,
   worldSeed,
   playerVisibility,
-  label,
+  label = null,
+  settlementArchetypeId = null,
+  contentRerollState = DEFAULT_CONTENT_REROLL_STATE,
 }: {
   campaignId: string;
   fromSectionId: string;
@@ -172,12 +304,21 @@ const createPreviewRecord = ({
   coordinates: { x: number; y: number };
   worldSeed: string;
   playerVisibility: 'known_unvisited' | 'unknown';
-  label: string;
+  label?: string | null;
+  settlementArchetypeId?: string | null;
+  contentRerollState?: SectionContentRerollState;
 }): ProcgenSectionPreviewRecord => {
   const generatedSection = generateSection({
     worldSeed,
     sectionId,
     sectionKind: 'exploration',
+  });
+  const resolvedLabel = label ?? generateSectionLabel({ worldSeed, sectionId, section: generatedSection });
+  const generatedContent = generateSectionContent({
+    section: generatedSection,
+    sectionName: resolvedLabel,
+    settlementArchetypeId,
+    rerollState: contentRerollState,
   });
   const timestamp = new Date().toISOString();
 
@@ -189,11 +330,21 @@ const createPreviewRecord = ({
     direction,
     previewState: {
       generatedSection,
+      generatedContent,
+      contentRerollState,
+      settlementArchetypeId,
       coordinates,
-      label,
+      label: resolvedLabel,
       parentSectionId,
       playerVisibility,
       returnDirection: OPPOSITE_DIRECTION[direction],
+      adjacentFromSectionIds: [fromSectionId],
+      branchDirectionsBySectionId: {
+        [fromSectionId]: direction,
+      },
+      returnDirectionsBySectionId: {
+        [fromSectionId]: OPPOSITE_DIRECTION[direction],
+      },
     },
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -222,6 +373,7 @@ export const createStarterCampaignSnapshot = ({
     coordinates: { x: 0, y: 0 },
     enteredFromDirection: null,
     sectionKind: 'settlement',
+    settlementArchetypeId: 'waystop',
   });
 
   const previews = CARDINAL_DIRECTIONS.map((direction) => {
@@ -237,7 +389,6 @@ export const createStarterCampaignSnapshot = ({
       coordinates: delta,
       worldSeed,
       playerVisibility: 'known_unvisited',
-      label: sectionLabelForDirection(direction),
     });
   });
 
@@ -290,7 +441,8 @@ export const createStarterCampaignSnapshot = ({
 
 export const visitSectionPreview = (
   snapshot: CampaignSnapshot,
-  previewId: string
+  previewId: string,
+  preferredFromSectionRecordId: string | null = null
 ): CampaignSnapshot => {
   const preview = snapshot.previews.find((candidate) => candidate.id === previewId);
 
@@ -298,11 +450,52 @@ export const visitSectionPreview = (
     return snapshot;
   }
 
-  const previewCoordinates = (preview.previewState.coordinates ?? { x: 0, y: 0 }) as {
-    x: number;
-    y: number;
-  };
-  const enteredFromDirection = preview.previewState.returnDirection as CardinalDirection;
+  const previewCoordinates = getPreviewCoordinates(preview);
+  const previewAdjacentFromIds = getPreviewAdjacentFromSectionIds(preview);
+  const sourceSectionRecordId =
+    (preferredFromSectionRecordId && previewAdjacentFromIds.includes(preferredFromSectionRecordId)
+      ? preferredFromSectionRecordId
+      : previewAdjacentFromIds[0]) ?? null;
+  const sourceSectionRecord = snapshot.sections.find((section) => section.id === sourceSectionRecordId) ?? null;
+  const sourceSectionId = sourceSectionRecord?.sectionId ?? null;
+  const enteredFromDirection =
+    getPreviewReturnDirectionForSection(preview, sourceSectionRecordId) ??
+    (preview.previewState.returnDirection as CardinalDirection | undefined) ??
+    'west';
+  const travelDirection =
+    getPreviewDirectionForSection(preview, sourceSectionRecordId) ??
+    ((preview.direction as CardinalDirection | undefined) ?? OPPOSITE_DIRECTION[enteredFromDirection]);
+  const existingVisitedSection = snapshot.sections.find(
+    (section) =>
+      toCoordinateKey(getSectionCoordinates(section)) === toCoordinateKey(previewCoordinates) &&
+      section.sectionId !== preview.sectionStubId
+  );
+  const remainingPreviews = snapshot.previews.filter((candidate) => candidate.id !== previewId);
+
+  if (existingVisitedSection) {
+    const nextGraph =
+      sourceSectionId !== null
+        ? appendGraphEdge(
+            appendGraphNode(snapshot.campaign.dungeonGraph, existingVisitedSection.sectionId),
+            sourceSectionId,
+            travelDirection,
+            existingVisitedSection.sectionId
+          )
+        : snapshot.campaign.dungeonGraph;
+
+    return {
+      ...snapshot,
+      campaign: {
+        ...snapshot.campaign,
+        activeSectionId: existingVisitedSection.sectionId,
+        dungeonGraph: nextGraph,
+        updatedAt: new Date().toISOString(),
+      },
+      previews: remainingPreviews,
+      sectionPreviews: remainingPreviews,
+    };
+  }
+
   const visitIndex = snapshot.sections.length;
   const sectionRecord = createSectionRecord({
     campaignId: snapshot.campaign.id,
@@ -313,37 +506,75 @@ export const visitSectionPreview = (
     coordinates: previewCoordinates,
     enteredFromDirection,
     sectionKind: 'exploration',
+    generatedSectionOverride: preview.previewState.generatedSection as GeneratedSection,
+    generatedContentOverride: preview.previewState.generatedContent as GeneratedSectionContent,
+    contentRerollState:
+      (preview.previewState.contentRerollState as SectionContentRerollState | undefined) ??
+      DEFAULT_CONTENT_REROLL_STATE,
   });
-
-  const remainingPreviews = snapshot.previews.filter((candidate) => candidate.id !== previewId);
 
   const outboundDirections = CARDINAL_DIRECTIONS.filter(
     (direction) => direction !== enteredFromDirection
   );
+  let dungeonGraph = appendGraphNode(snapshot.campaign.dungeonGraph, preview.sectionStubId);
+  let nextPreviews = [...remainingPreviews];
+  const nextSections = [...snapshot.sections, sectionRecord];
 
-  const newPreviews = outboundDirections.map((direction) => {
+  for (const direction of outboundDirections) {
     const delta = DIRECTION_DELTAS[direction];
-    const sectionId = `${preview.sectionStubId}_${direction}`;
+    const coordinates = {
+      x: previewCoordinates.x + delta.x,
+      y: previewCoordinates.y + delta.y,
+    };
+    const coordinateKey = toCoordinateKey(coordinates);
+    const existingVisitedDestination = nextSections.find(
+      (section) => toCoordinateKey(getSectionCoordinates(section)) === coordinateKey
+    );
 
-    return createPreviewRecord({
+    if (existingVisitedDestination) {
+      dungeonGraph = appendGraphEdge(
+        appendGraphNode(dungeonGraph, existingVisitedDestination.sectionId),
+        preview.sectionStubId,
+        direction,
+        existingVisitedDestination.sectionId
+      );
+      continue;
+    }
+
+    const existingPreviewIndex = nextPreviews.findIndex(
+      (candidate) => toCoordinateKey(getPreviewCoordinates(candidate)) === coordinateKey
+    );
+
+    if (existingPreviewIndex >= 0) {
+      const existingPreview = nextPreviews[existingPreviewIndex];
+      nextPreviews[existingPreviewIndex] = mergePreviewAdjacency({
+        preview: existingPreview,
+        fromSectionRecordId: sectionRecord.id,
+        direction,
+        playerVisibility: 'unknown',
+      });
+      dungeonGraph = appendGraphEdge(
+        appendGraphNode(dungeonGraph, existingPreview.sectionStubId),
+        preview.sectionStubId,
+        direction,
+        existingPreview.sectionStubId
+      );
+      continue;
+    }
+
+    const sectionId = `${preview.sectionStubId}_${direction}`;
+    const previewRecord = createPreviewRecord({
       campaignId: snapshot.campaign.id,
       fromSectionId: sectionRecord.id,
       parentSectionId: preview.sectionStubId,
       sectionId,
       direction,
-      coordinates: {
-        x: previewCoordinates.x + delta.x,
-        y: previewCoordinates.y + delta.y,
-      },
+      coordinates,
       worldSeed: snapshot.campaign.worldSeed,
       playerVisibility: 'unknown',
-      label: nestedSectionLabelForDirection(direction),
     });
-  });
 
-  let dungeonGraph = appendGraphNode(snapshot.campaign.dungeonGraph, preview.sectionStubId);
-
-  for (const previewRecord of newPreviews) {
+    nextPreviews.push(previewRecord);
     dungeonGraph = appendGraphEdge(
       appendGraphNode(dungeonGraph, previewRecord.sectionStubId),
       preview.sectionStubId,
@@ -352,7 +583,6 @@ export const visitSectionPreview = (
     );
   }
 
-  const nextPreviews = [...remainingPreviews, ...newPreviews];
   const campaign: CampaignWorld = {
     ...snapshot.campaign,
     activeSectionId: preview.sectionStubId,
@@ -362,7 +592,7 @@ export const visitSectionPreview = (
 
   return {
     campaign,
-    sections: [...snapshot.sections, sectionRecord],
+    sections: nextSections,
     previews: nextPreviews,
     sectionPreviews: nextPreviews,
     roomStates: [],
@@ -459,3 +689,168 @@ export const getOrderedPreviews = (snapshot: CampaignSnapshot) =>
     const rightLabel = String(right.previewState.label ?? right.sectionStubId);
     return leftLabel.localeCompare(rightLabel);
   });
+
+export const rerollPreviewContent = (
+  snapshot: CampaignSnapshot,
+  previewId: string,
+  scope: SectionContentRerollScope
+): CampaignSnapshot => {
+  const nextPreviews = snapshot.previews.map((preview) => {
+    if (preview.id !== previewId) {
+      return preview;
+    }
+
+    const currentRerollState =
+      (preview.previewState.contentRerollState as Partial<SectionContentRerollState> | undefined) ??
+      DEFAULT_CONTENT_REROLL_STATE;
+    const nextRerollState = getNextContentRerollState(currentRerollState, scope);
+    const generatedSection = preview.previewState.generatedSection as GeneratedSection;
+    const label = String(preview.previewState.label ?? preview.sectionStubId);
+
+    return {
+      ...preview,
+      previewState: {
+        ...preview.previewState,
+        contentRerollState: nextRerollState,
+        generatedContent: generateSectionContent({
+          section: generatedSection,
+          sectionName: label,
+          settlementArchetypeId: (preview.previewState.settlementArchetypeId as string | null | undefined) ?? null,
+          rerollState: nextRerollState,
+        }),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  return {
+    ...snapshot,
+    previews: nextPreviews,
+    sectionPreviews: nextPreviews,
+  };
+};
+
+const updateGeneratedContentEntryStatus = (
+  generatedContent: GeneratedSectionContent,
+  entryId: string,
+  status: CampaignBookEntryStatus
+): GeneratedSectionContent => {
+  let didChange = false;
+  const nextEntries = generatedContent.campaignBook.entries.map((entry) => {
+    if (entry.id !== entryId || entry.status === status) {
+      return entry;
+    }
+
+    didChange = true;
+    return {
+      ...entry,
+      status,
+    };
+  });
+
+  if (!didChange) {
+    return generatedContent;
+  }
+
+  return {
+    ...generatedContent,
+    campaignBook: {
+      ...generatedContent.campaignBook,
+      entries: nextEntries,
+    },
+  };
+};
+
+export const updateCampaignBookEntryStatus = (
+  snapshot: CampaignSnapshot,
+  target: { kind: 'section'; id: string } | { kind: 'preview'; id: string },
+  entryId: string,
+  status: CampaignBookEntryStatus
+): CampaignSnapshot => {
+  if (target.kind === 'section') {
+    let didChange = false;
+    const nextSections = snapshot.sections.map((section) => {
+      if (section.sectionId !== target.id) {
+        return section;
+      }
+
+      const generatedContent = section.generationState.generatedContent as
+        | GeneratedSectionContent
+        | undefined;
+
+      if (!generatedContent) {
+        return section;
+      }
+
+      const nextGeneratedContent = updateGeneratedContentEntryStatus(
+        generatedContent,
+        entryId,
+        status
+      );
+
+      if (nextGeneratedContent === generatedContent) {
+        return section;
+      }
+
+      didChange = true;
+      return {
+        ...section,
+        generationState: {
+          ...section.generationState,
+          generatedContent: nextGeneratedContent,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    return didChange
+      ? {
+          ...snapshot,
+          sections: nextSections,
+        }
+      : snapshot;
+  }
+
+  let didChange = false;
+  const nextPreviews = snapshot.previews.map((preview) => {
+    if (preview.id !== target.id) {
+      return preview;
+    }
+
+    const generatedContent = preview.previewState.generatedContent as
+      | GeneratedSectionContent
+      | undefined;
+
+    if (!generatedContent) {
+      return preview;
+    }
+
+    const nextGeneratedContent = updateGeneratedContentEntryStatus(
+      generatedContent,
+      entryId,
+      status
+    );
+
+    if (nextGeneratedContent === generatedContent) {
+      return preview;
+    }
+
+    didChange = true;
+    return {
+      ...preview,
+      previewState: {
+        ...preview.previewState,
+        generatedContent: nextGeneratedContent,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  return didChange
+    ? {
+        ...snapshot,
+        previews: nextPreviews,
+        sectionPreviews: nextPreviews,
+      }
+    : snapshot;
+};

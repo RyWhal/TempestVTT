@@ -66,6 +66,30 @@ const expectObjectArray = <T extends Record<string, unknown>>(
   return value as T[];
 };
 
+const expectNormalizedEntries = <T extends ProcgenIdentifiedRecord>(
+  value: unknown,
+  packId: string
+): T[] => {
+  const entries = expectIdentifiedArray<ProcgenIdentifiedRecord>(value, packId, 'entries').map((entry) => ({
+    allowed_roles: [],
+    allowed_archetypes: [],
+    allowed_settlement_archetypes: [],
+    allowed_biomes: [],
+    allowed_section_kinds: [],
+    allowed_shop_types: [],
+    required_shop_roles: [],
+    requires_hazard: false,
+    ...entry,
+  }));
+
+  return entries as unknown as T[];
+};
+
+const partitionEntriesByCategory = <T extends ProcgenIdentifiedRecord & { category?: unknown }>(
+  entries: T[],
+  category: string
+) => entries.filter((entry) => entry.category === category);
+
 const OPTIONAL_PACK_DEFAULTS: Pick<
   ProcgenContentPackMap,
   'room_type_library' | 'shop_types'
@@ -124,6 +148,18 @@ export const normalizeContentPack = <K extends ProcgenContentPackId>(
         creatureVariants: expectIdentifiedArray(record.creature_variants, packId, 'creature_variants'),
       } as ProcgenContentPackMap[K];
     }
+    case 'encounter_templates': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        encounterTemplates: expectNormalizedEntries(record.entries, packId),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'hook_fragments': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        hookFragments: expectNormalizedEntries(record.entries, packId),
+      } as ProcgenContentPackMap[K];
+    }
     case 'name_phonemes': {
       const record = expectObjectRecord(rawData, packId);
       return {
@@ -148,6 +184,44 @@ export const normalizeContentPack = <K extends ProcgenContentPackId>(
         npcModifiers: expectIdentifiedArray(record.npc_modifiers, packId, 'npc_modifiers'),
       } as ProcgenContentPackMap[K];
     }
+    case 'npc_archetypes': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        npcArchetypes: expectNormalizedEntries(record.entries, packId),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'npc_physical_descriptions': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        npcPhysicalDescriptions: expectNormalizedEntries(record.entries, packId),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'npc_roleplaying': {
+      const record = expectObjectRecord(rawData, packId);
+      const entries = expectNormalizedEntries(record.entries, packId);
+      return {
+        voice: partitionEntriesByCategory(entries, 'voice'),
+        mannerisms: partitionEntriesByCategory(entries, 'mannerism'),
+        framing: partitionEntriesByCategory(entries, 'framing'),
+        currentPressure: partitionEntriesByCategory(entries, 'current_pressure'),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'npc_backstory_fragments': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        npcBackstoryFragments: expectNormalizedEntries(record.entries, packId),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'npc_context_modifiers': {
+      const record = expectObjectRecord(rawData, packId);
+      const entries = expectNormalizedEntries(record.entries, packId);
+      return {
+        knows: partitionEntriesByCategory(entries, 'knows'),
+        needs: partitionEntriesByCategory(entries, 'needs'),
+        offers: partitionEntriesByCategory(entries, 'offers'),
+        knownFor: partitionEntriesByCategory(entries, 'known_for'),
+      } as ProcgenContentPackMap[K];
+    }
     case 'npc_role_to_anchor_mapping': {
       const record = expectObjectRecord(rawData, packId);
       return {
@@ -168,6 +242,20 @@ export const normalizeContentPack = <K extends ProcgenContentPackId>(
       const record = expectObjectRecord(rawData, packId);
       return {
         villageArchetypes: expectIdentifiedArray(record.village_archetypes, packId, 'village_archetypes'),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'rumor_fragments': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        rumorFragments: expectNormalizedEntries(record.entries, packId),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'shop_flavor_fragments': {
+      const record = expectObjectRecord(rawData, packId);
+      const entries = expectNormalizedEntries(record.entries, packId);
+      return {
+        descriptions: partitionEntriesByCategory(entries, 'description'),
+        pressures: partitionEntriesByCategory(entries, 'pressure'),
       } as ProcgenContentPackMap[K];
     }
     case 'genai_description_schema': {

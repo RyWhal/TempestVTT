@@ -36,6 +36,18 @@ const TOKEN_SIZE_ORDER: TokenSize[] = [
   'gargantuan',
 ];
 
+const GENERATED_FLOOR_OVERLAP_PX = 0.5;
+
+const expandGeneratedFloorRect = <T extends { x: number; y: number; width: number; height: number }>(
+  rect: T
+) => ({
+  ...rect,
+  x: rect.x - GENERATED_FLOOR_OVERLAP_PX,
+  y: rect.y - GENERATED_FLOOR_OVERLAP_PX,
+  width: rect.width + GENERATED_FLOOR_OVERLAP_PX * 2,
+  height: rect.height + GENERATED_FLOOR_OVERLAP_PX * 2,
+});
+
 export const MapCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
@@ -795,7 +807,7 @@ export const MapCanvas: React.FC = () => {
             }
           >
             {/* Map image layer */}
-            <Layer>
+            <Layer key={`map-surface-${activeMap.id}`}>
               {activeMap.sourceType === 'generated' && generatedRenderPayload ? (
                 <>
                   <Rect
@@ -809,13 +821,11 @@ export const MapCanvas: React.FC = () => {
                   {generatedRenderPayload.floors.map((floor) => (
                     <Rect
                       key={floor.id}
-                      x={floor.x}
-                      y={floor.y}
-                      width={floor.width}
-                      height={floor.height}
+                      {...expandGeneratedFloorRect(floor)}
                       fill={floor.fill}
                       stroke={floor.stroke}
                       strokeWidth={floor.strokeWidth}
+                      perfectDrawEnabled={false}
                       name="background"
                     />
                   ))}

@@ -16,12 +16,23 @@ interface RoomPlacementInput {
   sectionKind: SectionKind;
 }
 
+const rectsOverlap = (left: RectBounds, right: RectBounds) => {
+  return !(
+    left.x + left.width <= right.x ||
+    right.x + right.width <= left.x ||
+    left.y + left.height <= right.y ||
+    right.y + right.height <= left.y
+  );
+};
+
 const choosePrimitiveForSlot = (
   slot: LayoutSlot,
   roomPrimitives: RoomPrimitive[],
-  sectionKind: SectionKind
+  sectionKind: SectionKind,
+  nextRandom: () => number
 ): RoomPrimitive => {
   const slotArea = slot.width * slot.height;
+  const tags = slot.tags ?? [];
   const eligible = roomPrimitives.filter((primitive) => {
     const footprint = primitive.grid_footprint;
 
@@ -46,51 +57,85 @@ const choosePrimitiveForSlot = (
     return true;
   });
 
-  const ranked = eligible.sort((left, right) => {
-    const familyScore = (primitive: RoomPrimitive) => {
+  const rankPrimitive = (primitive: RoomPrimitive) => {
       const family = primitive.family ?? 'square';
-      const tags = slot.tags ?? [];
+      let score = family === 'square' ? 10 : 22;
 
-      if (tags.includes('courtyard') || tags.includes('hub') || tags.includes('landmark')) {
-        if (family === 'circle' || family === 'oval' || family === 'polygon') {
-          return 40;
-        }
+      if (tags.includes('courtyard') || tags.includes('hub')) {
+        if (primitive.id === 'ring_room') score += 80;
+        if (family === 'circle' || family === 'oval' || family === 'polygon') score += 60;
+        if (family === 'cross' || family === 'compound') score += 45;
       }
 
-      if (tags.includes('service') || tags.includes('street_edge')) {
-        if (family === 'rectangle') {
-          return 30;
-        }
+      if (tags.includes('landmark')) {
+        if (family === 'polygon' || family === 'circle' || family === 'ring') score += 70;
+        if (family === 'cross' || family === 'compound') score += 50;
+      }
+
+      if (tags.includes('service')) {
+        if (family === 'compound') score += 55;
+        if (family === 'rectangle') score += 45;
+        if (family === 'polygon') score += 25;
+      }
+
+      if (tags.includes('street_edge')) {
+        if (family === 'compound' || family === 'rectangle') score += 35;
       }
 
       if (tags.includes('residence')) {
-        if (family === 'rectangle' || family === 'square') {
-          return 20;
-        }
+        if (family === 'compound') score += 45;
+        if (family === 'rectangle' || family === 'square') score += 35;
       }
 
-      return family === 'square' ? 0 : 10;
-    };
+      if (tags.includes('branch') || tags.includes('side')) {
+        if (family === 'polygon' || family === 'oval') score += 40;
+        if (family === 'compound') score += 28;
+      }
 
-    const leftFootprint = left.grid_footprint;
-    const rightFootprint = right.grid_footprint;
+      if (tags.includes('dense') && family === 'rectangle') {
+        score += 12;
+      }
 
-    const leftArea = leftFootprint ? leftFootprint.max_w * leftFootprint.max_h : 0;
-    const rightArea = rightFootprint ? rightFootprint.max_w * rightFootprint.max_h : 0;
+      if (sectionKind === 'settlement' && slotArea > 240 && primitive.id === 'ring_room') {
+        score += 35;
+      }
 
-    const familyDelta = familyScore(right) - familyScore(left);
-    if (familyDelta !== 0) {
-      return familyDelta;
-    }
+      if (primitive.id === 'rectangle_long' && slot.width < 16) {
+        score -= 30;
+      }
 
-    if (sectionKind === 'settlement') {
-      return rightArea - leftArea;
-    }
+      return score;
+  };
 
-    return leftArea - rightArea;
-  });
+  const ranked = eligible
+    .map((primitive) => {
+      const footprint = primitive.grid_footprint;
+      const area = footprint ? footprint.max_w * footprint.max_h : 0;
+      return {
+        primitive,
+        score: rankPrimitive(primitive),
+        area,
+      };
+    })
+    .sort((left, right) => {
+      const familyDelta = right.score - left.score;
+      if (familyDelta !== 0) {
+        return familyDelta;
+      }
 
-  return ranked[0] ?? roomPrimitives[0];
+      if (sectionKind === 'settlement') {
+        return right.area - left.area;
+      }
+
+      return left.area - right.area;
+    });
+
+  const topScore = ranked[0]?.score ?? 0;
+  const candidates = ranked.filter((entry) => entry.score >= topScore - 12);
+  const chosen =
+    candidates[Math.floor(nextRandom() * Math.max(1, candidates.length))] ?? ranked[0];
+
+  return chosen?.primitive ?? roomPrimitives[0];
 };
 
 const clampDimension = (
@@ -145,20 +190,162 @@ const placeRoomInSlot = (
   };
 };
 
+const clampRoomToSlot = (room: PlacedRoom, slot: LayoutSlot): PlacedRoom => ({
+  ...room,
+  bounds: {
+    ...room.bounds,
+    x: Math.max(slot.x, Math.min(room.bounds.x, slot.x + slot.width - room.bounds.width)),
+    y: Math.max(slot.y, Math.min(room.bounds.y, slot.y + slot.height - room.bounds.height)),
+  },
+});
+
+const resolvePlacementCollision = ({
+  room,
+  slot,
+  primitive,
+  placedRooms,
+}: {
+  room: PlacedRoom;
+  slot: LayoutSlot;
+  primitive: RoomPrimitive;
+  placedRooms: PlacedRoom[];
+}): PlacedRoom => {
+  const footprint = primitive.grid_footprint ?? {
+    min_w: room.bounds.width,
+    max_w: room.bounds.width,
+    min_h: room.bounds.height,
+    max_h: room.bounds.height,
+  };
+
+  let current = clampRoomToSlot(room, slot);
+
+  for (let attempt = 0; attempt < 32; attempt++) {
+    const overlapping = placedRooms.find((placedRoom) =>
+      rectsOverlap(current.bounds, placedRoom.bounds)
+    );
+
+    if (!overlapping) {
+      return current;
+    }
+
+    const candidates: PlacedRoom[] = [
+      {
+        ...current,
+        bounds: {
+          ...current.bounds,
+          x: overlapping.bounds.x - current.bounds.width,
+        },
+      },
+      {
+        ...current,
+        bounds: {
+          ...current.bounds,
+          x: overlapping.bounds.x + overlapping.bounds.width,
+        },
+      },
+      {
+        ...current,
+        bounds: {
+          ...current.bounds,
+          y: overlapping.bounds.y - current.bounds.height,
+        },
+      },
+      {
+        ...current,
+        bounds: {
+          ...current.bounds,
+          y: overlapping.bounds.y + overlapping.bounds.height,
+        },
+      },
+    ]
+      .map((candidate) => clampRoomToSlot(candidate, slot))
+      .filter(
+        (candidate, index, allCandidates) =>
+          allCandidates.findIndex(
+            (other) =>
+              other.bounds.x === candidate.bounds.x &&
+              other.bounds.y === candidate.bounds.y &&
+              other.bounds.width === candidate.bounds.width &&
+              other.bounds.height === candidate.bounds.height
+          ) === index
+      );
+
+    const resolvedCandidate = candidates.find(
+      (candidate) =>
+        !placedRooms.some((placedRoom) => rectsOverlap(candidate.bounds, placedRoom.bounds))
+    );
+
+    if (resolvedCandidate) {
+      return resolvedCandidate;
+    }
+
+    const overlapWidth =
+      Math.min(current.bounds.x + current.bounds.width, overlapping.bounds.x + overlapping.bounds.width) -
+      Math.max(current.bounds.x, overlapping.bounds.x);
+    const overlapHeight =
+      Math.min(current.bounds.y + current.bounds.height, overlapping.bounds.y + overlapping.bounds.height) -
+      Math.max(current.bounds.y, overlapping.bounds.y);
+
+    const canShrinkWidth = current.bounds.width > footprint.min_w;
+    const canShrinkHeight = current.bounds.height > footprint.min_h;
+
+    if ((overlapWidth >= overlapHeight && canShrinkWidth) || !canShrinkHeight) {
+      current = clampRoomToSlot(
+        {
+          ...current,
+          bounds: {
+            ...current.bounds,
+            width: current.bounds.width - 1,
+          },
+        },
+        slot
+      );
+      continue;
+    }
+
+    if (canShrinkHeight) {
+      current = clampRoomToSlot(
+        {
+          ...current,
+          bounds: {
+            ...current.bounds,
+            height: current.bounds.height - 1,
+          },
+        },
+        slot
+      );
+    }
+  }
+
+  return current;
+};
+
 export const placeRoomsForPreset = ({
   preset,
   roomPrimitives,
   nextRandom,
   sectionKind,
 }: RoomPlacementInput): PlacedRoom[] => {
-  return preset.slots.map((slot, index) => {
-    const primitive = choosePrimitiveForSlot(slot, roomPrimitives, sectionKind);
-    return placeRoomInSlot(
+  const placedRooms: PlacedRoom[] = [];
+
+  for (const [index, slot] of preset.slots.entries()) {
+    const primitive = choosePrimitiveForSlot(slot, roomPrimitives, sectionKind, nextRandom);
+    const room = placeRoomInSlot(
       slot,
       primitive,
       nextRandom,
       `room_${String(index + 1).padStart(3, '0')}`,
       sectionKind
     );
-  });
+    placedRooms.push(
+      resolvePlacementCollision({
+        room,
+        slot,
+        primitive,
+        placedRooms,
+      })
+    );
+  }
+
+  return placedRooms;
 };

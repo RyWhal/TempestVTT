@@ -5,6 +5,7 @@ import { useMapStore } from '../stores/mapStore';
 import { dbMapToMap, type DbMap, type Map, type FogRegion, type DrawingRegion, type MapEffectTile } from '../types';
 import { nanoid } from 'nanoid';
 import { broadcastActiveMap } from '../lib/tokenBroadcast';
+import { shouldPersistActiveMapSelection } from '../procgen/integration/navigationPolicy';
 
 export const useMap = () => {
   const session = useSessionStore((state) => state.session);
@@ -141,13 +142,15 @@ export const useMap = () => {
       }
 
       try {
-        const { error } = await supabase
-          .from('sessions')
-          .update({ active_map_id: mapId })
-          .eq('id', session.id);
+        if (shouldPersistActiveMapSelection(map)) {
+          const { error } = await supabase
+            .from('sessions')
+            .update({ active_map_id: mapId })
+            .eq('id', session.id);
 
-        if (error) {
-          return { success: false, error: error.message };
+          if (error) {
+            return { success: false, error: error.message };
+          }
         }
 
         setActiveMap(map);
