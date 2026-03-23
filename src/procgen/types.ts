@@ -35,6 +35,15 @@ export interface GeneratedSectionConnection {
   toRoomId: string;
 }
 
+export interface GeneratedSectionConnector {
+  connectorId: string;
+  primitiveId: string;
+  family: 'corridor' | 'junction';
+  segmentBounds: RectBounds[];
+  connectedRoomIds: string[];
+  tags: string[];
+}
+
 export interface GeneratedSectionRoom {
   roomId: string;
   primitiveId: string;
@@ -60,6 +69,7 @@ export interface GeneratedSection {
   primaryBiomeId: string;
   rooms: GeneratedSectionRoom[];
   connections: GeneratedSectionConnection[];
+  connectors: GeneratedSectionConnector[];
   entranceRoomIds: string[];
   exitRoomIds: string[];
 }

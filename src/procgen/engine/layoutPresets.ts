@@ -1,5 +1,8 @@
 import type { SectionKind, SectionLayoutType } from '../types';
 
+const SECTION_GRID_SIZE = 75;
+const LEGACY_PRESET_GRID_SIZE = 100;
+
 export interface LayoutSlot {
   id: string;
   x: number;
@@ -16,6 +19,22 @@ export interface LayoutPreset {
   entranceSlotId: string;
   exitSlotIds: string[];
 }
+
+const scalePresetCoordinate = (value: number) =>
+  Math.max(1, Math.round((value / LEGACY_PRESET_GRID_SIZE) * SECTION_GRID_SIZE));
+
+const scaleSlot = (slot: LayoutSlot): LayoutSlot => ({
+  ...slot,
+  x: scalePresetCoordinate(slot.x),
+  y: scalePresetCoordinate(slot.y),
+  width: scalePresetCoordinate(slot.width),
+  height: scalePresetCoordinate(slot.height),
+});
+
+const scalePreset = (preset: LayoutPreset): LayoutPreset => ({
+  ...preset,
+  slots: preset.slots.map(scaleSlot),
+});
 
 const explorationPresets: LayoutPreset[] = [
   {
@@ -118,5 +137,5 @@ const settlementPresets: LayoutPreset[] = [
 ];
 
 export const getLayoutPresets = (sectionKind: SectionKind): LayoutPreset[] => {
-  return sectionKind === 'settlement' ? settlementPresets : explorationPresets;
+  return (sectionKind === 'settlement' ? settlementPresets : explorationPresets).map(scalePreset);
 };

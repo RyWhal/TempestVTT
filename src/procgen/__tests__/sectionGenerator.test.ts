@@ -99,8 +99,8 @@ describe('generateSection', () => {
       sectionKind: 'exploration',
     });
 
-    expect(section.grid.width).toBe(100);
-    expect(section.grid.height).toBe(100);
+    expect(section.grid.width).toBe(75);
+    expect(section.grid.height).toBe(75);
     expect(section.rooms.length).toBeGreaterThanOrEqual(4);
     expect(section.rooms.length).toBeLessThanOrEqual(8);
 
@@ -118,7 +118,7 @@ describe('generateSection', () => {
     expect(section.rooms.length).toBeGreaterThanOrEqual(8);
 
     const occupiedArea = computeOccupiedArea(section.rooms);
-    expect(occupiedArea).toBeGreaterThan(3000);
+    expect(occupiedArea).toBeGreaterThan(1500);
   });
 
   it('places rooms within the 100x100 section bounds without overlap', () => {
@@ -152,5 +152,26 @@ describe('generateSection', () => {
     for (const exitRoomId of section.exitRoomIds) {
       expect(reachableRoomIds.has(exitRoomId)).toBe(true);
     }
+  });
+
+  it('uses explicit corridor primitives and non-square chambers in settlement sections', () => {
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_settlement_primitives_001',
+      sectionKind: 'settlement',
+    });
+
+    expect(section.connectors.length).toBeGreaterThan(0);
+    expect(
+      section.connectors.some((connector) =>
+        ['straight_corridor_short', 'straight_corridor_long', 'bent_corridor'].includes(
+          connector.primitiveId
+        )
+      )
+    ).toBe(true);
+
+    expect(
+      section.rooms.some((room) => !room.primitiveId.startsWith('square_'))
+    ).toBe(true);
   });
 });
