@@ -1,0 +1,2442 @@
+{
+  "schema_version": "1.0",
+  "prompt_manifest_id": "tempest_floor_asset_prompts_v1",
+  "purpose": "Full structured image-generation prompts for Tempest Table floor bake source assets.",
+  "generator_usage": {
+    "instruction": "Use one entry from prompt_jobs at a time. Treat the entire job object as the image prompt.",
+    "output_format": "png",
+    "master_asset_guidance": [
+      "generate lossless source images as PNG masters",
+      "keep all tiles square and seamless",
+      "preserve palette consistency within a biome family",
+      "for detail decals, leave broad negative space around the feature so they can be composited sparsely"
+    ]
+  },
+  "prompt_jobs": [
+    {
+      "asset_id": "stone_base_01",
+      "output_path": "assets/floors/materials/stone_halls/base/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "base",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "baseline variant A with balanced wear and neutral readability"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "dust in seams",
+          "subtle moss traces"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones in a repeating but irregular layout",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "hairline cracks",
+          "small chips",
+          "dusty seams",
+          "tiny pebbles",
+          "light moss in narrow gaps"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dark olive", "dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no large center emblem",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_base_02",
+      "output_path": "assets/floors/materials/stone_halls/base/01_b.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "base",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "baseline variant B with different flagstone arrangement and seam dust distribution"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "dust in seams",
+          "subtle moss traces"
+        ],
+        "pattern_structure": {
+          "base_pattern": "offset worn flagstones in a repeating but irregular layout distinct from variant A",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "fine chips",
+          "dusty seams",
+          "small pebbles",
+          "faint hairline cracks"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dark olive", "dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no large center emblem",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_base_03",
+      "output_path": "assets/floors/materials/stone_halls/base/01_c.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "base",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "baseline variant C with slightly tighter joints and stronger seam dust"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "dust in seams",
+          "subtle moss traces"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with slightly tighter joins in a repeating but irregular layout",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "hairline cracks",
+          "small chips",
+          "dust-heavy seams",
+          "tiny pebbles"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dark olive", "dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no large center emblem",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_crack_01",
+      "output_path": "assets/floors/materials/stone_halls/cracked/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "cracked",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "fine crack network variant A, restrained and tile-safe"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "dust in seams"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with subtle irregular crack paths crossing several stones",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "hairline cracks",
+          "small chips around fractures",
+          "dust in broken seams"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no huge split crack",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_crack_02",
+      "output_path": "assets/floors/materials/stone_halls/cracked/01_b.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "cracked",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "fine crack network variant B with different fracture placement"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "dust in seams"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with alternate crack layout distinct from cracked variant A",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "branching hairline cracks",
+          "small chips",
+          "dust in fractured seams"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no giant split crack",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_moss_01",
+      "output_path": "assets/floors/materials/stone_halls/mossy/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "mossy",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "subtle seam moss variant A"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "dust in seams",
+          "subtle moss traces"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with restrained moss growing along seams and chipped edges",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "light moss in narrow gaps",
+          "hairline cracks",
+          "small chips",
+          "dusty seams"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dark olive", "dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no heavy overgrowth",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_moss_02",
+      "output_path": "assets/floors/materials/stone_halls/mossy/01_b.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "mossy",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "subtle seam moss variant B with slightly denser damp growth"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "dust in seams",
+          "subtle moss traces"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with seam moss concentrated at intersections and damp pockets",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "moss in narrow gaps",
+          "damp staining",
+          "hairline cracks",
+          "small chips"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dark olive", "dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no heavy overgrowth",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_dirty_01",
+      "output_path": "assets/floors/materials/stone_halls/dirty/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "dirty",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "tracked dirt and grime variant A"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "tracked dirt",
+          "dust in seams"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with diffuse grime and dirt buildup in joins",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "dusty seams",
+          "grit",
+          "small pebbles",
+          "darkened joints"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no footprints",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_dirty_02",
+      "output_path": "assets/floors/materials/stone_halls/dirty/01_b.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "dirty",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "tracked dirt and grime variant B with different distribution"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "tracked dirt",
+          "dust in seams"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with alternate grime pattern and dirt accumulation",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "dusty seams",
+          "grit",
+          "dark joints",
+          "small pebbles"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no footprints",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_damage_01",
+      "output_path": "assets/floors/materials/stone_halls/damaged_minor/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "damaged_minor",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "minor damage variant with shallow chips and broken corners"
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral"]
+      },
+      "tile_surface": {
+        "surface_type": "aged stone floor",
+        "material_mix": [
+          "worn gray stone",
+          "dust in seams",
+          "minor breakage"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with small broken corners and shallow wear scars",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "small chips",
+          "shallow fractures",
+          "dust-filled cracks"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+        "accent_tones": ["dusty beige"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no gaping hole",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_macro_dirt_01",
+      "output_path": "assets/floors/overlays/stone_halls/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "macro overlay source for baked map composition",
+        "detail_level": "low",
+        "fidelity_target": "subtle low-contrast breakup compatible with base biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no readable stone blocks",
+          "no props",
+          "no text",
+          "no focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "macro_overlay",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": false
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone", "dust", "dirt"],
+        "hazards": [],
+        "tags": ["neutral", "overlay"]
+      },
+      "tile_surface": {
+        "surface_type": "macro dirt overlay",
+        "material_mix": [
+          "soft dirt haze",
+          "subtle wear darkening"
+        ],
+        "pattern_structure": {
+          "base_pattern": "broad diffuse breakup with no hard edges and no obvious repeated shape",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large soft fields",
+          "density": "low",
+          "variation": "low-contrast mottling without a focal blotch"
+        },
+        "micro_details": [
+          "very low-contrast dust fields"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral",
+        "primary_tones": ["dusty brown", "muted charcoal"],
+        "accent_tones": [],
+        "saturation": "low",
+        "lighting": "flat nondirectional",
+        "shadow_behavior": "none"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no readable stones",
+        "no hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling and subtle macro breakup compatible with baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_fine_crack_01",
+      "output_path": "assets/floors/decals/stone_halls/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile detail decal source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": false,
+        "tileability_requirements": [
+          "feature should remain isolated and compositing-safe",
+          "leave broad negative space around the detail"
+        ],
+        "shape": "square",
+        "intended_use": "detail decal source for baked map composition",
+        "detail_level": "low",
+        "fidelity_target": "small sparse compositing element",
+        "composition_rules": [
+          "top-down floor-only view",
+          "single localized detail",
+          "no walls",
+          "no props",
+          "no text",
+          "no focal border"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "detail_decal",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": false
+      },
+      "biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "description": "Traditional dungeon corridors and chambers.",
+        "materials": ["stone"],
+        "hazards": [],
+        "tags": ["neutral", "decal"]
+      },
+      "tile_surface": {
+        "surface_type": "fine crack detail decal",
+        "material_mix": [
+          "hairline crack",
+          "tiny dust accent"
+        ],
+        "pattern_structure": {
+          "base_pattern": "small off-center crack cluster with broad empty space",
+          "edge_behavior": "do not force edge continuity",
+          "scale": "small localized detail",
+          "density": "very low",
+          "variation": "single sparse decal"
+        },
+        "micro_details": [
+          "thin fracture lines",
+          "tiny chipped dust"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "neutral_cool",
+        "primary_tones": ["muted charcoal", "dusty beige"],
+        "accent_tones": [],
+        "saturation": "low",
+        "lighting": "flat nondirectional",
+        "shadow_behavior": "minimal"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no full tile pattern",
+        "no giant damage",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize sparse compositing-safe detail for baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_base_01",
+      "output_path": "assets/floors/materials/fungal_warrens/base/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "base",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "fungal baseline A with restrained organic spread"
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["rotted stone", "fungus", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange"]
+      },
+      "tile_surface": {
+        "surface_type": "fungal-touched stone floor",
+        "material_mix": [
+          "rotted stone",
+          "spore dust",
+          "soft fungal film"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large readable flagstones with organic spread in seams",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "spore dust",
+          "faint fungus veining",
+          "minor dampness"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["aged gray", "muted olive", "dusky brown"],
+        "accent_tones": ["faint sickly green", "soft pale amber"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no giant mushrooms",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_base_02",
+      "output_path": "assets/floors/materials/fungal_warrens/base/01_b.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "base",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "fungal baseline B with more seam infection and spore dust"
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["rotted stone", "fungus", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange"]
+      },
+      "tile_surface": {
+        "surface_type": "fungal-touched stone floor",
+        "material_mix": [
+          "rotted stone",
+          "spore dust",
+          "soft fungal film"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large readable flagstones with stronger seam infection distinct from variant A",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "spore dust",
+          "thin fungal threads",
+          "minor dampness"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["aged gray", "muted olive", "dusky brown"],
+        "accent_tones": ["faint sickly green", "soft pale amber"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no giant mushrooms",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_crack_01",
+      "output_path": "assets/floors/materials/fungal_warrens/cracked/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "cracked",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "fungal cracked variant with spores in fractures"
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["rotted stone", "fungus", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange"]
+      },
+      "tile_surface": {
+        "surface_type": "fungal-touched stone floor",
+        "material_mix": [
+          "rotted stone",
+          "spore dust in cracks",
+          "soft fungal film"
+        ],
+        "pattern_structure": {
+          "base_pattern": "flagstones with irregular fractures that collect organic residue",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "hairline cracks",
+          "spore clusters in seams",
+          "small chipped fragments"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["aged gray", "muted olive", "dusky brown"],
+        "accent_tones": ["faint sickly green", "soft pale amber"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no giant growths",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_moss_01",
+      "output_path": "assets/floors/materials/fungal_warrens/mossy/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "mossy",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "moss-fungal hybrid growth variant"
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["rotted stone", "fungus", "moss", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange"]
+      },
+      "tile_surface": {
+        "surface_type": "fungal-touched stone floor",
+        "material_mix": [
+          "rotted stone",
+          "moss",
+          "fungal residue",
+          "damp stone"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large stone floor with organic growth concentrated in cracks and joints",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "moss threads",
+          "soft fungus film",
+          "damp specks"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["rotted gray", "olive green", "dusky brown"],
+        "accent_tones": ["faint sickly green", "soft pale amber"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no giant growths",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_light_01",
+      "output_path": "assets/floors/materials/fungal_warrens/fungal_light/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "fungal_light",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "light fungal encroachment variant A"
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["rotted stone", "fungus", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange"]
+      },
+      "tile_surface": {
+        "surface_type": "fungal-touched stone floor",
+        "material_mix": [
+          "stone floor",
+          "spore dust",
+          "thin fungal mats"
+        ],
+        "pattern_structure": {
+          "base_pattern": "stone remains dominant while fungal material creeps through cracks and some surface patches",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "thin fungus film",
+          "powdery spores",
+          "small pale growths"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["aged gray", "muted olive", "dusky brown"],
+        "accent_tones": ["faint sickly green", "soft pale amber"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no giant growths",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_light_02",
+      "output_path": "assets/floors/materials/fungal_warrens/fungal_light/01_b.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "fungal_light",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "light fungal encroachment variant B with distinct growth distribution"
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["rotted stone", "fungus", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange"]
+      },
+      "tile_surface": {
+        "surface_type": "fungal-touched stone floor",
+        "material_mix": [
+          "stone floor",
+          "spore dust",
+          "small fungal patches"
+        ],
+        "pattern_structure": {
+          "base_pattern": "stone remains dominant with sparse organic spotting and seam growth distinct from variant A",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "small pale fungus patches",
+          "soft spore haze",
+          "minor dampness"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["aged gray", "muted olive", "dusky brown"],
+        "accent_tones": ["faint sickly green", "soft pale amber"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no giant growths",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_heavy_01",
+      "output_path": "assets/floors/materials/fungal_warrens/fungal_heavy/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "fungal_heavy",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "heavier fungal takeover while stone remains structurally readable"
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["rotted stone", "fungus", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange"]
+      },
+      "tile_surface": {
+        "surface_type": "fungal-touched stone floor",
+        "material_mix": [
+          "rotted stone",
+          "dense fungal film",
+          "spore dust",
+          "damp residue"
+        ],
+        "pattern_structure": {
+          "base_pattern": "stone blocks still visible beneath wider fungal spread and seam takeover",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "thick fungal mats",
+          "dense spores",
+          "damp slick patches"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["rotted gray", "olive green", "dusky brown"],
+        "accent_tones": ["faint sickly green", "soft pale amber"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no giant mushrooms",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_macro_spore_01",
+      "output_path": "assets/floors/overlays/fungal_warrens/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "macro overlay source for baked map composition",
+        "detail_level": "low",
+        "fidelity_target": "subtle low-contrast breakup compatible with base biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no readable stone blocks",
+          "no props",
+          "no text",
+          "no focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "macro_overlay",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": false
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["fungus", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange", "overlay"]
+      },
+      "tile_surface": {
+        "surface_type": "macro spore overlay",
+        "material_mix": [
+          "spore haze",
+          "soft organic mottling"
+        ],
+        "pattern_structure": {
+          "base_pattern": "diffuse organic breakup with no hard edge or focal blotch",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large soft fields",
+          "density": "low",
+          "variation": "low-contrast organic mottling"
+        },
+        "micro_details": [
+          "powdery spore fields"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["muted olive", "soft pale amber"],
+        "accent_tones": [],
+        "saturation": "low",
+        "lighting": "flat nondirectional",
+        "shadow_behavior": "none"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no readable stones",
+        "no hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling and subtle macro breakup compatible with baked map composition."
+      }
+    },
+    {
+      "asset_id": "fungal_patch_01",
+      "output_path": "assets/floors/decals/fungal_warrens/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile detail decal source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": false,
+        "tileability_requirements": [
+          "feature should remain isolated and compositing-safe",
+          "leave broad negative space around the detail"
+        ],
+        "shape": "square",
+        "intended_use": "detail decal source for baked map composition",
+        "detail_level": "low",
+        "fidelity_target": "small sparse compositing element",
+        "composition_rules": [
+          "top-down floor-only view",
+          "single localized detail",
+          "no walls",
+          "no props",
+          "no text",
+          "no focal border"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "detail_decal",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": false
+      },
+      "biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange_alive",
+        "description": "Stone spaces slowly overtaken by fungal growth and spore dust.",
+        "materials": ["fungus", "spore dust"],
+        "hazards": [],
+        "tags": ["organic", "strange", "decal"]
+      },
+      "tile_surface": {
+        "surface_type": "small fungal floor decal",
+        "material_mix": [
+          "fungal patch",
+          "spore dust"
+        ],
+        "pattern_structure": {
+          "base_pattern": "localized off-center organic patch with empty negative space around it",
+          "edge_behavior": "do not force edge continuity",
+          "scale": "small localized detail",
+          "density": "very low",
+          "variation": "single sparse decal"
+        },
+        "micro_details": [
+          "small pale fungal mats",
+          "spore dust fringe"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["olive green", "soft pale amber"],
+        "accent_tones": ["faint sickly green"],
+        "saturation": "low_to_moderate",
+        "lighting": "flat nondirectional",
+        "shadow_behavior": "minimal"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no full tile takeover",
+        "no giant mushroom",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize sparse compositing-safe detail for baked map composition."
+      }
+    },
+    {
+      "asset_id": "water_base_01",
+      "output_path": "assets/floors/materials/waterways/base/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "base",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "damp stone baseline A"
+      },
+      "biome": {
+        "biome_id": "waterways",
+        "biome_name": "Flooded Waterways",
+        "tone": "cold_damp",
+        "description": "Stone passages marked by seepage, mineral deposits, and silt.",
+        "materials": ["stone", "water", "silt"],
+        "hazards": [],
+        "tags": ["wet", "subterranean"]
+      },
+      "tile_surface": {
+        "surface_type": "damp stone floor",
+        "material_mix": [
+          "wet stone",
+          "mineral staining",
+          "darkened seams"
+        ],
+        "pattern_structure": {
+          "base_pattern": "broad stone floor with mild damp darkening and no standing water focal pool",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "faint moisture sheen",
+          "darkened cracks",
+          "sediment traces"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["cool gray", "blue-gray", "muddy brown"],
+        "accent_tones": ["dark olive"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no reflective mirror pool",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "water_base_02",
+      "output_path": "assets/floors/materials/waterways/base/01_b.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "base",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "damp stone baseline B with stronger mineral deposits"
+      },
+      "biome": {
+        "biome_id": "waterways",
+        "biome_name": "Flooded Waterways",
+        "tone": "cold_damp",
+        "description": "Stone passages marked by seepage, mineral deposits, and silt.",
+        "materials": ["stone", "water", "silt"],
+        "hazards": [],
+        "tags": ["wet", "subterranean"]
+      },
+      "tile_surface": {
+        "surface_type": "damp stone floor",
+        "material_mix": [
+          "wet stone",
+          "mineral staining",
+          "darkened seams"
+        ],
+        "pattern_structure": {
+          "base_pattern": "stone floor pattern with stronger mineral deposits and darker seams than variant A",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "wet seams",
+          "sediment traces",
+          "mineral crust"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["cool gray", "blue-gray", "muddy brown"],
+        "accent_tones": ["dark olive"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no reflective mirror pool",
+        "no isolated hero object",
+        "no lighting hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "water_wet_01",
+      "output_path": "assets/floors/materials/waterways/wet/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "wet",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "noticeably wetter floor with sheen and seepage"
+      },
+      "biome": {
+        "biome_id": "waterways",
+        "biome_name": "Flooded Waterways",
+        "tone": "cold_damp",
+        "description": "Stone passages marked by seepage, mineral deposits, and silt.",
+        "materials": ["stone", "water", "silt"],
+        "hazards": [],
+        "tags": ["wet", "subterranean"]
+      },
+      "tile_surface": {
+        "surface_type": "wet stone floor",
+        "material_mix": [
+          "wet flagstone",
+          "seepage",
+          "darkened joints"
+        ],
+        "pattern_structure": {
+          "base_pattern": "stone blocks with heavier dampness and soft reflective suggestion only",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "wet seams",
+          "faint sheen",
+          "dark mineral lines"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["blue-gray", "charcoal", "muddy brown"],
+        "accent_tones": ["dark olive"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no bright specular hotspot",
+        "no isolated hero object",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "water_silt_01",
+      "output_path": "assets/floors/materials/waterways/silt/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "no unique focal object may touch or favor only one edge",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid perspective depth cues that break repetition",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "repeating floor source for baked map composition",
+        "detail_level": "medium_low",
+        "fidelity_target": "consistent across all biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no walls",
+          "no doors",
+          "no props",
+          "no characters",
+          "no text",
+          "no border",
+          "no vignette",
+          "no dramatic focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "silt",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": true,
+        "variant_description": "silty buildup and muddy residue floor variant"
+      },
+      "biome": {
+        "biome_id": "waterways",
+        "biome_name": "Flooded Waterways",
+        "tone": "cold_damp",
+        "description": "Stone passages marked by seepage, mineral deposits, and silt.",
+        "materials": ["stone", "water", "silt"],
+        "hazards": [],
+        "tags": ["wet", "subterranean"]
+      },
+      "tile_surface": {
+        "surface_type": "silted damp stone floor",
+        "material_mix": [
+          "wet stone",
+          "fine silt",
+          "muddy residue"
+        ],
+        "pattern_structure": {
+          "base_pattern": "flagstones with sediment collecting in seams and low points",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable stone blocks",
+          "density": "moderate",
+          "variation": "controlled random variation without breaking uniformity"
+        },
+        "micro_details": [
+          "fine silt bands",
+          "mud traces",
+          "darkened moisture seams"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["slate gray", "mud brown", "dark olive"],
+        "accent_tones": [],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no footprints",
+        "no isolated hero object",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+      }
+    },
+    {
+      "asset_id": "water_macro_reflect_01",
+      "output_path": "assets/floors/overlays/waterways/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "surface detail should be evenly distributed to avoid visible seams",
+          "avoid directional lighting gradients from one side of the tile to the other"
+        ],
+        "shape": "square",
+        "intended_use": "macro overlay source for baked map composition",
+        "detail_level": "low",
+        "fidelity_target": "subtle low-contrast breakup compatible with base biome tiles",
+        "composition_rules": [
+          "top-down floor-only view",
+          "no readable stone blocks",
+          "no props",
+          "no text",
+          "no focal point"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "macro_overlay",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": false
+      },
+      "biome": {
+        "biome_id": "waterways",
+        "biome_name": "Flooded Waterways",
+        "tone": "cold_damp",
+        "description": "Stone passages marked by seepage, mineral deposits, and silt.",
+        "materials": ["water", "moisture"],
+        "hazards": [],
+        "tags": ["wet", "subterranean", "overlay"]
+      },
+      "tile_surface": {
+        "surface_type": "macro moisture overlay",
+        "material_mix": [
+          "soft damp variation",
+          "subtle reflection haze"
+        ],
+        "pattern_structure": {
+          "base_pattern": "broad non-repeating wet breakup with no hard edge or obvious streak direction",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large soft fields",
+          "density": "low",
+          "variation": "low-contrast sheen breakup"
+        },
+        "micro_details": [
+          "faint low-contrast sheen fields"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["blue-gray", "dark olive"],
+        "accent_tones": [],
+        "saturation": "low",
+        "lighting": "flat nondirectional",
+        "shadow_behavior": "none"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no readable stones",
+        "no hotspot",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling and subtle macro breakup compatible with baked map composition."
+      }
+    },
+    {
+      "asset_id": "water_ripple_01",
+      "output_path": "assets/floors/decals/waterways/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_square",
+      "purpose": "Biome-specific seamless square floor tile detail decal source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": false,
+        "tileability_requirements": [
+          "feature should remain isolated and compositing-safe",
+          "leave broad negative space around the detail"
+        ],
+        "shape": "square",
+        "intended_use": "detail decal source for baked map composition",
+        "detail_level": "low",
+        "fidelity_target": "small sparse compositing element",
+        "composition_rules": [
+          "top-down floor-only view",
+          "single localized detail",
+          "no walls",
+          "no props",
+          "no text",
+          "no focal border"
+        ]
+      },
+      "variant_rules": {
+        "variant_family": "detail_decal",
+        "preserve_palette_consistency": true,
+        "crack_layout_must_differ_between_variants": false
+      },
+      "biome": {
+        "biome_id": "waterways",
+        "biome_name": "Flooded Waterways",
+        "tone": "cold_damp",
+        "description": "Stone passages marked by seepage, mineral deposits, and silt.",
+        "materials": ["water"],
+        "hazards": [],
+        "tags": ["wet", "subterranean", "decal"]
+      },
+      "tile_surface": {
+        "surface_type": "small ripple floor decal",
+        "material_mix": [
+          "water ripple",
+          "damp sheen"
+        ],
+        "pattern_structure": {
+          "base_pattern": "small localized ripple ring or damp disturbance with empty space around it",
+          "edge_behavior": "do not force edge continuity",
+          "scale": "small localized detail",
+          "density": "very low",
+          "variation": "single sparse decal"
+        },
+        "micro_details": [
+          "soft ripple lines",
+          "minor sheen accent"
+        ]
+      },
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["blue-gray", "charcoal"],
+        "accent_tones": [],
+        "saturation": "low",
+        "lighting": "flat nondirectional",
+        "shadow_behavior": "minimal"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no room layout",
+        "no large puddle",
+        "no splash crown",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_biome_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize sparse compositing-safe detail for baked map composition."
+      }
+    },
+    {
+      "asset_id": "stone_to_fungal_blend_01",
+      "output_path": "assets/floors/transitions/stone_halls_to_fungal_warrens/01_a.png",
+      "schema_version": "1.0",
+      "image_type": "tile_floor_transition_square",
+      "purpose": "Seamless square biome transition floor tile source image for dungeon map baking",
+      "global_style_rules": {
+        "must_tile_seamlessly": true,
+        "tileability_requirements": [
+          "left and right edges must align as a continuous pattern",
+          "top and bottom edges must align as a continuous pattern",
+          "transition features must remain tile-safe",
+          "avoid perspective depth cues",
+          "avoid directional lighting gradients"
+        ],
+        "shape": "square",
+        "intended_use": "transition tile between two biome floor families",
+        "detail_level": "medium_low",
+        "fidelity_target": "must visually match both connected biome tiles"
+      },
+      "transition_definition": {
+        "from_biome_id": "stone_halls",
+        "to_biome_id": "fungal_warrens",
+        "transition_type": "encroachment",
+        "transition_directionality": "non_directional",
+        "blend_ratio_range": {
+          "from_biome_visual_weight": 0.65,
+          "to_biome_visual_weight": 0.35
+        }
+      },
+      "source_biome": {
+        "biome_id": "stone_halls",
+        "biome_name": "Old Stone Halls",
+        "tone": "baseline",
+        "materials": ["stone"]
+      },
+      "target_biome": {
+        "biome_id": "fungal_warrens",
+        "biome_name": "Fungal Warrens",
+        "tone": "strange, alive, slightly unsettling",
+        "materials": ["fungus", "rotted stone"]
+      },
+      "transition_surface_rules": {
+        "dominant_base_material": "worn stone floor",
+        "secondary_intrusion_material": "soft fungal growth and spore dust",
+        "blending_behavior": [
+          "fungal material should creep into cracks and seams first",
+          "stone should remain readable as the structural base",
+          "transition should feel natural and gradual"
+        ],
+        "pattern_structure": {
+          "base_pattern": "large worn flagstones with localized fungal encroachment",
+          "edge_behavior": "continuous repeating pattern",
+          "scale": "large readable blocks with subtle organic intrusion",
+          "variation": "controlled and non-repeating"
+        }
+      },
+      "micro_details": [
+        "hairline cracks with spore dust in seams",
+        "small moss patches",
+        "subtle fungal film",
+        "minor dampness"
+      ],
+      "color_and_light": {
+        "overall_temperature": "cool_neutral",
+        "primary_tones": ["aged gray", "dusky brown", "muted olive"],
+        "accent_tones": ["faint sickly green", "soft pale amber"],
+        "saturation": "low_to_moderate",
+        "lighting": "soft diffuse ambient light",
+        "shadow_behavior": "minimal and nondirectional"
+      },
+      "negative_constraints": [
+        "no perspective view",
+        "no walls or props",
+        "no hard left-right split",
+        "no giant growths",
+        "no text",
+        "no hard seam line",
+        "no blur or bokeh"
+      ],
+      "output_notes": {
+        "consistency_group": "tempest_transition_tiles_v1",
+        "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless blending between the two biome identities while remaining compatible with surrounding base tiles."
+      }
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "image_type": "tile_floor_square",
+  "purpose": "Biome-specific seamless square floor tile source image for dungeon map baking",
+  "global_style_rules": {
+    "must_tile_seamlessly": true,
+    "tileability_requirements": [
+      "left and right edges must align as a continuous pattern",
+      "top and bottom edges must align as a continuous pattern",
+      "no unique focal object may touch or favor only one edge",
+      "surface detail should be evenly distributed to avoid visible seams",
+      "avoid perspective depth cues that break repetition",
+      "avoid directional lighting gradients from one side of the tile to the other"
+    ],
+    "shape": "square",
+    "intended_use": "repeating floor source for baked map composition",
+    "detail_level": "medium_low",
+    "fidelity_target": "consistent across all biome tiles",
+    "composition_rules": [
+      "top-down floor-only view",
+      "no walls",
+      "no doors",
+      "no props",
+      "no characters",
+      "no text",
+      "no border",
+      "no vignette",
+      "no dramatic focal point"
+    ]
+  },
+  "variant_rules": {
+    "variant_family": "base",
+    "preserve_palette_consistency": true,
+    "crack_layout_must_differ_between_variants": true
+  },
+  "biome": {
+    "biome_id": "stone_halls",
+    "biome_name": "Old Stone Halls",
+    "tone": "baseline",
+    "description": "Traditional dungeon corridors and chambers.",
+    "materials": ["stone"],
+    "hazards": [],
+    "tags": ["neutral"]
+  },
+  "tile_surface": {
+    "surface_type": "aged stone floor",
+    "material_mix": [
+      "worn gray stone",
+      "dust in seams",
+      "subtle moss traces"
+    ],
+    "pattern_structure": {
+      "base_pattern": "large worn flagstones in a repeating but irregular layout",
+      "edge_behavior": "continuous repeating pattern",
+      "scale": "large readable stone blocks",
+      "density": "moderate",
+      "variation": "controlled random variation without breaking uniformity"
+    },
+    "micro_details": [
+      "hairline cracks",
+      "small chips",
+      "dusty seams",
+      "tiny pebbles",
+      "light moss in narrow gaps"
+    ]
+  },
+  "color_and_light": {
+    "overall_temperature": "neutral_cool",
+    "primary_tones": ["aged gray", "dusky brown", "muted charcoal"],
+    "accent_tones": ["dark olive", "dusty beige"],
+    "saturation": "low_to_moderate",
+    "lighting": "soft diffuse ambient light",
+    "shadow_behavior": "minimal and nondirectional"
+  },
+  "negative_constraints": [
+    "no perspective view",
+    "no room layout",
+    "no large center emblem",
+    "no isolated hero object",
+    "no lighting hotspot",
+    "no hard seam line",
+    "no blur or bokeh"
+  ],
+  "output_notes": {
+    "consistency_group": "tempest_biome_tiles_v1",
+    "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless tiling, palette consistency, and compatibility with baked map composition."
+  }
+}

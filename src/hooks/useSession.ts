@@ -5,6 +5,12 @@ import { useSessionStore } from '../stores/sessionStore';
 import { useMapStore } from '../stores/mapStore';
 import { useChatStore } from '../stores/chatStore';
 import { useInitiativeStore } from '../stores/initiativeStore';
+import { useProcgenStore } from '../stores/procgenStore';
+import { useProcgenCampaign } from './useProcgenCampaign';
+import { createSnapshotFromStore } from '../procgen/engine/campaignFlow';
+import { getMapBakeContentSignature, loadMapBakeContent } from '../procgen/bake/AssetRegistryLoader';
+import { ensureSectionsHaveCurrentBakedFloors } from '../procgen/integration/bakeReadiness';
+import { createGeneratedMapsFromSnapshot } from '../procgen/integration/mapAdapter';
 import {
   dbSessionToSession,
   dbMapToMap,
@@ -28,12 +34,21 @@ import {
   type DbDiceRoll,
   type DbInitiativeEntry,
   type DbInitiativeRollLog,
+  type Map,
   type Session,
 } from '../types';
 
 
 const isMissingRelationError = (error: { code?: string; message?: string } | null) =>
   error?.code === '42P01' || error?.message?.toLowerCase().includes('does not exist');
+
+const CURRENT_BAKE_CONTENT_SIGNATURE = getMapBakeContentSignature(loadMapBakeContent());
+const PROCGEN_LOAD_RETRY_DELAYS_MS = [120, 320];
+
+const wait = (durationMs: number) =>
+  new Promise<void>((resolve) => {
+    globalThis.setTimeout(resolve, durationMs);
+  });
 
 export const useSession = () => {
   const {
@@ -58,13 +73,22 @@ export const useSession = () => {
 
   const { setMessages, setDiceRolls, clearChatState } = useChatStore();
   const { setEntries, setRollLogs, clearInitiativeState } = useInitiativeStore();
+  const { loadCampaignBySession, clearProcgenState, bakeSectionFloorCache } = useProcgenCampaign();
 
   const createSession = useCallback(
     async (
       sessionName: string,
-      username: string
-    ): Promise<{ success: boolean; code?: string; error?: string }> => {
+      username: string,
+      options?: { activateSession?: boolean }
+    ): Promise<{
+      success: boolean;
+      code?: string;
+      error?: string;
+      session?: Session;
+      currentUser?: { username: string; characterId: string | null; isGm: boolean };
+    }> => {
       try {
+        const activateSession = options?.activateSession ?? true;
         let code = generateSessionCode();
         let attempts = 0;
         while (attempts < 5) {
@@ -94,6 +118,7 @@ export const useSession = () => {
         }
 
         const newSession = dbSessionToSession(sessionData as DbSession);
+        const newCurrentUser = { username, characterId: null, isGm: true };
 
         const { error: playerError } = await supabase.from('session_players').insert({
           session_id: newSession.id,
@@ -106,10 +131,17 @@ export const useSession = () => {
           return { success: false, error: playerError.message };
         }
 
-        setSession(newSession);
-        setCurrentUser({ username, characterId: null, isGm: true });
+        if (activateSession) {
+          setSession(newSession);
+          setCurrentUser(newCurrentUser);
+        }
 
-        return { success: true, code };
+        return {
+          success: true,
+          code,
+          session: newSession,
+          currentUser: newCurrentUser,
+        };
       } catch (error) {
         return {
           success: false,
@@ -188,6 +220,7 @@ export const useSession = () => {
   const loadSessionData = useCallback(
     async (sessionId: string) => {
       try {
+        let uploadedMaps: Map[] = [];
         const { data: mapsData } = await supabase
           .from('maps')
           .select('*')
@@ -195,8 +228,8 @@ export const useSession = () => {
           .order('sort_order', { ascending: true });
 
         if (mapsData) {
-          const maps = (mapsData as DbMap[]).map(dbMapToMap);
-          setMaps(maps);
+          uploadedMaps = (mapsData as DbMap[]).map(dbMapToMap);
+          setMaps(uploadedMaps);
 
           const { data: sessionData } = await supabase
             .from('sessions')
@@ -205,7 +238,7 @@ export const useSession = () => {
             .single();
 
           if (sessionData?.active_map_id) {
-            const activeMap = maps.find((m) => m.id === sessionData.active_map_id);
+            const activeMap = uploadedMaps.find((m) => m.id === sessionData.active_map_id);
             if (activeMap) setActiveMap(activeMap);
           }
         }
@@ -310,6 +343,58 @@ export const useSession = () => {
         if (isMissingRelationError(handoutError)) {
           console.warn('Handout tables are not available yet; skipping handout hydration.');
         }
+
+        let campaignWorld = await loadCampaignBySession(sessionId);
+        if (!campaignWorld && uploadedMaps.length === 0) {
+          for (const retryDelayMs of PROCGEN_LOAD_RETRY_DELAYS_MS) {
+            await wait(retryDelayMs);
+            campaignWorld = await loadCampaignBySession(sessionId);
+            if (campaignWorld) {
+              break;
+            }
+          }
+        }
+
+        if (campaignWorld) {
+          const procgenState = useProcgenStore.getState();
+          const sections = await ensureSectionsHaveCurrentBakedFloors({
+            sections: Object.values(procgenState.sectionsById),
+            expectedContentSignature: CURRENT_BAKE_CONTENT_SIGNATURE,
+            bakeSectionFloorCache,
+          });
+          const snapshot = createSnapshotFromStore({
+            campaign: procgenState.campaign ?? campaignWorld,
+            sections,
+            previews: Object.values(procgenState.sectionPreviewsById),
+          });
+          const { maps: generatedMaps, activeMap: generatedActiveMap } = createGeneratedMapsFromSnapshot({
+            sessionId,
+            snapshot,
+          });
+          const mergedMaps = [
+            ...uploadedMaps,
+            ...generatedMaps.filter(
+              (generatedMap) => !uploadedMaps.some((uploadedMap) => uploadedMap.id === generatedMap.id)
+            ),
+          ];
+
+          setMaps(mergedMaps);
+
+          const { data: sessionData } = await supabase
+            .from('sessions')
+            .select('active_map_id')
+            .eq('id', sessionId)
+            .single();
+          const uploadedActiveMap = sessionData?.active_map_id
+            ? uploadedMaps.find((map) => map.id === sessionData.active_map_id) ?? null
+            : null;
+
+          if (uploadedActiveMap) {
+            setActiveMap(uploadedActiveMap);
+          } else if (generatedActiveMap) {
+            setActiveMap(generatedActiveMap);
+          }
+        }
       } catch (error) {
         console.error('Error loading session data:', error);
       }
@@ -326,6 +411,8 @@ export const useSession = () => {
       setDiceRolls,
       setEntries,
       setRollLogs,
+      loadCampaignBySession,
+      bakeSectionFloorCache,
     ]
   );
 
@@ -425,7 +512,8 @@ export const useSession = () => {
     clearMapState();
     clearChatState();
     clearInitiativeState();
-  }, [session, currentUser, clearSession, clearMapState, clearChatState, clearInitiativeState]);
+    clearProcgenState();
+  }, [session, currentUser, clearSession, clearMapState, clearChatState, clearInitiativeState, clearProcgenState]);
 
   const updateNotepad = useCallback(
     async (content: string) => {

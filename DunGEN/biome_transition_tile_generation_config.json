@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "image_type": "tile_floor_transition_square",
+  "purpose": "Seamless square biome transition floor tile source image for dungeon map baking",
+  "global_style_rules": {
+    "must_tile_seamlessly": true,
+    "tileability_requirements": [
+      "left and right edges must align as a continuous pattern",
+      "top and bottom edges must align as a continuous pattern",
+      "transition features must remain tile-safe",
+      "avoid perspective depth cues",
+      "avoid directional lighting gradients"
+    ],
+    "shape": "square",
+    "intended_use": "transition tile between two biome floor families",
+    "detail_level": "medium_low",
+    "fidelity_target": "must visually match both connected biome tiles"
+  },
+  "transition_definition": {
+    "from_biome_id": "stone_halls",
+    "to_biome_id": "fungal_warrens",
+    "transition_type": "encroachment",
+    "transition_directionality": "non_directional",
+    "blend_ratio_range": {
+      "from_biome_visual_weight": 0.65,
+      "to_biome_visual_weight": 0.35
+    }
+  },
+  "source_biome": {
+    "biome_id": "stone_halls",
+    "biome_name": "Old Stone Halls",
+    "tone": "baseline",
+    "materials": ["stone"]
+  },
+  "target_biome": {
+    "biome_id": "fungal_warrens",
+    "biome_name": "Fungal Warrens",
+    "tone": "strange, alive, slightly unsettling",
+    "materials": ["fungus", "rotted stone"]
+  },
+  "transition_surface_rules": {
+    "dominant_base_material": "worn stone floor",
+    "secondary_intrusion_material": "soft fungal growth and spore dust",
+    "blending_behavior": [
+      "fungal material should creep into cracks and seams first",
+      "stone should remain readable as the structural base",
+      "transition should feel natural and gradual"
+    ],
+    "pattern_structure": {
+      "base_pattern": "large worn flagstones with localized fungal encroachment",
+      "edge_behavior": "continuous repeating pattern",
+      "scale": "large readable blocks with subtle organic intrusion",
+      "variation": "controlled and non-repeating"
+    }
+  },
+  "micro_details": [
+    "hairline cracks with spore dust in seams",
+    "small moss patches",
+    "subtle fungal film",
+    "minor dampness"
+  ],
+  "color_and_light": {
+    "overall_temperature": "cool_neutral",
+    "primary_tones": ["aged gray", "dusky brown", "muted olive"],
+    "accent_tones": ["faint sickly green", "soft pale amber"],
+    "saturation": "low_to_moderate",
+    "lighting": "soft diffuse ambient light",
+    "shadow_behavior": "minimal and nondirectional"
+  },
+  "negative_constraints": [
+    "no perspective view",
+    "no walls or props",
+    "no hard left-right split",
+    "no giant growths",
+    "no text",
+    "no hard seam line",
+    "no blur or bokeh"
+  ],
+  "output_notes": {
+    "consistency_group": "tempest_transition_tiles_v1",
+    "generator_instruction": "Treat this full JSON as the image prompt. Prioritize seamless blending between the two biome identities while remaining compatible with surrounding base tiles."
+  }
+}

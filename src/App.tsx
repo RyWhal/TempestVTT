@@ -5,13 +5,17 @@ import { Home } from './components/session/Home';
 import { SessionCreate } from './components/session/SessionCreate';
 import { SessionJoin } from './components/session/SessionJoin';
 import { SessionLobby } from './components/session/SessionLobby';
-import { PlaySession } from './components/play/PlaySession';
+import { LegacyRouteAlias } from './components/session/LegacyRouteAlias';
+import { PlayRoute } from './components/play/PlayRoute';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AssetCreate } from './components/admin/AssetCreate';
+import { DunGENLayout } from './components/dungen/DunGENLayout';
+import { DunGENCampaignView } from './components/dungen/DunGENCampaignView';
 import { useSessionStore } from './stores/sessionStore';
 import { useSession } from './hooks/useSession';
 import { useRealtime } from './hooks/useRealtime';
+import { supabase } from './lib/supabase';
 
 // Protected route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -34,17 +38,24 @@ const AppContent: React.FC = () => {
   const currentUser = useSessionStore((state) => state.currentUser);
   const clearSession = useSessionStore((state) => state.clearSession);
   const setCurrentUser = useSessionStore((state) => state.setCurrentUser);
-  const hasAttemptedRejoin = useRef(false);
-  const hasHydratedSession = useRef(false);
+  const lastAttemptedRejoinKey = useRef<string | null>(null);
+  const lastHydratedSessionId = useRef<string | null>(null);
 
   useEffect(() => {
     const attemptRejoin = async () => {
-      if (!session?.code || !currentUser?.username || session.id || hasAttemptedRejoin.current) {
+      const sessionCode = session?.code ?? null;
+      const username = currentUser?.username ?? null;
+      const rejoinKey =
+        sessionCode && username && !session?.id
+          ? `${sessionCode}:${username}`
+          : null;
+
+      if (!rejoinKey || !sessionCode || !username || lastAttemptedRejoinKey.current === rejoinKey) {
         return;
       }
 
-      hasAttemptedRejoin.current = true;
-      const result = await joinSession(session.code, currentUser.username);
+      lastAttemptedRejoinKey.current = rejoinKey;
+      const result = await joinSession(sessionCode, username);
 
       if (!result.success) {
         clearSession();
@@ -57,22 +68,82 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     const hydrateSession = async () => {
-      if (!session?.id || !currentUser?.username || hasHydratedSession.current) {
+      if (!session?.id || !currentUser?.username || lastHydratedSessionId.current === session.id) {
         return;
       }
 
-      hasHydratedSession.current = true;
+      const { data: liveSession, error } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('id', session.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Failed to validate persisted session before hydration.', error);
+        return;
+      }
+
+      if (!liveSession) {
+        if (session.code) {
+          lastHydratedSessionId.current = null;
+          await joinSession(session.code, currentUser.username);
+          return;
+        }
+
+        clearSession();
+        setCurrentUser(null);
+        return;
+      }
+
+      lastHydratedSessionId.current = session.id;
       await loadSessionData(session.id);
     };
 
     void hydrateSession();
-  }, [session, currentUser, loadSessionData]);
+  }, [session, currentUser, joinSession, loadSessionData, clearSession, setCurrentUser]);
 
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/create" element={<SessionCreate />} />
-      <Route path="/join" element={<SessionJoin />} />
+      <Route path="/campaign" element={<DunGENLayout />}>
+        <Route index element={<DunGENCampaignView />} />
+      </Route>
+      <Route
+        path="/DunGEN"
+        element={
+          <LegacyRouteAlias to="/campaign">
+            <DunGENLayout>
+              <DunGENCampaignView />
+            </DunGENLayout>
+          </LegacyRouteAlias>
+        }
+      />
+      <Route
+        path="/DunGEN/campaign"
+        element={
+          <LegacyRouteAlias to="/campaign">
+            <DunGENLayout>
+              <DunGENCampaignView />
+            </DunGENLayout>
+          </LegacyRouteAlias>
+        }
+      />
+      <Route
+        path="/create"
+        element={
+          <LegacyRouteAlias to="/play?mode=create">
+            <SessionCreate />
+          </LegacyRouteAlias>
+        }
+      />
+      <Route
+        path="/join"
+        element={
+          <LegacyRouteAlias to="/play?mode=join">
+            <SessionJoin />
+          </LegacyRouteAlias>
+        }
+      />
       <Route
         path="/lobby"
         element={
@@ -84,9 +155,7 @@ const AppContent: React.FC = () => {
       <Route
         path="/play"
         element={
-          <ProtectedRoute>
-            <PlaySession />
-          </ProtectedRoute>
+          <PlayRoute />
         }
       />
       {/* Admin routes */}

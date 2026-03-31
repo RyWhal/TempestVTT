@@ -1,0 +1,573 @@
+{
+  "npc_anchor_templates": [
+    {
+      "id": "commoner",
+      "name": "Commoner",
+      "tier": "incidental",
+      "base_5e_source": "commoner",
+      "default_cr": 0,
+      "base_stats": {
+        "ac": 10,
+        "hp": 4,
+        "hit_dice": "1d8",
+        "speed": 30,
+        "abilities": {
+          "str": 10,
+          "dex": 10,
+          "con": 10,
+          "int": 10,
+          "wis": 10,
+          "cha": 10
+        },
+        "saving_throws": [],
+        "skills": [],
+        "senses": ["passive_perception_10"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "club",
+          "name": "Club",
+          "type": "melee_weapon_attack",
+          "to_hit": 2,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d4 bludgeoning"
+        }
+      ],
+      "default_equipment": ["simple clothes", "small pouch", "tool or keepsake"]
+    },
+    {
+      "id": "acolyte",
+      "name": "Acolyte",
+      "tier": "capable",
+      "base_5e_source": "acolyte",
+      "default_cr": 0.25,
+      "base_stats": {
+        "ac": 10,
+        "hp": 9,
+        "hit_dice": "2d8",
+        "speed": 30,
+        "abilities": {
+          "str": 10,
+          "dex": 10,
+          "con": 10,
+          "int": 10,
+          "wis": 14,
+          "cha": 11
+        },
+        "saving_throws": [],
+        "skills": ["Insight", "Religion"],
+        "senses": ["passive_perception_12"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "club",
+          "name": "Club",
+          "type": "melee_weapon_attack",
+          "to_hit": 2,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d4 bludgeoning"
+        }
+      ],
+      "default_spellcasting": {
+        "spellcasting_ability": "wis",
+        "spell_save_dc": 12,
+        "spell_attack_bonus": 4,
+        "level": 1,
+        "at_will": ["light", "sacred_flame", "thaumaturgy"],
+        "daily_1": ["cure_wounds", "bless", "sanctuary"]
+      },
+      "default_equipment": ["robes", "holy symbol", "small satchel"]
+    },
+    {
+      "id": "guard",
+      "name": "Guard",
+      "tier": "capable",
+      "base_5e_source": "guard",
+      "default_cr": 0.125,
+      "base_stats": {
+        "ac": 16,
+        "hp": 11,
+        "hit_dice": "2d8+2",
+        "speed": 30,
+        "abilities": {
+          "str": 13,
+          "dex": 12,
+          "con": 12,
+          "int": 10,
+          "wis": 11,
+          "cha": 10
+        },
+        "saving_throws": [],
+        "skills": ["Perception"],
+        "senses": ["passive_perception_11"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "spear_melee",
+          "name": "Spear",
+          "type": "melee_weapon_attack",
+          "to_hit": 3,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d6+1 piercing"
+        },
+        {
+          "id": "spear_ranged",
+          "name": "Spear (Thrown)",
+          "type": "ranged_weapon_attack",
+          "to_hit": 3,
+          "range": "20/60 ft",
+          "target": "1 target",
+          "damage": "1d6+1 piercing"
+        }
+      ],
+      "default_equipment": ["spear", "shield", "patched chain shirt"]
+    },
+    {
+      "id": "scout",
+      "name": "Scout",
+      "tier": "capable",
+      "base_5e_source": "scout",
+      "default_cr": 0.5,
+      "base_stats": {
+        "ac": 13,
+        "hp": 16,
+        "hit_dice": "3d8+3",
+        "speed": 30,
+        "abilities": {
+          "str": 11,
+          "dex": 14,
+          "con": 12,
+          "int": 11,
+          "wis": 13,
+          "cha": 11
+        },
+        "saving_throws": [],
+        "skills": ["Nature", "Perception", "Stealth", "Survival"],
+        "senses": ["passive_perception_15"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "shortsword",
+          "name": "Shortsword",
+          "type": "melee_weapon_attack",
+          "to_hit": 4,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d6+2 piercing"
+        },
+        {
+          "id": "longbow",
+          "name": "Longbow",
+          "type": "ranged_weapon_attack",
+          "to_hit": 4,
+          "range": "150/600 ft",
+          "target": "1 target",
+          "damage": "1d8+2 piercing"
+        }
+      ],
+      "default_equipment": ["shortsword", "bow", "travel cloak", "field kit"]
+    },
+    {
+      "id": "bandit",
+      "name": "Bandit",
+      "tier": "capable",
+      "base_5e_source": "bandit",
+      "default_cr": 0.125,
+      "base_stats": {
+        "ac": 12,
+        "hp": 11,
+        "hit_dice": "2d8+2",
+        "speed": 30,
+        "abilities": {
+          "str": 11,
+          "dex": 12,
+          "con": 12,
+          "int": 10,
+          "wis": 10,
+          "cha": 10
+        },
+        "saving_throws": [],
+        "skills": [],
+        "senses": ["passive_perception_10"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "scimitar",
+          "name": "Scimitar",
+          "type": "melee_weapon_attack",
+          "to_hit": 3,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d6+1 slashing"
+        },
+        {
+          "id": "light_crossbow",
+          "name": "Light Crossbow",
+          "type": "ranged_weapon_attack",
+          "to_hit": 3,
+          "range": "80/320 ft",
+          "target": "1 target",
+          "damage": "1d8+1 piercing"
+        }
+      ],
+      "default_equipment": ["light armor", "scimitar", "crossbow", "stolen pouch"]
+    },
+    {
+      "id": "thug",
+      "name": "Thug",
+      "tier": "seasoned",
+      "base_5e_source": "thug",
+      "default_cr": 0.5,
+      "base_stats": {
+        "ac": 11,
+        "hp": 32,
+        "hit_dice": "5d8+10",
+        "speed": 30,
+        "abilities": {
+          "str": 15,
+          "dex": 11,
+          "con": 14,
+          "int": 10,
+          "wis": 10,
+          "cha": 11
+        },
+        "saving_throws": [],
+        "skills": ["Intimidation"],
+        "senses": ["passive_perception_10"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "multiattack",
+          "name": "Multiattack",
+          "type": "special",
+          "effect": "Makes two melee attacks."
+        },
+        {
+          "id": "mace",
+          "name": "Mace",
+          "type": "melee_weapon_attack",
+          "to_hit": 4,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d6+2 bludgeoning"
+        }
+      ],
+      "default_equipment": ["heavy club or mace", "studded vest", "bracers"]
+    },
+    {
+      "id": "spy",
+      "name": "Spy",
+      "tier": "seasoned",
+      "base_5e_source": "spy",
+      "default_cr": 1,
+      "base_stats": {
+        "ac": 12,
+        "hp": 27,
+        "hit_dice": "6d8",
+        "speed": 30,
+        "abilities": {
+          "str": 10,
+          "dex": 15,
+          "con": 10,
+          "int": 12,
+          "wis": 14,
+          "cha": 16
+        },
+        "saving_throws": [],
+        "skills": ["Deception", "Insight", "Investigation", "Perception", "Persuasion", "Sleight_of_Hand", "Stealth"],
+        "senses": ["passive_perception_14"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "shortsword",
+          "name": "Shortsword",
+          "type": "melee_weapon_attack",
+          "to_hit": 4,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d6+2 piercing"
+        },
+        {
+          "id": "hand_crossbow",
+          "name": "Hand Crossbow",
+          "type": "ranged_weapon_attack",
+          "to_hit": 4,
+          "range": "30/120 ft",
+          "target": "1 target",
+          "damage": "1d6+2 piercing"
+        }
+      ],
+      "default_traits": ["cunning_action_style_mobility"],
+      "default_equipment": ["hidden blade", "hand crossbow", "concealed pockets", "coded notes"]
+    },
+    {
+      "id": "priest",
+      "name": "Priest",
+      "tier": "seasoned",
+      "base_5e_source": "priest",
+      "default_cr": 2,
+      "base_stats": {
+        "ac": 13,
+        "hp": 27,
+        "hit_dice": "5d8+5",
+        "speed": 25,
+        "abilities": {
+          "str": 10,
+          "dex": 10,
+          "con": 12,
+          "int": 13,
+          "wis": 16,
+          "cha": 13
+        },
+        "saving_throws": [],
+        "skills": ["Medicine", "Persuasion", "Religion"],
+        "senses": ["passive_perception_13"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "mace",
+          "name": "Mace",
+          "type": "melee_weapon_attack",
+          "to_hit": 2,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d6 bludgeoning"
+        }
+      ],
+      "default_spellcasting": {
+        "spellcasting_ability": "wis",
+        "spell_save_dc": 13,
+        "spell_attack_bonus": 5,
+        "level": 5,
+        "at_will": ["light", "sacred_flame", "thaumaturgy"],
+        "daily_3": ["cure_wounds", "guiding_bolt", "healing_word", "sanctuary"],
+        "daily_2": ["lesser_restoration", "spiritual_weapon"],
+        "daily_1": ["dispel_magic", "spirit_guardians"]
+      },
+      "default_equipment": ["ceremonial armor", "mace", "holy charm", "ritual kit"]
+    },
+    {
+      "id": "veteran",
+      "name": "Veteran",
+      "tier": "seasoned",
+      "base_5e_source": "veteran",
+      "default_cr": 3,
+      "base_stats": {
+        "ac": 17,
+        "hp": 58,
+        "hit_dice": "9d8+18",
+        "speed": 30,
+        "abilities": {
+          "str": 16,
+          "dex": 13,
+          "con": 14,
+          "int": 10,
+          "wis": 11,
+          "cha": 10
+        },
+        "saving_throws": [],
+        "skills": ["Athletics", "Perception"],
+        "senses": ["passive_perception_11"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "multiattack",
+          "name": "Multiattack",
+          "type": "special",
+          "effect": "Makes two weapon attacks."
+        },
+        {
+          "id": "longsword",
+          "name": "Longsword",
+          "type": "melee_weapon_attack",
+          "to_hit": 5,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d8+3 slashing"
+        },
+        {
+          "id": "heavy_crossbow",
+          "name": "Heavy Crossbow",
+          "type": "ranged_weapon_attack",
+          "to_hit": 3,
+          "range": "100/400 ft",
+          "target": "1 target",
+          "damage": "1d10+1 piercing"
+        }
+      ],
+      "default_equipment": ["longsword", "crossbow", "breastplate", "travel scars"]
+    },
+    {
+      "id": "mage",
+      "name": "Mage",
+      "tier": "exceptional",
+      "base_5e_source": "mage",
+      "default_cr": 6,
+      "base_stats": {
+        "ac": 12,
+        "hp": 40,
+        "hit_dice": "9d8",
+        "speed": 30,
+        "abilities": {
+          "str": 9,
+          "dex": 14,
+          "con": 11,
+          "int": 17,
+          "wis": 12,
+          "cha": 11
+        },
+        "saving_throws": ["int", "wis"],
+        "skills": ["Arcana", "History"],
+        "senses": ["passive_perception_11"],
+        "languages": ["common"],
+        "proficiency_bonus": 3
+      },
+      "default_actions": [
+        {
+          "id": "dagger",
+          "name": "Dagger",
+          "type": "melee_or_ranged_weapon_attack",
+          "to_hit": 5,
+          "reach": "5 ft",
+          "range": "20/60 ft",
+          "target": "1 target",
+          "damage": "1d4+2 piercing"
+        }
+      ],
+      "default_spellcasting": {
+        "spellcasting_ability": "int",
+        "spell_save_dc": 14,
+        "spell_attack_bonus": 6,
+        "level": 9,
+        "at_will": ["fire_bolt", "light", "mage_hand", "prestidigitation"],
+        "daily_3": ["magic_missile", "shield", "misty_step"],
+        "daily_2": ["counterspell", "fireball", "fly"],
+        "daily_1": ["greater_invisibility", "ice_storm", "cone_of_cold"]
+      },
+      "default_equipment": ["robes", "dagger", "spell focus", "strange notes"]
+    },
+    {
+      "id": "druid_proxy",
+      "name": "Druid Proxy",
+      "tier": "seasoned",
+      "base_5e_source": "druid_inspired",
+      "default_cr": 2,
+      "base_stats": {
+        "ac": 12,
+        "hp": 27,
+        "hit_dice": "5d8+5",
+        "speed": 30,
+        "abilities": {
+          "str": 10,
+          "dex": 12,
+          "con": 12,
+          "int": 11,
+          "wis": 16,
+          "cha": 11
+        },
+        "saving_throws": [],
+        "skills": ["Nature", "Medicine", "Insight"],
+        "senses": ["passive_perception_13"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "staff",
+          "name": "Staff",
+          "type": "melee_weapon_attack",
+          "to_hit": 3,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d6+1 bludgeoning"
+        }
+      ],
+      "default_spellcasting": {
+        "spellcasting_ability": "wis",
+        "spell_save_dc": 13,
+        "spell_attack_bonus": 5,
+        "level": 5,
+        "at_will": ["druidcraft", "poison_spray", "guidance"],
+        "daily_3": ["cure_wounds", "entangle", "faerie_fire"],
+        "daily_2": ["spike_growth", "lesser_restoration"],
+        "daily_1": ["plant_growth", "speak_with_plants"]
+      },
+      "default_equipment": ["staff", "spore pouch", "roots or vine charms"]
+    },
+    {
+      "id": "bandit_captain_proxy",
+      "name": "Bandit Captain Proxy",
+      "tier": "seasoned",
+      "base_5e_source": "bandit_captain_inspired",
+      "default_cr": 2,
+      "base_stats": {
+        "ac": 15,
+        "hp": 45,
+        "hit_dice": "6d8+18",
+        "speed": 30,
+        "abilities": {
+          "str": 15,
+          "dex": 16,
+          "con": 14,
+          "int": 12,
+          "wis": 11,
+          "cha": 14
+        },
+        "saving_throws": [],
+        "skills": ["Athletics", "Deception", "Intimidation"],
+        "senses": ["passive_perception_10"],
+        "languages": ["common"],
+        "proficiency_bonus": 2
+      },
+      "default_actions": [
+        {
+          "id": "multiattack",
+          "name": "Multiattack",
+          "type": "special",
+          "effect": "Makes two melee attacks."
+        },
+        {
+          "id": "scimitar",
+          "name": "Scimitar",
+          "type": "melee_weapon_attack",
+          "to_hit": 5,
+          "reach": "5 ft",
+          "target": "1 target",
+          "damage": "1d6+3 slashing"
+        },
+        {
+          "id": "dagger",
+          "name": "Dagger",
+          "type": "melee_or_ranged_weapon_attack",
+          "to_hit": 5,
+          "reach": "5 ft",
+          "range": "20/60 ft",
+          "target": "1 target",
+          "damage": "1d4+3 piercing"
+        }
+      ],
+      "default_equipment": ["better armor", "two blades", "crew tokens", "salvage maps"]
+    }
+  ]
+}

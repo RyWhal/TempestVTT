@@ -1,0 +1,104 @@
+{
+  "npc_generation_schema": {
+    "required_inputs": {
+      "species_id": "string",
+      "species_origin": "enum[remnant,residual,native]",
+      "role_id": "string",
+      "settlement_type": "string",
+      "biome_id": "string",
+      "tier_override": "optional string",
+      "modifier_ids": "optional array[string]",
+      "name_seed": "string or integer",
+      "world_seed": "string or integer"
+    },
+    "generation_steps": [
+      "1. Resolve role from npc_roles by role_id.",
+      "2. Validate settlement_type is allowed for role, otherwise pick nearest compatible role fallback.",
+      "3. Resolve anchor template from npc_anchor_templates using role.default_anchor_template.",
+      "4. Build resolved stats from anchor base_stats.",
+      "5. Apply modifier stat adjustments in order.",
+      "6. Clamp final abilities to sane range (minimum 3, maximum 20 for MVP).",
+      "7. Recompute derived values if needed (AC, HP, passive perception if your system supports it).",
+      "8. Merge default actions, equipment, and spellcasting from anchor.",
+      "9. Add role-specific equipment overrides.",
+      "10. Add role-specific possible skills or trait tags if not already present.",
+      "11. Roll or select motivation, secret, and rumor from role pools.",
+      "12. Generate name from naming library using species/culture tables.",
+      "13. Generate short description and portrait prompt using species + role + modifiers + biome."
+    ],
+    "resolved_output_schema": {
+      "npc_id": "string",
+      "name": "string",
+      "species_id": "string",
+      "species_origin": "string",
+      "role_id": "string",
+      "role_name": "string",
+      "category": "string",
+      "tier": "string",
+      "settlement_type": "string",
+      "biome_id": "string",
+      "anchor_template_id": "string",
+      "modifier_ids": ["string"],
+      "resolved_stats": {
+        "ac": "integer",
+        "hp": "integer",
+        "hit_dice": "string",
+        "speed": "integer",
+        "abilities": {
+          "str": "integer",
+          "dex": "integer",
+          "con": "integer",
+          "int": "integer",
+          "wis": "integer",
+          "cha": "integer"
+        },
+        "saving_throws": ["string"],
+        "skills": ["string"],
+        "senses": ["string"],
+        "languages": ["string"],
+        "proficiency_bonus": "integer",
+        "cr": "number"
+      },
+      "actions": [
+        {
+          "id": "string",
+          "name": "string",
+          "type": "string",
+          "to_hit": "optional integer",
+          "reach": "optional string",
+          "range": "optional string",
+          "target": "optional string",
+          "damage": "optional string",
+          "effect": "optional string"
+        }
+      ],
+      "spellcasting": {
+        "spellcasting_ability": "optional string",
+        "spell_save_dc": "optional integer",
+        "spell_attack_bonus": "optional integer",
+        "level": "optional integer",
+        "at_will": ["string"],
+        "daily_1": ["string"],
+        "daily_2": ["string"],
+        "daily_3": ["string"]
+      },
+      "equipment": ["string"],
+      "traits": ["string"],
+      "motivation": "string",
+      "secret": "string",
+      "rumor": "string",
+      "short_description": "string",
+      "portrait_prompt": "string",
+      "gm_notes": "string"
+    },
+    "portrait_prompt_template": "{name}, a {modifier_adjectives} {species_origin} {role_name} from the {biome_name}. Fantasy portrait, readable silhouette, clear face, detailed clothing and gear, dungeon-born aesthetic, centered composition, no text. Visual details: {visual_keywords}. Mood: {mood_keywords}.",
+    "short_description_template": "{name} is a {role_name} based in a {settlement_type} near the {biome_name}. They come across as {social_keywords} and are driven to {motivation}.",
+    "fallback_rules": {
+      "invalid_role_for_settlement": "fallback to nearest role in same category allowed by settlement",
+      "missing_modifier": "ignore and continue",
+      "missing_species_specific_visuals": "use origin + biome visuals only",
+      "empty_skills": "use anchor defaults",
+      "no_spellcasting": "omit spellcasting block"
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "image_type": "tile_floor_detail_decal_square",
+  "purpose": "Biome-specific detail decal source image for dungeon map baking",
+  "global_style_rules": {
+    "must_tile_seamlessly": false,
+    "tileability_requirements": [
+      "transparent background with clean edges",
+      "detail cluster should remain self-contained inside the square",
+      "decal should be usable as a sparse overlay without visible box boundaries",
+      "avoid perspective depth cues",
+      "avoid directional lighting that conflicts with surrounding floor art"
+    ],
+    "shape": "square",
+    "intended_use": "small-scale floor decal placed sparsely over baked floor chunks",
+    "detail_level": "medium",
+    "fidelity_target": "localized readable imperfection that matches the biome floor family",
+    "composition_rules": [
+      "top-down isolated decal or small decal cluster",
+      "transparent background",
+      "no walls",
+      "no props",
+      "no doors",
+      "no characters",
+      "no text",
+      "no border",
+      "no vignette",
+      "keep most of the square empty unless the decal type intentionally sprawls"
+    ]
+  },
+  "decal_rules": {
+    "variant_family": "detail_decal",
+    "preserve_palette_consistency": true,
+    "transparent_background_required": true,
+    "intended_density": "sparse",
+    "overlap_behavior": "should remain legible when used alone or in small groups",
+    "preferred_categories": [
+      "fine_cracks",
+      "moss_patches",
+      "dirt_bleed",
+      "small_rubble",
+      "wet_spots"
+    ]
+  },
+  "biome": {
+    "biome_id": "stone_halls",
+    "biome_name": "Old Stone Halls",
+    "tone": "baseline",
+    "description": "Traditional dungeon corridors and chambers with small accumulated imperfections.",
+    "materials": ["stone", "dust", "moss"],
+    "hazards": [],
+    "tags": ["neutral", "aged", "worn"]
+  },
+  "detail_decal_surface": {
+    "decal_type": "fine crack cluster",
+    "material_impression": [
+      "hairline cracked stone",
+      "dust gathered in seams",
+      "small chips at crack intersections"
+    ],
+    "pattern_structure": {
+      "base_pattern": "one localized cluster of floor damage or growth",
+      "placement_behavior": "center-weighted or gently offset but self-contained",
+      "scale": "small readable imperfection intended to occupy a minority of the square",
+      "density": "light_to_moderate within the cluster",
+      "variation": "clear silhouette differences between variants without changing biome identity"
+    },
+    "micro_details": [
+      "hairline fractures",
+      "stone dust",
+      "tiny chips",
+      "subtle grime concentration"
+    ]
+  },
+  "color_and_light": {
+    "overall_temperature": "neutral_cool",
+    "primary_tones": ["aged gray", "dusty brown", "muted charcoal"],
+    "accent_tones": ["dark olive", "beige dust"],
+    "saturation": "low_to_moderate",
+    "contrast": "moderate",
+    "lighting": "soft diffuse ambient light",
+    "shadow_behavior": "minimal and tightly local to the decal"
+  },
+  "negative_constraints": [
+    "no perspective view",
+    "no room layout",
+    "no large debris pile unless explicitly generating rubble decals",
+    "no dramatic cast shadow",
+    "no isolated hero object",
+    "no icon-like emblem",
+    "no hard square edge",
+    "no blur or bokeh"
+  ],
+  "output_notes": {
+    "file_format_recommendation": "png",
+    "transparency_required": true,
+    "consistency_group": "tempest_detail_decals_v1",
+    "generator_instruction": "Treat this full JSON as the image prompt. Prioritize transparent-background localized floor imperfections that can be composited sparsely over baked dungeon floors."
+  }
+}

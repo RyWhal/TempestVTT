@@ -1,0 +1,211 @@
+{
+  "schema_version": "1.0",
+  "registry_id": "tempest_tiles_v1",
+  "biome_tilesets": [
+    {
+      "biome_id": "bone_gallery",
+      "tileset_id": "stone_halls_floor_v1",
+      "rotation_safe": true,
+      "flip_safe": true,
+      "assets": {
+        "base": [
+          { "id": "stone_base_01_a", "path": "assets/floors/materials/stone_halls/base/01_a.png", "weight": 30 },
+          { "id": "stone_base_01_b", "path": "assets/floors/materials/stone_halls/base/01_b.png", "weight": 20 },
+          { "id": "stone_base_01_c", "path": "assets/floors/materials/stone_halls/base/01_c.png", "weight": 20 },
+          { "id": "stone_base_01_d", "path": "assets/floors/materials/stone_halls/base/01_d.png", "weight": 20 }
+        ],
+        "cracked": [
+          { "id": "stone_crack_01_a", "path": "assets/floors/materials/stone_halls/cracked/01_a.png", "weight": 15 },
+          { "id": "stone_crack_01_b", "path": "assets/floors/materials/stone_halls/cracked/01_b.png", "weight": 15 }
+        ],
+        "mossy": [
+          { "id": "stone_moss_01_a", "path": "assets/floors/materials/stone_halls/mossy/01_a.png", "weight": 10 },
+          { "id": "stone_moss_01_b", "path": "assets/floors/materials/stone_halls/mossy/01_b.png", "weight": 10 }
+        ],
+        "dirty": [
+          { "id": "stone_dirty_01_a", "path": "assets/floors/materials/stone_halls/dirty/01_a.png", "weight": 6 },
+          { "id": "stone_dirty_01_b", "path": "assets/floors/materials/stone_halls/dirty/01_b.png", "weight": 6 }
+        ]
+      }
+    },
+    {
+      "biome_id": "stone_halls",
+      "tileset_id": "stone_halls_floor_v1",
+      "rotation_safe": true,
+      "flip_safe": true,
+      "assets": {
+        "base": [
+          { "id": "stone_base_01_a", "path": "assets/floors/materials/stone_halls/base/01_a.png", "weight": 30 },
+          { "id": "stone_base_01_b", "path": "assets/floors/materials/stone_halls/base/01_b.png", "weight": 20 },
+          { "id": "stone_base_01_c", "path": "assets/floors/materials/stone_halls/base/01_c.png", "weight": 20 },
+          { "id": "stone_base_01_d", "path": "assets/floors/materials/stone_halls/base/01_d.png", "weight": 20 }
+        ],
+        "cracked": [
+          { "id": "stone_crack_01_a", "path": "assets/floors/materials/stone_halls/cracked/01_a.png", "weight": 15 },
+          { "id": "stone_crack_01_b", "path": "assets/floors/materials/stone_halls/cracked/01_b.png", "weight": 15 },
+          { "id": "stone_crack_01_c", "path": "assets/floors/materials/stone_halls/cracked/01_c.png", "weight": 15 }
+        ],
+        "mossy": [
+          { "id": "stone_moss_01_a", "path": "assets/floors/materials/stone_halls/mossy/01_a.png", "weight": 10 },
+          { "id": "stone_moss_01_b", "path": "assets/floors/materials/stone_halls/mossy/01_b.png", "weight": 10 },
+          { "id": "stone_moss_01_c", "path": "assets/floors/materials/stone_halls/mossy/01_c.png", "weight": 10 }
+        ],
+        "dirty": [
+          { "id": "stone_dirty_01_a", "path": "assets/floors/materials/stone_halls/dirty/01_a.png", "weight": 6 },
+          { "id": "stone_dirty_01_b", "path": "assets/floors/materials/stone_halls/dirty/01_b.png", "weight": 6 },
+          { "id": "stone_dirty_01_c", "path": "assets/floors/materials/stone_halls/dirty/01_c.png", "weight": 6 }
+        ]
+      }
+    },
+    {
+      "biome_id": "fungal_warrens",
+      "tileset_id": "fungal_warrens_floor_v1",
+      "rotation_safe": true,
+      "flip_safe": true,
+      "assets": {
+        "base": [
+          { "id": "fungal_base_01_a", "path": "assets/floors/materials/fungal_warrens/base/01_a.png", "weight": 20 },
+          { "id": "fungal_base_01_b", "path": "assets/floors/materials/fungal_warrens/base/01_b.png", "weight": 15 }
+        ],
+        "cracked": [
+          { "id": "fungal_crack_01_a", "path": "assets/floors/materials/fungal_warrens/cracked/01_a.png", "weight": 10 }
+        ],
+        "mossy": [
+          { "id": "fungal_moss_01_a", "path": "assets/floors/materials/fungal_warrens/mossy/01_a.png", "weight": 15 }
+        ],
+        "fungal_light": [
+          { "id": "fungal_light_01_a", "path": "assets/floors/materials/fungal_warrens/fungal_light/01_a.png", "weight": 20 },
+          { "id": "fungal_light_01_b", "path": "assets/floors/materials/fungal_warrens/fungal_light/01_b.png", "weight": 20 }
+        ],
+        "fungal_heavy": [
+          { "id": "fungal_heavy_01_a", "path": "assets/floors/materials/fungal_warrens/fungal_heavy/01_a.png", "weight": 10 }
+        ]
+      }
+    },
+    {
+      "biome_id": "garden_hold",
+      "tileset_id": "wood_planks_floor_v1",
+      "rotation_safe": false,
+      "flip_safe": false,
+      "assets": {
+        "base": [
+          { "id": "wood_planks_01_a", "path": "assets/floors/materials/wood_planks/base/01_a.png", "weight": 30 },
+          { "id": "wood_planks_01_b", "path": "assets/floors/materials/wood_planks/base/01_b.png", "weight": 20 },
+          { "id": "wood_planks_01_c", "path": "assets/floors/materials/wood_planks/base/01_c.png", "weight": 20 },
+          { "id": "wood_planks_01_d", "path": "assets/floors/materials/wood_planks/base/01_d.png", "weight": 20 }
+        ],
+        "cracked": [
+          { "id": "wood_planks_crack_01_a", "path": "assets/floors/materials/wood_planks/cracked/01_a.png", "weight": 15 },
+          { "id": "wood_planks_crack_01_b", "path": "assets/floors/materials/wood_planks/cracked/01_b.png", "weight": 15 },
+          { "id": "wood_planks_crack_01_c", "path": "assets/floors/materials/wood_planks/cracked/01_c.png", "weight": 15 }
+        ],
+        "mossy": [
+          { "id": "wood_planks_moss_01_a", "path": "assets/floors/materials/wood_planks/mossy/01_a.png", "weight": 10 },
+          { "id": "wood_planks_moss_01_b", "path": "assets/floors/materials/wood_planks/mossy/01_b.png", "weight": 10 },
+          { "id": "wood_planks_moss_01_c", "path": "assets/floors/materials/wood_planks/mossy/01_c.png", "weight": 10 }
+        ],
+        "dirty": [
+          { "id": "wood_planks_dirty_01_a", "path": "assets/floors/materials/wood_planks/dirty/01_a.png", "weight": 6 },
+          { "id": "wood_planks_dirty_01_b", "path": "assets/floors/materials/wood_planks/dirty/01_b.png", "weight": 6 },
+          { "id": "wood_planks_dirty_01_c", "path": "assets/floors/materials/wood_planks/dirty/01_c.png", "weight": 6 }
+        ]
+      }
+    },
+    {
+      "biome_id": "ice_vault",
+      "tileset_id": "stone_halls_floor_v1",
+      "rotation_safe": true,
+      "flip_safe": true,
+      "assets": {
+        "base": [
+          { "id": "stone_base_01_a", "path": "assets/floors/materials/stone_halls/base/01_a.png", "weight": 30 },
+          { "id": "stone_base_01_b", "path": "assets/floors/materials/stone_halls/base/01_b.png", "weight": 20 },
+          { "id": "stone_base_01_c", "path": "assets/floors/materials/stone_halls/base/01_c.png", "weight": 20 },
+          { "id": "stone_base_01_d", "path": "assets/floors/materials/stone_halls/base/01_d.png", "weight": 20 }
+        ],
+        "cracked": [
+          { "id": "stone_crack_01_a", "path": "assets/floors/materials/stone_halls/cracked/01_a.png", "weight": 15 },
+          { "id": "stone_crack_01_b", "path": "assets/floors/materials/stone_halls/cracked/01_b.png", "weight": 15 }
+        ],
+        "mossy": [
+          { "id": "stone_moss_01_a", "path": "assets/floors/materials/stone_halls/mossy/01_a.png", "weight": 10 },
+          { "id": "stone_moss_01_b", "path": "assets/floors/materials/stone_halls/mossy/01_b.png", "weight": 10 }
+        ],
+        "dirty": [
+          { "id": "stone_dirty_01_a", "path": "assets/floors/materials/stone_halls/dirty/01_a.png", "weight": 6 },
+          { "id": "stone_dirty_01_b", "path": "assets/floors/materials/stone_halls/dirty/01_b.png", "weight": 6 }
+        ]
+      }
+    },
+    {
+      "biome_id": "molten_forge",
+      "tileset_id": "stone_halls_floor_v1",
+      "rotation_safe": true,
+      "flip_safe": true,
+      "assets": {
+        "base": [
+          { "id": "stone_base_01_a", "path": "assets/floors/materials/stone_halls/base/01_a.png", "weight": 30 },
+          { "id": "stone_base_01_b", "path": "assets/floors/materials/stone_halls/base/01_b.png", "weight": 20 },
+          { "id": "stone_base_01_c", "path": "assets/floors/materials/stone_halls/base/01_c.png", "weight": 20 },
+          { "id": "stone_base_01_d", "path": "assets/floors/materials/stone_halls/base/01_d.png", "weight": 20 }
+        ],
+        "cracked": [
+          { "id": "stone_crack_01_a", "path": "assets/floors/materials/stone_halls/cracked/01_a.png", "weight": 15 },
+          { "id": "stone_crack_01_b", "path": "assets/floors/materials/stone_halls/cracked/01_b.png", "weight": 15 }
+        ],
+        "mossy": [
+          { "id": "stone_moss_01_a", "path": "assets/floors/materials/stone_halls/mossy/01_a.png", "weight": 10 },
+          { "id": "stone_moss_01_b", "path": "assets/floors/materials/stone_halls/mossy/01_b.png", "weight": 10 }
+        ],
+        "dirty": [
+          { "id": "stone_dirty_01_a", "path": "assets/floors/materials/stone_halls/dirty/01_a.png", "weight": 6 },
+          { "id": "stone_dirty_01_b", "path": "assets/floors/materials/stone_halls/dirty/01_b.png", "weight": 6 }
+        ]
+      }
+    },
+    {
+      "biome_id": "slime_cavern",
+      "tileset_id": "stone_halls_floor_v1",
+      "rotation_safe": true,
+      "flip_safe": true,
+      "assets": {
+        "base": [
+          { "id": "stone_base_01_a", "path": "assets/floors/materials/stone_halls/base/01_a.png", "weight": 30 },
+          { "id": "stone_base_01_b", "path": "assets/floors/materials/stone_halls/base/01_b.png", "weight": 20 },
+          { "id": "stone_base_01_c", "path": "assets/floors/materials/stone_halls/base/01_c.png", "weight": 20 },
+          { "id": "stone_base_01_d", "path": "assets/floors/materials/stone_halls/base/01_d.png", "weight": 20 }
+        ],
+        "cracked": [
+          { "id": "stone_crack_01_a", "path": "assets/floors/materials/stone_halls/cracked/01_a.png", "weight": 15 },
+          { "id": "stone_crack_01_b", "path": "assets/floors/materials/stone_halls/cracked/01_b.png", "weight": 15 }
+        ],
+        "mossy": [
+          { "id": "stone_moss_01_a", "path": "assets/floors/materials/stone_halls/mossy/01_a.png", "weight": 10 },
+          { "id": "stone_moss_01_b", "path": "assets/floors/materials/stone_halls/mossy/01_b.png", "weight": 10 }
+        ],
+        "dirty": [
+          { "id": "stone_dirty_01_a", "path": "assets/floors/materials/stone_halls/dirty/01_a.png", "weight": 6 },
+          { "id": "stone_dirty_01_b", "path": "assets/floors/materials/stone_halls/dirty/01_b.png", "weight": 6 }
+        ]
+      }
+    },
+    {
+      "biome_id": "waterways",
+      "tileset_id": "waterways_floor_v1",
+      "rotation_safe": true,
+      "flip_safe": true,
+      "assets": {
+        "base": [
+          { "id": "water_base_01_a", "path": "assets/floors/materials/waterways/base/01_a.png", "weight": 20 },
+          { "id": "water_base_01_b", "path": "assets/floors/materials/waterways/base/01_b.png", "weight": 20 }
+        ],
+        "wet": [
+          { "id": "water_wet_01_a", "path": "assets/floors/materials/waterways/wet/01_a.png", "weight": 20 }
+        ],
+        "silt": [
+          { "id": "water_silt_01_a", "path": "assets/floors/materials/waterways/silt/01_a.png", "weight": 10 }
+        ]
+      }
+    }
+  ]
+}

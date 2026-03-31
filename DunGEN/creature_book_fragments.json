@@ -1,0 +1,49 @@
+{
+  "entries": [
+    {
+      "id": "creature_seed_pressure",
+      "category": "creature_seed_body",
+      "title_template": "{creature_name}",
+      "text": "{creature_name} could show up as {creature_role} pressure in this section, and their {temperament} behavior might first be suggested through signs, sounds, or a disrupted route before a direct scene appears.",
+      "summary_text": "{creature_hook}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_section_kinds": ["settlement", "exploration"],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    },
+    {
+      "id": "creature_seed_ecology",
+      "category": "creature_seed_body",
+      "title_template": "{creature_name}",
+      "text": "{creature_name} fit the {biome_name} as a {creature_role}, and the GM could hint at them through environmental damage, leftovers, or the way other locals talk around the route.",
+      "summary_text": "{creature_hook}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_section_kinds": ["settlement", "exploration"],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    },
+    {
+      "id": "creature_seed_settlement_warning",
+      "category": "creature_seed_body",
+      "title_template": "{creature_name}",
+      "text": "If you want a settlement-facing angle, {creature_name} can be treated as a problem people plan around rather than a fight that must happen immediately.",
+      "summary_text": "{creature_hook}",
+      "allowed_roles": [],
+      "allowed_archetypes": [],
+      "allowed_settlement_archetypes": [],
+      "allowed_biomes": [],
+      "allowed_section_kinds": ["settlement"],
+      "allowed_shop_types": [],
+      "required_shop_roles": [],
+      "requires_hazard": false
+    }
+  ]
+}

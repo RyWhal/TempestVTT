@@ -1,0 +1,281 @@
+{
+  "schema_version": "1.0",
+  "mapping_id": "tempest_semantic_visual_rules_v1",
+  "default_biome_id": "stone_halls",
+  "biome_visual_rules": [
+    {
+      "biome_id": "bone_gallery",
+      "base_tileset_id": "stone_halls_floor_v1",
+      "macro_overlay_set_id": "stone_halls_macro_v1",
+      "detail_decal_set_id": "stone_halls_details_v1",
+      "parameter_mapping": {
+        "wear_level": {
+          "0.0_to_0.3": {
+            "variant_weights": {
+              "base": 70,
+              "cracked": 15,
+              "dirty": 10,
+              "mossy": 5
+            }
+          },
+          "0.3_to_0.7": {
+            "variant_weights": {
+              "base": 45,
+              "cracked": 25,
+              "dirty": 20,
+              "mossy": 10
+            }
+          },
+          "0.7_to_1.0": {
+            "variant_weights": {
+              "base": 20,
+              "cracked": 35,
+              "dirty": 30,
+              "mossy": 15
+            }
+          }
+        }
+      }
+    },
+    {
+      "biome_id": "stone_halls",
+      "base_tileset_id": "stone_halls_floor_v1",
+      "macro_overlay_set_id": "stone_halls_macro_v1",
+      "detail_decal_set_id": "stone_halls_details_v1",
+      "parameter_mapping": {
+        "wear_level": {
+          "0.0_to_0.3": {
+            "variant_weights": {
+              "base": 70,
+              "cracked": 15,
+              "dirty": 10,
+              "mossy": 5
+            }
+          },
+          "0.3_to_0.7": {
+            "variant_weights": {
+              "base": 45,
+              "cracked": 25,
+              "dirty": 20,
+              "mossy": 10
+            }
+          },
+          "0.7_to_1.0": {
+            "variant_weights": {
+              "base": 20,
+              "cracked": 35,
+              "dirty": 30,
+              "mossy": 15
+            }
+          }
+        }
+      }
+    },
+    {
+      "biome_id": "fungal_warrens",
+      "base_tileset_id": "fungal_warrens_floor_v1",
+      "macro_overlay_set_id": "fungal_warrens_macro_v1",
+      "detail_decal_set_id": "fungal_warrens_details_v1",
+      "parameter_mapping": {
+        "growth_level": {
+          "0.0_to_0.3": {
+            "variant_weights": {
+              "base": 35,
+              "cracked": 20,
+              "mossy": 20,
+              "fungal_light": 25
+            }
+          },
+          "0.3_to_0.7": {
+            "variant_weights": {
+              "base": 20,
+              "cracked": 15,
+              "mossy": 20,
+              "fungal_light": 30,
+              "fungal_heavy": 15
+            }
+          },
+          "0.7_to_1.0": {
+            "variant_weights": {
+              "base": 10,
+              "cracked": 10,
+              "mossy": 15,
+              "fungal_light": 30,
+              "fungal_heavy": 35
+            }
+          }
+        }
+      }
+    },
+    {
+      "biome_id": "garden_hold",
+      "base_tileset_id": "wood_planks_floor_v1",
+      "macro_overlay_set_id": "wood_planks_macro_v1",
+      "detail_decal_set_id": "wood_planks_details_v1",
+      "parameter_mapping": {
+        "wear_level": {
+          "0.0_to_0.3": {
+            "variant_weights": {
+              "base": 70,
+              "cracked": 10,
+              "dirty": 15,
+              "mossy": 5
+            }
+          },
+          "0.3_to_0.7": {
+            "variant_weights": {
+              "base": 45,
+              "cracked": 20,
+              "dirty": 20,
+              "mossy": 15
+            }
+          },
+          "0.7_to_1.0": {
+            "variant_weights": {
+              "base": 25,
+              "cracked": 25,
+              "dirty": 25,
+              "mossy": 25
+            }
+          }
+        }
+      }
+    },
+    {
+      "biome_id": "ice_vault",
+      "base_tileset_id": "stone_halls_floor_v1",
+      "macro_overlay_set_id": "stone_halls_macro_v1",
+      "detail_decal_set_id": "stone_halls_details_v1",
+      "parameter_mapping": {
+        "wear_level": {
+          "0.0_to_0.3": {
+            "variant_weights": {
+              "base": 70,
+              "cracked": 15,
+              "dirty": 10,
+              "mossy": 5
+            }
+          },
+          "0.3_to_0.7": {
+            "variant_weights": {
+              "base": 45,
+              "cracked": 25,
+              "dirty": 20,
+              "mossy": 10
+            }
+          },
+          "0.7_to_1.0": {
+            "variant_weights": {
+              "base": 20,
+              "cracked": 35,
+              "dirty": 30,
+              "mossy": 15
+            }
+          }
+        }
+      }
+    },
+    {
+      "biome_id": "molten_forge",
+      "base_tileset_id": "stone_halls_floor_v1",
+      "macro_overlay_set_id": "stone_halls_macro_v1",
+      "detail_decal_set_id": "stone_halls_details_v1",
+      "parameter_mapping": {
+        "wear_level": {
+          "0.0_to_0.3": {
+            "variant_weights": {
+              "base": 70,
+              "cracked": 15,
+              "dirty": 10,
+              "mossy": 5
+            }
+          },
+          "0.3_to_0.7": {
+            "variant_weights": {
+              "base": 45,
+              "cracked": 25,
+              "dirty": 20,
+              "mossy": 10
+            }
+          },
+          "0.7_to_1.0": {
+            "variant_weights": {
+              "base": 20,
+              "cracked": 35,
+              "dirty": 30,
+              "mossy": 15
+            }
+          }
+        }
+      }
+    },
+    {
+      "biome_id": "slime_cavern",
+      "base_tileset_id": "stone_halls_floor_v1",
+      "macro_overlay_set_id": "stone_halls_macro_v1",
+      "detail_decal_set_id": "stone_halls_details_v1",
+      "parameter_mapping": {
+        "wear_level": {
+          "0.0_to_0.3": {
+            "variant_weights": {
+              "base": 70,
+              "cracked": 15,
+              "dirty": 10,
+              "mossy": 5
+            }
+          },
+          "0.3_to_0.7": {
+            "variant_weights": {
+              "base": 45,
+              "cracked": 25,
+              "dirty": 20,
+              "mossy": 10
+            }
+          },
+          "0.7_to_1.0": {
+            "variant_weights": {
+              "base": 20,
+              "cracked": 35,
+              "dirty": 25,
+              "mossy": 15,
+              "damaged_minor": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "biome_id": "waterways",
+      "base_tileset_id": "waterways_floor_v1",
+      "macro_overlay_set_id": "waterways_macro_v1",
+      "detail_decal_set_id": "waterways_details_v1",
+      "parameter_mapping": {
+        "moisture_level": {
+          "0.0_to_1.0": {
+            "variant_weights": {
+              "base": 40,
+              "wet": 40,
+              "silt": 20
+            }
+          }
+        }
+      }
+    }
+  ],
+  "transition_visual_rules": [
+    {
+      "from_biome_id": "stone_halls",
+      "to_biome_id": "fungal_warrens",
+      "transition_family_id": "stone_to_fungal",
+      "selection_mode": "feathered_encroachment",
+      "transition_band_width_cells": 2
+    },
+    {
+      "from_biome_id": "stone_halls",
+      "to_biome_id": "waterways",
+      "transition_family_id": "stone_to_water",
+      "selection_mode": "damp_seepage",
+      "transition_band_width_cells": 2
+    }
+  ]
+}
