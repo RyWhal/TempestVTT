@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Plus, Users } from 'lucide-react';
+import { BookOpen, Plus, Sparkles, Users } from 'lucide-react';
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
 
@@ -14,21 +14,25 @@ export const Home: React.FC = () => {
         <Card className="p-8 lg:p-10">
           <p className="text-xs uppercase tracking-[0.2em] text-tempest-300">Tempest Table</p>
           <h1 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl tempest-heading">
-            A cleaner way to run your tabletop sessions.
+            Two GM setup paths. One shared table for players.
           </h1>
-          <p className="mt-4 max-w-xl text-base text-slate-400">
-            Tempest keeps your map, player tools, and GM controls in focused spaces so your group can spend less
-            time searching through panels and more time playing.
+          <p className="mt-4 max-w-2xl text-base text-slate-400">
+            Run a classic Tempest Table, build a generated Endless Dungeon campaign, and keep one
+            simple player join flow no matter how the GM set the session up.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button variant="primary" size="lg" onClick={() => navigate('/create')}>
+            <Button variant="primary" size="lg" onClick={() => navigate('/play?mode=create')}>
               <Plus className="mr-2 h-4 w-4" />
-              Start a session
+              Start Tempest Table
             </Button>
-            <Button variant="secondary" size="lg" onClick={() => navigate('/join')}>
+            <Button variant="secondary" size="lg" onClick={() => navigate('/campaign')}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Start Endless Dungeon
+            </Button>
+            <Button variant="secondary" size="lg" onClick={() => navigate('/play?mode=join')}>
               <Users className="mr-2 h-4 w-4" />
-              Join with code
+              Join a Table
             </Button>
             <a
               href={githubReadmeUrl}

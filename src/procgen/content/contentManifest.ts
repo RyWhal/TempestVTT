@@ -1,10 +1,15 @@
 import biomesRaw from '../../../DunGEN/biomes.json';
+import biomeGenerationProfilesRaw from '../../../DunGEN/biome_generation_profiles.json';
 import creatureFamiliesRaw from '../../../DunGEN/creatures.json';
+import creatureAnchorTemplatesRaw from '../../../DunGEN/creature_anchor_templates.json';
 import creatureVariantsRaw from '../../../DunGEN/creature_variant_modifiers.json';
 import encounterTemplatesRaw from '../../../DunGEN/encounter_templates.json';
+import floorMaterialProfilesRaw from '../../../DunGEN/floor_material_profiles.json';
+import floorTransitionProfilesRaw from '../../../DunGEN/floor_transition_profiles.json';
 import genAiDescriptionSchemaRaw from '../../../DunGEN/genai_description_schema.json';
 import hookFragmentsRaw from '../../../DunGEN/hook_fragments.json';
 import itemTablesRaw from '../../../DunGEN/item_tables.json';
+import creatureBookFragmentsRaw from '../../../DunGEN/creature_book_fragments.json';
 import namePhonemesRaw from '../../../DunGEN/gen_names_phonemes.json';
 import npcAnchorTemplatesRaw from '../../../DunGEN/npc_anchor_templates.json';
 import npcArchetypesRaw from '../../../DunGEN/npc_archetypes.json';
@@ -18,6 +23,8 @@ import npcRoleToAnchorMappingRaw from '../../../DunGEN/npc_role_to_anchor_mappin
 import npcRolesRaw from '../../../DunGEN/npc_roles.json';
 import roomPrimitivesRaw from '../../../DunGEN/room_primitives.json';
 import rumorFragmentsRaw from '../../../DunGEN/rumor_fragments.json';
+import sectionNarrativeFragmentsRaw from '../../../DunGEN/section_narrative_fragments.json';
+import settlementGenerationProfilesRaw from '../../../DunGEN/settlement_generation_profiles.json';
 import shopFlavorFragmentsRaw from '../../../DunGEN/shop_flavor_fragments.json';
 import shopsRaw from '../../../DunGEN/shops.json';
 import villageArchetypesRaw from '../../../DunGEN/village_archetypes.json';
@@ -37,6 +44,12 @@ export const contentManifest: Partial<Record<ProcgenContentPackId, ContentManife
     required: true,
     rawData: biomesRaw,
   },
+  biome_generation_profiles: {
+    id: 'biome_generation_profiles',
+    filePath: 'DunGEN/biome_generation_profiles.json',
+    required: true,
+    rawData: biomeGenerationProfilesRaw,
+  },
   creature_families: {
     id: 'creature_families',
     filePath: 'DunGEN/creatures.json',
@@ -49,6 +62,12 @@ export const contentManifest: Partial<Record<ProcgenContentPackId, ContentManife
     required: true,
     rawData: creatureVariantsRaw,
   },
+  creature_anchor_templates: {
+    id: 'creature_anchor_templates',
+    filePath: 'DunGEN/creature_anchor_templates.json',
+    required: true,
+    rawData: creatureAnchorTemplatesRaw,
+  },
   encounter_templates: {
     id: 'encounter_templates',
     filePath: 'DunGEN/encounter_templates.json',
@@ -60,6 +79,12 @@ export const contentManifest: Partial<Record<ProcgenContentPackId, ContentManife
     filePath: 'DunGEN/hook_fragments.json',
     required: true,
     rawData: hookFragmentsRaw,
+  },
+  creature_book_fragments: {
+    id: 'creature_book_fragments',
+    filePath: 'DunGEN/creature_book_fragments.json',
+    required: true,
+    rawData: creatureBookFragmentsRaw,
   },
   name_phonemes: {
     id: 'name_phonemes',
@@ -139,6 +164,12 @@ export const contentManifest: Partial<Record<ProcgenContentPackId, ContentManife
     required: true,
     rawData: rumorFragmentsRaw,
   },
+  section_narrative_fragments: {
+    id: 'section_narrative_fragments',
+    filePath: 'DunGEN/section_narrative_fragments.json',
+    required: true,
+    rawData: sectionNarrativeFragmentsRaw,
+  },
   shop_flavor_fragments: {
     id: 'shop_flavor_fragments',
     filePath: 'DunGEN/shop_flavor_fragments.json',
@@ -168,5 +199,23 @@ export const contentManifest: Partial<Record<ProcgenContentPackId, ContentManife
     filePath: 'DunGEN/shops.json',
     required: true,
     rawData: shopsRaw,
+  },
+  settlement_generation_profiles: {
+    id: 'settlement_generation_profiles',
+    filePath: 'DunGEN/settlement_generation_profiles.json',
+    required: true,
+    rawData: settlementGenerationProfilesRaw,
+  },
+  floor_material_profiles: {
+    id: 'floor_material_profiles',
+    filePath: 'DunGEN/floor_material_profiles.json',
+    required: true,
+    rawData: floorMaterialProfilesRaw,
+  },
+  floor_transition_profiles: {
+    id: 'floor_transition_profiles',
+    filePath: 'DunGEN/floor_transition_profiles.json',
+    required: true,
+    rawData: floorTransitionProfilesRaw,
   },
 };

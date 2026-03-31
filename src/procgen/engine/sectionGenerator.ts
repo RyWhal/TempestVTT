@@ -15,6 +15,7 @@ import type {
   GeneratedSectionInput,
   GeneratedSectionRoom,
   RectBounds,
+  ResolvedSectionProfile,
   RoomPrimitive,
   SectionKind,
 } from '../types';
@@ -23,8 +24,11 @@ import { getLayoutPresets } from './layoutPresets';
 import { placeRoomsForPreset } from './roomPlacement';
 import { assignRooms } from './roomAssignment';
 
-const chooseSectionKind = (sectionKind: SectionKind | undefined): SectionKind => {
-  return sectionKind ?? 'exploration';
+const chooseSectionKind = (
+  sectionKind: SectionKind | undefined,
+  sectionProfile: ResolvedSectionProfile | undefined
+): SectionKind => {
+  return sectionKind ?? sectionProfile?.sectionKind ?? 'exploration';
 };
 
 const resolveConnectorThickness = (baseThickness: number, runLengths: number[]) => {
@@ -437,23 +441,31 @@ export const generateSection = ({
   worldSeed,
   sectionId,
   sectionKind: requestedSectionKind,
+  sectionProfile,
 }: GeneratedSectionInput): GeneratedSection => {
-  const sectionKind = chooseSectionKind(requestedSectionKind);
+  const sectionKind = chooseSectionKind(requestedSectionKind, sectionProfile);
   const seed = deriveSectionSeed({ worldSeed, sectionId });
   const nextRandom = createSeededRandom(`${seed}:${sectionKind}`);
-  const layoutPresets = getLayoutPresets(sectionKind);
+  const layoutPresets = getLayoutPresets(sectionKind, sectionProfile);
   const preset = layoutPresets[Math.floor(nextRandom() * layoutPresets.length)] ?? layoutPresets[0];
 
   const roomPrimitivePack = contentRegistry.loadPack('room_primitives');
   const biomePack = contentRegistry.loadPack('biomes');
+  const primaryBiomeId =
+    sectionProfile?.biomeProfileId ??
+    (biomePack.biomes[Math.floor(nextRandom() * biomePack.biomes.length)] ?? biomePack.biomes[0])
+      ?.id ??
+    'stone_halls';
   const primaryBiome =
-    biomePack.biomes[Math.floor(nextRandom() * biomePack.biomes.length)] ?? biomePack.biomes[0];
+    biomePack.biomes.find((candidate) => candidate.id === primaryBiomeId) ??
+    biomePack.biomes[0];
 
   const placedRooms = placeRoomsForPreset({
     preset,
     roomPrimitives: roomPrimitivePack.roomPrimitives,
     nextRandom,
     sectionKind,
+    sectionProfile,
   });
 
   const roomIdBySlotId = new Map(placedRooms.map((room) => [room.slotId, room.roomId]));
@@ -511,7 +523,10 @@ export const generateSection = ({
       height: 75,
       tileSizeFt: 5,
     },
-    primaryBiomeId: primaryBiome?.id ?? 'stone_halls',
+    primaryBiomeId,
+    defaultFloorMaterialKey:
+      sectionProfile?.defaultFloorMaterialKey ?? 'dungeon_stone',
+    sectionProfile: sectionProfile ?? null,
     rooms,
     connections,
     connectors,

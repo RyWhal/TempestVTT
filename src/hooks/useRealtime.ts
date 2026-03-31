@@ -32,6 +32,7 @@ import {
   type Map,
 } from '../types';
 import { clearTokenBroadcastChannel, getTokenBroadcastChannel } from '../lib/tokenBroadcast';
+import { getLocalCampaignStorageKey } from '../procgen/integration/localCampaignPersistence';
 
 const isMissingRelationError = (error: { code?: string; message?: string } | null) =>
   error?.code === '42P01' || error?.message?.toLowerCase().includes('does not exist');
@@ -91,6 +92,7 @@ export const useRealtime = () => {
     setConnectionStatus('connecting');
 
     const sessionId = session.id;
+    const localCampaignStorageKey = getLocalCampaignStorageKey(sessionId);
     shouldResyncRef.current = false;
     let cancelled = false;
 
@@ -117,6 +119,19 @@ export const useRealtime = () => {
           const activeMap = mapsRef.current.find((m) => m.id === updated.activeMapId);
           setActiveMap(activeMap || null);
         }
+      }
+    );
+
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'procgen_campaigns',
+        filter: `session_id=eq.${sessionId}`,
+      },
+      () => {
+        void loadSessionData(sessionId);
       }
     );
 
@@ -551,7 +566,10 @@ export const useRealtime = () => {
       const nextMap = mapsRef.current.find((map) => map.id === mapPayload.mapId);
       if (nextMap) {
         setActiveMap(nextMap);
+        return;
       }
+
+      void loadSessionData(sessionId);
     });
 
     const connectInitiativeChannel = async () => {
@@ -622,8 +640,23 @@ export const useRealtime = () => {
 
     void connectInitiativeChannel();
 
+    const handleLocalCampaignSnapshotChange = (event: StorageEvent) => {
+      if (cancelled || event.key !== localCampaignStorageKey) {
+        return;
+      }
+
+      void loadSessionData(sessionId);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleLocalCampaignSnapshotChange);
+    }
+
     return () => {
       cancelled = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleLocalCampaignSnapshotChange);
+      }
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;

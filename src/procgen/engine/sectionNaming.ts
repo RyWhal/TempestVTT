@@ -1,5 +1,10 @@
 import { contentRegistry } from '../content/contentRegistry';
-import type { Biome, GeneratedSection, SectionKind } from '../types';
+import type {
+  Biome,
+  BiomeGenerationProfile,
+  GeneratedSection,
+  SectionKind,
+} from '../types';
 import { createSeededRandom, hashString } from './seed';
 
 const asString = (value: unknown, fallback = '') =>
@@ -59,18 +64,31 @@ const explorationNouns = [
   'Warren',
 ];
 
-const settlementNouns = [
+const frontierSettlementNouns = [
+  'Bastion',
   'Crossing',
   'Gate',
-  'Green',
-  'Hearth',
-  'Hold',
   'Market',
-  'Quarter',
+  'Post',
   'Row',
-  'Square',
-  'Yard',
+  'Span',
+  'Verge',
+  'Watch',
 ];
+
+const refugeSettlementNouns = ['Green', 'Hearth', 'Hold', 'Quarter', 'Square', 'Yard'];
+
+const blockedDescriptorWords = new Set([
+  'The',
+  'And',
+  'Of',
+  'Food',
+  'Flow',
+  'Neutral',
+  'Safe',
+  'Settlement',
+  'Stable',
+]);
 
 const getBiome = (section: GeneratedSection): Biome => {
   const biomes = contentRegistry.loadPack('biomes').biomes;
@@ -82,6 +100,12 @@ const getBiome = (section: GeneratedSection): Biome => {
   );
 };
 
+const getBiomeGenerationProfile = (section: GeneratedSection): BiomeGenerationProfile | null => {
+  const profiles = contentRegistry.loadPack('biome_generation_profiles').entries;
+
+  return profiles.find((profile) => profile.id === section.primaryBiomeId) ?? null;
+};
+
 const buildDescriptorPool = (biome: Biome) =>
   uniqueWords([
     ...asString(biome.name, biome.id).split(/[\s_-]+/),
@@ -90,13 +114,90 @@ const buildDescriptorPool = (biome: Biome) =>
     ...asStringArray((biome as Record<string, unknown>).hazards),
   ])
     .map(toTitleCase)
-    .filter((word) => !['The', 'And', 'Of'].includes(word));
+    .filter((word) => !blockedDescriptorWords.has(word));
 
-const buildNounPool = (biome: Biome, sectionKind: SectionKind) =>
-  uniqueWords([
-    ...asString(biome.name, biome.id).split(/[\s_-]+/).slice(1).map(toTitleCase),
-    ...(sectionKind === 'settlement' ? settlementNouns : explorationNouns),
-  ]);
+const getSettlementFlavor = (
+  biome: Biome,
+  biomeProfile: BiomeGenerationProfile | null
+): 'frontier' | 'refuge' | 'mixed' => {
+  const hazardPressure = biomeProfile?.hazard_pressure ?? 0.5;
+  const settlementPressure = biomeProfile?.settlement_pressure ?? 0.5;
+  const tags = new Set(asStringArray((biome as Record<string, unknown>).tags).map((tag) => tag.toLowerCase()));
+  const tone = asString((biome as Record<string, unknown>).tone).toLowerCase();
+
+  if (
+    hazardPressure >= 0.55 ||
+    settlementPressure <= 0.3 ||
+    tags.has('hazard') ||
+    tags.has('horror') ||
+    tone.includes('bleak') ||
+    tone.includes('creepy') ||
+    tone.includes('gross') ||
+    tone.includes('isolating') ||
+    tone.includes('oppressive')
+  ) {
+    return 'frontier';
+  }
+
+  if (
+    hazardPressure <= 0.3 &&
+    settlementPressure >= 0.65 &&
+    (tags.has('safe') ||
+      tone.includes('communal') ||
+      tone.includes('grounded') ||
+      tone.includes('controlled'))
+  ) {
+    return 'refuge';
+  }
+
+  return 'mixed';
+};
+
+const buildNounPool = (
+  biome: Biome,
+  sectionKind: SectionKind,
+  biomeProfile: BiomeGenerationProfile | null
+) => {
+  const biomeNoun = toTitleCase(asString(biome.name, biome.id).split(/[\s_-]+/).slice(1).join(' ')).trim();
+
+  if (sectionKind !== 'settlement') {
+    return uniqueWords([
+      ...asString(biome.name, biome.id).split(/[\s_-]+/).slice(1).map(toTitleCase),
+      ...explorationNouns,
+    ]);
+  }
+
+  const flavor = getSettlementFlavor(biome, biomeProfile);
+
+  if (flavor === 'frontier') {
+    return frontierSettlementNouns.filter((noun) => noun !== biomeNoun);
+  }
+
+  if (flavor === 'refuge') {
+    return refugeSettlementNouns.filter((noun) => noun !== biomeNoun);
+  }
+
+  return uniqueWords([...frontierSettlementNouns, ...refugeSettlementNouns]).filter(
+    (noun) => noun !== biomeNoun
+  );
+};
+
+const buildSettlementDescriptorPool = (
+  biome: Biome,
+  biomeProfile: BiomeGenerationProfile | null
+) => {
+  const flavor = getSettlementFlavor(biome, biomeProfile);
+
+  if (flavor === 'frontier') {
+    return ['Ash', 'Black', 'Cinder', 'Ember', 'Grit', 'Iron', 'Rift', 'Thorn', 'Watch'];
+  }
+
+  if (flavor === 'refuge') {
+    return ['Bell', 'Garden', 'Lantern', 'Market', 'Way', 'Willow'];
+  }
+
+  return ['Bell', 'Crown', 'Iron', 'Lantern', 'Market', 'Watch', 'Way'];
+};
 
 export const generateSectionLabel = ({
   worldSeed,
@@ -108,17 +209,18 @@ export const generateSectionLabel = ({
   section: GeneratedSection;
 }): string => {
   const biome = getBiome(section);
+  const biomeProfile = getBiomeGenerationProfile(section);
   const nextRandom = createSeededRandom(`${worldSeed}:${sectionId}:label:${hashString(section.primaryBiomeId)}`);
   const descriptor = pickOne(buildDescriptorPool(biome), nextRandom, pickOne(fallbackAdjectives, nextRandom, 'Stone'));
   const noun = pickOne(
-    buildNounPool(biome, section.sectionKind),
+    buildNounPool(biome, section.sectionKind, biomeProfile),
     nextRandom,
-    section.sectionKind === 'settlement' ? 'Hold' : 'Vault'
+    section.sectionKind === 'settlement' ? 'Crossing' : 'Vault'
   );
 
   const secondaryDescriptorPool =
     section.sectionKind === 'settlement'
-      ? ['Lantern', 'Way', 'Market', 'Watch', 'Hearth', 'Bell']
+      ? buildSettlementDescriptorPool(biome, biomeProfile)
       : ['Deep', 'Black', 'Silent', 'Crown', 'Glass', 'Ember'];
   const secondaryDescriptor = pickOne(secondaryDescriptorPool, nextRandom, 'Stone');
 

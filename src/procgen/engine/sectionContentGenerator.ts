@@ -146,6 +146,47 @@ const applyTemplateTokens = (value: string, tokens: Record<string, string>) =>
     value
   );
 
+const uniqueStrings = (values: string[]) => [...new Set(values.filter(Boolean))];
+const humanizeId = (value: string) => value.split('_').join(' ');
+
+const roundCreatureHp = (value: number) => Math.max(1, Math.round(value));
+
+const resolveCreatureVariantStats = (
+  baseTemplate: {
+    ac: number;
+    hp: number;
+    speed: number;
+    cr: number;
+    abilities: {
+      str: number;
+      dex: number;
+      con: number;
+      int: number;
+      wis: number;
+      cha: number;
+    };
+  },
+  variant: Record<string, unknown> | null
+) => {
+  const adjustments = (variant?.stat_adjustments ?? {}) as Record<string, unknown>;
+  const hpMultiplier = typeof adjustments.hp_multiplier === 'number' ? adjustments.hp_multiplier : 1;
+  const speedDelta = typeof adjustments.speed_delta === 'number' ? adjustments.speed_delta : 0;
+  const acDelta = typeof adjustments.ac_delta === 'number' ? adjustments.ac_delta : 0;
+  const sizeOverride =
+    typeof adjustments.size_override === 'string' ? adjustments.size_override : null;
+
+  return {
+    sizeOverride,
+    resolvedStats: {
+      ac: Math.max(5, baseTemplate.ac + acDelta),
+      hp: roundCreatureHp(baseTemplate.hp * hpMultiplier),
+      speed: Math.max(0, baseTemplate.speed + speedDelta),
+      cr: baseTemplate.cr,
+      abilities: { ...baseTemplate.abilities },
+    },
+  };
+};
+
 const getBiome = (section: GeneratedSection) => {
   const biomes = contentRegistry.loadPack('biomes').biomes;
   return (
@@ -165,27 +206,83 @@ const generateCreatures = ({
   nextRandom: () => number;
 }): GeneratedSectionCreature[] => {
   const families = contentRegistry.loadPack('creature_families').creatureFamilies;
+  const anchorTemplates = contentRegistry.loadPack('creature_anchor_templates').creatureAnchorTemplates;
+  const variants = contentRegistry.loadPack('creature_variants').creatureVariants;
   const matchingFamilies = families.filter((family) =>
     asStringArray((family as Record<string, unknown>).allowed_biomes).includes(section.primaryBiomeId)
   );
   const creaturePool = matchingFamilies.length > 0 ? matchingFamilies : families;
   const countRange: [number, number] = section.sectionKind === 'settlement' ? [1, 2] : [2, 4];
 
-  return pickManyUnique(creaturePool, countRange, nextRandom).map((family, index) => ({
-    id: `creature_${index + 1}`,
-    familyId: family.id,
-    name: asString(family.name, family.id),
-    temperament: asString(
-      (family as Record<string, unknown>).default_temperament,
-      section.sectionKind === 'settlement' ? 'watchful' : 'aggressive'
-    ),
-    hook: pickOne(
-      asStringArray((family as Record<string, unknown>).hooks),
-      nextRandom,
-      `seen around the ${asString(biome.name, biome.id)}`
-    ),
-    role: asString((family as Record<string, unknown>).default_role, 'lurker'),
-  }));
+  return pickManyUnique(creaturePool, countRange, nextRandom).map((family, index) => {
+    const allowedVariantIds = asStringArray((family as Record<string, unknown>).variants_allowed);
+    const allowedVariants = variants.filter((variant) => allowedVariantIds.includes(variant.id));
+    const chosenVariant = allowedVariants.length > 0 ? pickOne(allowedVariants, nextRandom, allowedVariants[0]) : null;
+    const variantName = chosenVariant ? asString(chosenVariant.name, chosenVariant.id) : '';
+    const familyName = asString(family.name, family.id);
+    const base5eAnalog = asString((family as Record<string, unknown>).base_5e_analog, 'unknown');
+    const baseTemplate =
+      anchorTemplates.find((template) => template.id === base5eAnalog) ?? {
+        id: 'fallback',
+        ac: 12,
+        hp: 18,
+        speed: 30,
+        cr: 0.25,
+        abilities: { str: 10, dex: 12, con: 10, int: 4, wis: 10, cha: 6 },
+        actions: [{ name: 'Attack', summary: '+3 to hit; 1d6+1 damage.' }],
+        traits: ['Uncatalogued threat'],
+      };
+    const resolvedVariant = resolveCreatureVariantStats(
+      baseTemplate,
+      chosenVariant as Record<string, unknown> | null
+    );
+    const variantBehaviorAdjustments = asStringArray(
+      (chosenVariant as Record<string, unknown> | undefined)?.behavior_adjustments
+    );
+    const traitSet = uniqueStrings([
+      ...baseTemplate.traits,
+      ...asStringArray((family as Record<string, unknown>).signature_traits),
+      ...variantBehaviorAdjustments.map((value) => humanizeId(value)),
+    ]);
+
+    return {
+      id: `creature_${index + 1}`,
+      familyId: family.id,
+      name: chosenVariant ? `${variantName} ${familyName}` : familyName,
+      origin: asString((family as Record<string, unknown>).origin, 'native'),
+      sizeClass:
+        resolvedVariant.sizeOverride ??
+        asString((family as Record<string, unknown>).size_class, 'medium'),
+      intelligence: asString((family as Record<string, unknown>).intelligence, 'low'),
+      temperament: asString(
+        (family as Record<string, unknown>).default_temperament,
+        section.sectionKind === 'settlement' ? 'watchful' : 'aggressive'
+      ),
+      hook: pickOne(
+        asStringArray((family as Record<string, unknown>).hooks),
+        nextRandom,
+        `seen around the ${asString(biome.name, biome.id)}`
+      ),
+      role: asString((family as Record<string, unknown>).default_role, 'lurker'),
+      societyLevel: asString((family as Record<string, unknown>).society_level, 'none'),
+      base5eAnalog,
+      visualKeywords: uniqueStrings([
+        ...asStringArray((family as Record<string, unknown>).visual_keywords),
+        ...asStringArray((chosenVariant as Record<string, unknown> | undefined)?.visual_keywords),
+      ]),
+      signatureTraits: asStringArray((family as Record<string, unknown>).signature_traits),
+      lootTags: asStringArray((family as Record<string, unknown>).loot_tags),
+      variantIds: chosenVariant ? [chosenVariant.id] : [],
+      variantNames: chosenVariant ? [variantName] : [],
+      variantVisualKeywords: asStringArray(
+        (chosenVariant as Record<string, unknown> | undefined)?.visual_keywords
+      ),
+      behaviorAdjustments: variantBehaviorAdjustments,
+      resolvedStats: resolvedVariant.resolvedStats,
+      actions: baseTemplate.actions.map((action) => ({ ...action })),
+      traits: traitSet,
+    };
+  });
 };
 
 const generateShops = ({

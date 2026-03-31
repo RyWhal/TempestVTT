@@ -14,6 +14,19 @@
       "transitions": ["stone_halls", "waterways", "crystal_vault"]
     },
     {
+      "id": "ice_vault",
+      "name": "Ice Vault",
+      "tags": ["cold", "ice", "hazard"],
+      "description": "Frigid vaults of frozen stone and trapped frost where slick floors and bitter air punish the unprepared.",
+      "hazards": ["slippery floors", "freezing exposure"],
+      "materials": ["ice", "frozen stone", "rimed metal"],
+      "common_creatures": ["ice remnants", "frozen constructs"],
+      "room_shapes": ["round vaults", "sealed chambers"],
+      "settlement_viability": "low",
+      "tone": "silent, brittle, severe",
+      "transitions": ["stone_halls", "waterways", "frozen_vault"]
+    },
+    {
       "id": "molten_forge",
       "name": "Molten Forge",
       "tags": ["heat", "industrial", "hazard"],

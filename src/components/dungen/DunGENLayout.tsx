@@ -1,11 +1,15 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 
-export const DunGENLayout: React.FC = () => {
+interface DunGENLayoutProps {
+  children?: React.ReactNode;
+}
+
+export const DunGENLayout: React.FC<DunGENLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-storm-950 text-storm-100">
+    <div className="tempest-shell">
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <Outlet />
+        {children ?? <Outlet />}
       </div>
     </div>
   );

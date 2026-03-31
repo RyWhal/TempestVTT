@@ -1,0 +1,71 @@
+{
+  "entries": [
+    {
+      "id": "cobblestone",
+      "label": "Cobblestone",
+      "category": "stone",
+      "fallback_material_key": "dungeon_stone",
+      "asset_path": "/assets/floors/materials/cobblestone.png",
+      "variant_asset_paths": [
+        "/assets/floors/materials/cobblestone_variant_a.png",
+        "/assets/floors/materials/cobblestone_variant_b.png"
+      ],
+      "supports_tiling": true
+    },
+    {
+      "id": "dungeon_stone",
+      "label": "Dungeon Stone",
+      "category": "stone",
+      "fallback_material_key": "cobblestone",
+      "asset_path": "/assets/floors/materials/dungeon_stone.png",
+      "variant_asset_paths": [
+        "/assets/floors/materials/dungeon_stone_variant_a.png"
+      ],
+      "supports_tiling": true
+    },
+    {
+      "id": "ice_floor",
+      "label": "Ice Floor",
+      "category": "cold",
+      "fallback_material_key": "dungeon_stone",
+      "asset_path": "/assets/floors/materials/ice_floor.png",
+      "variant_asset_paths": [
+        "/assets/floors/materials/ice_floor_variant_a.png"
+      ],
+      "supports_tiling": true
+    },
+    {
+      "id": "wood_planks",
+      "label": "Wood Planks",
+      "category": "wood",
+      "fallback_material_key": "dungeon_stone",
+      "asset_path": "/assets/floors/materials/wood_planks.png",
+      "variant_asset_paths": [
+        "/assets/floors/materials/wood_planks_variant_a.png"
+      ],
+      "supports_tiling": true
+    },
+    {
+      "id": "messy_stone",
+      "label": "Messy Stone",
+      "category": "stone",
+      "fallback_material_key": "dungeon_stone",
+      "asset_path": "/assets/floors/materials/messy_stone.png",
+      "variant_asset_paths": [
+        "/assets/floors/materials/messy_stone_variant_a.png"
+      ],
+      "supports_tiling": true
+    },
+    {
+      "id": "carpet_red",
+      "label": "Red Carpet",
+      "category": "cloth",
+      "fallback_material_key": "wood_planks",
+      "asset_path": "/assets/floors/materials/carpet_red.png",
+      "variant_asset_paths": [
+        "/assets/floors/materials/carpet_red_variant_a.png"
+      ],
+      "supports_tiling": true
+    }
+  ]
+}

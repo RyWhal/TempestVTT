@@ -20,6 +20,42 @@ export interface GeneratedSectionInput {
   worldSeed: string;
   sectionId: string;
   sectionKind?: SectionKind;
+  sectionProfile?: ResolvedSectionProfile;
+}
+
+export interface SectionCoordinates {
+  x: number;
+  y: number;
+}
+
+export interface ResolvedSectionProfile {
+  seed: string;
+  coordinates: SectionCoordinates;
+  graphDepth: number;
+  sectionKind: SectionKind;
+  biomeProfileId: string;
+  settlementProfileId: string | null;
+  livabilityScore: number;
+  defaultFloorMaterialKey: string;
+  roomPrimitiveDensity: number;
+  corridorDensity: number;
+  junctionDensity: number;
+  openSpaceRatio: number;
+  landmarkFrequency: number;
+  allowedRoomPrimitiveIds: string[];
+  allowedCorridorPrimitiveIds: string[];
+  settlementPrimitivePreferenceIds: string[];
+}
+
+export interface ResolvedSectionProfileInput {
+  worldSeed: string;
+  coordinates: SectionCoordinates;
+  graphDepth?: number;
+  requestedSectionKind?: SectionKind;
+  forcedBiomeProfileId?: string;
+  forcedSettlementProfileId?: string;
+  siblingBiomeIds?: string[];
+  siblingSettlementProfileIds?: string[];
 }
 
 export interface RectBounds {
@@ -75,6 +111,8 @@ export interface GeneratedSection {
     tileSizeFt: number;
   };
   primaryBiomeId: string;
+  defaultFloorMaterialKey: string;
+  sectionProfile: ResolvedSectionProfile | null;
   rooms: GeneratedSectionRoom[];
   connections: GeneratedSectionConnection[];
   connectors: GeneratedSectionConnector[];
@@ -123,9 +161,40 @@ export interface GeneratedSectionCreature {
   id: string;
   familyId: string;
   name: string;
+  origin: string;
+  sizeClass: string;
+  intelligence: string;
   temperament: string;
   hook: string;
   role: string;
+  societyLevel: string;
+  base5eAnalog: string;
+  visualKeywords: string[];
+  signatureTraits: string[];
+  lootTags: string[];
+  variantIds: string[];
+  variantNames: string[];
+  variantVisualKeywords: string[];
+  behaviorAdjustments: string[];
+  resolvedStats: {
+    ac: number;
+    hp: number;
+    speed: number;
+    cr: number;
+    abilities: {
+      str: number;
+      dex: number;
+      con: number;
+      int: number;
+      wis: number;
+      cha: number;
+    };
+  };
+  actions: Array<{
+    name: string;
+    summary: string;
+  }>;
+  traits: string[];
 }
 
 export interface GeneratedSectionEncounter {
@@ -249,8 +318,18 @@ export interface GeneratedSectionNarrative {
 export interface GeneratedNpcEntity {
   id: string;
   name: string;
+  speciesId: string;
+  speciesOrigin: string;
   roleId: string | null;
   roleName: string | null;
+  category: string | null;
+  tier: string | null;
+  settlementType: string | null;
+  biomeId: string | null;
+  anchorTemplateId: string | null;
+  anchorTemplateName: string | null;
+  modifierIds: string[];
+  modifierNames: string[];
   baselineBackstory: string;
   appearanceSummary: string;
   personality: string;
@@ -263,6 +342,33 @@ export interface GeneratedNpcEntity {
   currentDisposition: string | null;
   factionId: string | null;
   shopId: string | null;
+  resolvedStats: {
+    ac: number;
+    hp: number;
+    hitDice: string;
+    speed: number;
+    abilities: {
+      str: number;
+      dex: number;
+      con: number;
+      int: number;
+      wis: number;
+      cha: number;
+    };
+    savingThrows: string[];
+    skills: string[];
+    senses: string[];
+    languages: string[];
+    proficiencyBonus: number;
+    cr: number;
+  };
+  actions: Array<Record<string, unknown>>;
+  spellcasting: Record<string, unknown> | null;
+  equipment: string[];
+  traits: string[];
+  shortDescription: string;
+  portraitPrompt: string;
+  gmNotes: string;
 }
 
 export interface GeneratedNpcAppearance {
@@ -296,6 +402,8 @@ export interface SectionRenderRect {
   strokeWidth?: number;
   regionType?: 'room' | 'connector' | 'courtyard' | 'street';
   materialKey?: string;
+  transitionMaterialKey?: string;
+  materialCategory?: string;
   sourceRoomId?: string;
   sourceConnectorId?: string;
 }
@@ -307,6 +415,9 @@ export interface SectionRenderLine {
   strokeWidth: number;
   surfaceType?: 'wall' | 'threshold';
   materialKey?: string;
+  sourceRoomId?: string;
+  sourceConnectorId?: string;
+  biomeId?: string;
 }
 
 export interface SectionRenderMarker {
@@ -324,6 +435,55 @@ export interface SectionRenderAtmosphere {
   opacity: number;
 }
 
+export interface SectionBakedFloorChunk {
+  chunkX: number;
+  chunkY: number;
+  x: number;
+  y: number;
+  widthPx: number;
+  heightPx: number;
+  imagePath: string;
+  imageUrl: string;
+  tileSprites?: SectionBakedFloorTileSprite[];
+  wallSprites?: SectionBakedWallSprite[];
+  dressingSprites?: SectionBakedDressingSprite[];
+  transitionOverlays?: SectionBakedFloorTransitionOverlay[];
+}
+
+export interface SectionBakedEnvironmentSprite {
+  assetId: string;
+  assetUrl: string;
+  fallbackAssetUrls?: string[];
+  x: number;
+  y: number;
+  widthPx: number;
+  heightPx: number;
+  rotationDegrees: number;
+  flipHorizontal: boolean;
+  flipVertical: boolean;
+}
+
+export type SectionBakedFloorTileSprite = SectionBakedEnvironmentSprite;
+export type SectionBakedWallSprite = SectionBakedEnvironmentSprite;
+export type SectionBakedDressingSprite = SectionBakedEnvironmentSprite;
+
+export interface SectionBakedFloorTransitionOverlay {
+  id: string;
+  x: number;
+  y: number;
+  widthPx: number;
+  heightPx: number;
+  fill: string;
+}
+
+export interface SectionBakedFloorLayer {
+  status: 'pending' | 'running' | 'complete' | 'failed';
+  chunkSizePx: number;
+  tileResolutionPx: number;
+  floorCellsPerChunk: number;
+  chunks: SectionBakedFloorChunk[];
+}
+
 export interface SectionRenderPayload {
   width: number;
   height: number;
@@ -336,6 +496,7 @@ export interface SectionRenderPayload {
   hazards?: SectionRenderRect[];
   objects?: SectionRenderRect[];
   atmosphere?: SectionRenderAtmosphere | null;
+  bakedFloor?: SectionBakedFloorLayer;
 }
 
 export interface OverviewNode {
@@ -361,6 +522,21 @@ export interface ProcgenIdentifiedRecord {
 }
 
 export interface Biome extends ProcgenIdentifiedRecord {}
+export interface BiomeGenerationProfile extends ProcgenIdentifiedRecord {
+  label: string;
+  allowed_section_kinds?: SectionKind[];
+  allowed_room_primitive_ids?: string[];
+  room_primitive_density: number;
+  allowed_corridor_primitive_ids?: string[];
+  corridor_density: number;
+  junction_density: number;
+  open_space_ratio: number;
+  landmark_frequency: number;
+  hazard_pressure: number;
+  settlement_pressure: number;
+  default_floor_material_key: string;
+  alternate_floor_material_keys?: string[];
+}
 export interface CreatureFamily extends ProcgenIdentifiedRecord {}
 export interface CreatureVariant extends ProcgenIdentifiedRecord {}
 export interface NamePhonemeSet extends ProcgenIdentifiedRecord {}
@@ -381,6 +557,20 @@ export interface NpcRole extends ProcgenIdentifiedRecord {}
 export interface NpcModifier extends ProcgenIdentifiedRecord {}
 export interface VillageArchetype extends ProcgenIdentifiedRecord {}
 export interface ShopType extends ProcgenIdentifiedRecord {}
+export interface SettlementGenerationProfile extends ProcgenIdentifiedRecord {
+  label: string;
+  allowed_biomes?: string[];
+  water_support: number;
+  food_support: number;
+  safety_modifier: number;
+  route_centrality_modifier: number;
+  open_space_preference: number;
+  primitive_preferences: string[];
+  minimum_livability_score: number;
+  npc_role_weights: Record<string, number>;
+  shop_type_weights: Record<string, number>;
+  default_floor_material_key: string;
+}
 export interface NpcArchetype extends ProcgenIdentifiedRecord {
   category?: string;
   allowed_roles?: string[];
@@ -502,6 +692,55 @@ export interface HookFragment extends ProcgenIdentifiedRecord {
   requires_hazard?: boolean;
   [key: string]: unknown;
 }
+export interface SectionNarrativeFragment extends ProcgenIdentifiedRecord {
+  category?: string;
+  title_template: string;
+  text: string;
+  summary_text: string;
+  allowed_roles?: string[];
+  allowed_archetypes?: string[];
+  allowed_section_kinds?: string[];
+  allowed_settlement_archetypes?: string[];
+  allowed_biomes?: string[];
+  allowed_shop_types?: string[];
+  required_shop_roles?: string[];
+  requires_hazard?: boolean;
+  [key: string]: unknown;
+}
+export interface CreatureBookFragment extends ProcgenIdentifiedRecord {
+  category?: string;
+  title_template: string;
+  text: string;
+  summary_text: string;
+  allowed_roles?: string[];
+  allowed_archetypes?: string[];
+  allowed_section_kinds?: string[];
+  allowed_settlement_archetypes?: string[];
+  allowed_biomes?: string[];
+  allowed_shop_types?: string[];
+  required_shop_roles?: string[];
+  requires_hazard?: boolean;
+  [key: string]: unknown;
+}
+export interface CreatureAnchorTemplate extends ProcgenIdentifiedRecord {
+  ac: number;
+  hp: number;
+  speed: number;
+  cr: number;
+  abilities: {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+  };
+  actions: Array<{
+    name: string;
+    summary: string;
+  }>;
+  traits: string[];
+}
 export interface RoomPrimitive extends ProcgenIdentifiedRecord {
   family?: string;
   grid_footprint?: PrimitiveGridFootprint;
@@ -510,7 +749,48 @@ export interface RoomPrimitive extends ProcgenIdentifiedRecord {
 }
 export interface RoomType extends ProcgenIdentifiedRecord {}
 export interface ItemTemplate extends ProcgenIdentifiedRecord {}
+export interface FloorMaterialProfile extends ProcgenIdentifiedRecord {
+  label: string;
+  category: string;
+  fallback_material_key: string;
+  asset_path: string;
+  variant_asset_paths: string[];
+  supports_tiling: boolean;
+}
+export interface FloorTransitionProfile extends ProcgenIdentifiedRecord {
+  from_material_key: string;
+  to_material_key: string;
+  asset_path: string;
+  fallback_material_key: string;
+}
+export interface WallAssetVariant {
+  id: string;
+  path: string;
+  weight: number;
+}
+
+export interface WallAssetFamily {
+  biome_id: string;
+  wallset_id: string;
+  rotation_safe: boolean;
+  flip_safe: boolean;
+  assets: {
+    base: WallAssetVariant[];
+  };
+}
+
+export interface WallAssetRegistry {
+  schema_version: string;
+  registry_id: string;
+  biome_wallsets: WallAssetFamily[];
+}
 export interface NpcGenerationSchema {
+  required_inputs?: Record<string, unknown>;
+  generation_steps?: string[];
+  resolved_output_schema?: Record<string, unknown>;
+  portrait_prompt_template?: string;
+  short_description_template?: string;
+  fallback_rules?: Record<string, unknown>;
   [key: string]: unknown;
 }
 export interface GenAiDescriptionSchema {
@@ -592,6 +872,18 @@ export interface HookFragmentsPack {
   hookFragments: HookFragment[];
 }
 
+export interface SectionNarrativeFragmentsPack {
+  sectionNarrativeFragments: SectionNarrativeFragment[];
+}
+
+export interface CreatureBookFragmentsPack {
+  creatureBookFragments: CreatureBookFragment[];
+}
+
+export interface CreatureAnchorTemplatesPack {
+  creatureAnchorTemplates: CreatureAnchorTemplate[];
+}
+
 export interface VillageArchetypesPack {
   villageArchetypes: VillageArchetype[];
 }
@@ -621,8 +913,25 @@ export interface ItemTablesPack {
   itemCategories: ProcgenIdentifiedRecord[];
 }
 
+export interface BiomeGenerationProfilesPack {
+  entries: BiomeGenerationProfile[];
+}
+
+export interface SettlementGenerationProfilesPack {
+  entries: SettlementGenerationProfile[];
+}
+
+export interface FloorMaterialProfilesPack {
+  entries: FloorMaterialProfile[];
+}
+
+export interface FloorTransitionProfilesPack {
+  entries: FloorTransitionProfile[];
+}
+
 export interface ProcgenContentPackMap {
   biomes: BiomesPack;
+  biome_generation_profiles: BiomeGenerationProfilesPack;
   creature_families: CreatureFamiliesPack;
   creature_variants: CreatureVariantsPack;
   name_phonemes: NamePhonemesPack;
@@ -638,14 +947,20 @@ export interface ProcgenContentPackMap {
   encounter_templates: EncounterTemplatesPack;
   rumor_fragments: RumorFragmentsPack;
   hook_fragments: HookFragmentsPack;
+  section_narrative_fragments: SectionNarrativeFragmentsPack;
+  creature_book_fragments: CreatureBookFragmentsPack;
+  creature_anchor_templates: CreatureAnchorTemplatesPack;
   npc_role_to_anchor_mapping: NpcRoleToAnchorMappingPack;
   npc_roles: NpcRolesPack;
   village_archetypes: VillageArchetypesPack;
   genai_description_schema: GenAiDescriptionSchemaPack;
   shop_types: ShopTypesPack;
+  settlement_generation_profiles: SettlementGenerationProfilesPack;
   room_primitives: RoomPrimitivesPack;
   room_type_library: RoomTypeLibraryPack;
   item_tables: ItemTablesPack;
+  floor_material_profiles: FloorMaterialProfilesPack;
+  floor_transition_profiles: FloorTransitionProfilesPack;
 }
 
 export type ProcgenContentPackId = keyof ProcgenContentPackMap;

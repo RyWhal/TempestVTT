@@ -1,4 +1,9 @@
-import type { RectBounds, RoomPrimitive, SectionKind } from '../types';
+import type {
+  RectBounds,
+  ResolvedSectionProfile,
+  RoomPrimitive,
+  SectionKind,
+} from '../types';
 import type { LayoutPreset, LayoutSlot } from './layoutPresets';
 
 export interface PlacedRoom {
@@ -14,7 +19,11 @@ interface RoomPlacementInput {
   roomPrimitives: RoomPrimitive[];
   nextRandom: () => number;
   sectionKind: SectionKind;
+  sectionProfile?: ResolvedSectionProfile;
 }
+
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value));
 
 const rectsOverlap = (left: RectBounds, right: RectBounds) => {
   return !(
@@ -29,10 +38,15 @@ const choosePrimitiveForSlot = (
   slot: LayoutSlot,
   roomPrimitives: RoomPrimitive[],
   sectionKind: SectionKind,
-  nextRandom: () => number
+  nextRandom: () => number,
+  sectionProfile: ResolvedSectionProfile | undefined
 ): RoomPrimitive => {
   const slotArea = slot.width * slot.height;
   const tags = slot.tags ?? [];
+  const allowedPrimitiveIds = new Set(sectionProfile?.allowedRoomPrimitiveIds ?? []);
+  const preferredPrimitiveIds = new Set(
+    sectionProfile?.settlementPrimitivePreferenceIds ?? []
+  );
   const eligible = roomPrimitives.filter((primitive) => {
     const footprint = primitive.grid_footprint;
 
@@ -57,13 +71,126 @@ const choosePrimitiveForSlot = (
     return true;
   });
 
+  if (!sectionProfile) {
+    const ranked = eligible
+      .map((primitive) => {
+        const footprint = primitive.grid_footprint;
+        const family = primitive.family ?? 'square';
+        let score = family === 'square' ? 10 : 22;
+
+        if (tags.includes('courtyard') || tags.includes('hub')) {
+          if (primitive.id === 'ring_room') score += 80;
+          if (family === 'circle' || family === 'oval' || family === 'polygon') score += 60;
+          if (family === 'cross' || family === 'compound') score += 45;
+        }
+
+        if (tags.includes('landmark')) {
+          if (family === 'polygon' || family === 'circle' || family === 'ring') score += 70;
+          if (family === 'cross' || family === 'compound') score += 50;
+        }
+
+        if (tags.includes('service')) {
+          if (family === 'compound') score += 55;
+          if (family === 'rectangle') score += 45;
+          if (family === 'polygon') score += 25;
+        }
+
+        if (tags.includes('street_edge')) {
+          if (family === 'compound' || family === 'rectangle') score += 35;
+        }
+
+        if (tags.includes('residence')) {
+          if (family === 'compound') score += 45;
+          if (family === 'rectangle' || family === 'square') score += 35;
+        }
+
+        if (tags.includes('branch') || tags.includes('side')) {
+          if (family === 'polygon' || family === 'oval') score += 40;
+          if (family === 'compound') score += 28;
+        }
+
+        if (tags.includes('dense') && family === 'rectangle') {
+          score += 12;
+        }
+
+        if (sectionKind === 'settlement' && slotArea > 240 && primitive.id === 'ring_room') {
+          score += 35;
+        }
+
+        if (primitive.id === 'rectangle_long' && slot.width < 16) {
+          score -= 30;
+        }
+
+        return {
+          primitive,
+          score,
+          area: footprint ? footprint.max_w * footprint.max_h : 0,
+        };
+      })
+      .sort((left, right) => {
+        const familyDelta = right.score - left.score;
+        if (familyDelta !== 0) {
+          return familyDelta;
+        }
+
+        if (sectionKind === 'settlement') {
+          return right.area - left.area;
+        }
+
+        return left.area - right.area;
+      });
+
+    const topScore = ranked[0]?.score ?? 0;
+    const candidates = ranked.filter((entry) => entry.score >= topScore - 12);
+    const chosen =
+      candidates[Math.floor(nextRandom() * Math.max(1, candidates.length))] ?? ranked[0];
+
+    return chosen?.primitive ?? roomPrimitives[0];
+  }
+
+  const constrainedEligible =
+    allowedPrimitiveIds.size > 0
+      ? eligible.filter((primitive) => allowedPrimitiveIds.has(primitive.id))
+      : eligible;
+  const candidatePool = constrainedEligible.length > 0 ? constrainedEligible : eligible;
+  const openness = sectionProfile?.openSpaceRatio ?? 0;
+  const density =
+    sectionProfile?.roomPrimitiveDensity ?? (sectionKind === 'settlement' ? 0.7 : 0.55);
+  const corridorDensity = sectionProfile?.corridorDensity ?? 0.5;
+  const desiredCoverage = clampNumber(
+    0.48 + density * 0.3 - openness * 0.18 + (sectionKind === 'settlement' ? 0.04 : 0),
+    0.38,
+    0.9
+  );
+
   const rankPrimitive = (primitive: RoomPrimitive) => {
       const family = primitive.family ?? 'square';
+      const footprint = primitive.grid_footprint;
+      const area = footprint ? footprint.max_w * footprint.max_h : 0;
+      const areaCoverage = slotArea > 0 ? area / slotArea : 0;
       let score = family === 'square' ? 10 : 22;
 
+      if (allowedPrimitiveIds.has(primitive.id)) {
+        score += 120;
+      }
+
+      if (preferredPrimitiveIds.has(primitive.id)) {
+        score += 90;
+      }
+
+      score += Math.round((1 - Math.abs(areaCoverage - desiredCoverage)) * 50);
+
       if (tags.includes('courtyard') || tags.includes('hub')) {
+        if (primitive.id === 'courtyard_open') score += 160;
         if (primitive.id === 'ring_room') score += 80;
-        if (family === 'circle' || family === 'oval' || family === 'polygon') score += 60;
+        if (
+          family === 'circle' ||
+          family === 'oval' ||
+          family === 'polygon' ||
+          family === 'open_space'
+        ) {
+          score += 60;
+        }
         if (family === 'cross' || family === 'compound') score += 45;
       }
 
@@ -100,6 +227,27 @@ const choosePrimitiveForSlot = (
         score += 35;
       }
 
+      if (openness >= 0.45) {
+        if (
+          family === 'circle' ||
+          family === 'ring' ||
+          family === 'open_space' ||
+          family === 'polygon'
+        ) {
+          score += 45;
+        }
+        if (family === 'rectangle' || family === 'compound') {
+          score -= 18;
+        }
+      } else if (corridorDensity >= 0.6 || density >= 0.72) {
+        if (family === 'rectangle' || family === 'compound' || family === 'square') {
+          score += 28;
+        }
+        if (family === 'open_space' || family === 'ring') {
+          score -= 15;
+        }
+      }
+
       if (primitive.id === 'rectangle_long' && slot.width < 16) {
         score -= 30;
       }
@@ -107,7 +255,7 @@ const choosePrimitiveForSlot = (
       return score;
   };
 
-  const ranked = eligible
+  const ranked = candidatePool
     .map((primitive) => {
       const footprint = primitive.grid_footprint;
       const area = footprint ? footprint.max_w * footprint.max_h : 0;
@@ -149,7 +297,8 @@ const placeRoomInSlot = (
   primitive: RoomPrimitive,
   nextRandom: () => number,
   roomId: string,
-  sectionKind: SectionKind
+  sectionKind: SectionKind,
+  sectionProfile: ResolvedSectionProfile | undefined
 ): PlacedRoom => {
   const footprint = primitive.grid_footprint ?? {
     min_w: slot.width,
@@ -158,8 +307,29 @@ const placeRoomInSlot = (
     max_h: slot.height,
   };
 
-  const densityFloor = sectionKind === 'settlement' ? 0.84 : 0.8;
-  const densityRange = sectionKind === 'settlement' ? 0.1 : 0.18;
+  const densityFloor = sectionProfile
+    ? clampNumber(
+        0.48 +
+          sectionProfile.roomPrimitiveDensity * 0.34 -
+          sectionProfile.openSpaceRatio * 0.26 +
+          (sectionKind === 'settlement' ? 0.06 : 0),
+        0.48,
+        0.92
+      )
+    : sectionKind === 'settlement'
+      ? 0.84
+      : 0.8;
+  const densityRange = sectionProfile
+    ? clampNumber(
+        0.18 -
+          sectionProfile.roomPrimitiveDensity * 0.06 +
+          sectionProfile.openSpaceRatio * 0.12,
+        0.06,
+        0.24
+      )
+    : sectionKind === 'settlement'
+      ? 0.1
+      : 0.18;
   const targetWidth = clampDimension(
     Math.floor(slot.width * (densityFloor + nextRandom() * densityRange)),
     footprint.min_w,
@@ -325,17 +495,25 @@ export const placeRoomsForPreset = ({
   roomPrimitives,
   nextRandom,
   sectionKind,
+  sectionProfile,
 }: RoomPlacementInput): PlacedRoom[] => {
   const placedRooms: PlacedRoom[] = [];
 
   for (const [index, slot] of preset.slots.entries()) {
-    const primitive = choosePrimitiveForSlot(slot, roomPrimitives, sectionKind, nextRandom);
+    const primitive = choosePrimitiveForSlot(
+      slot,
+      roomPrimitives,
+      sectionKind,
+      nextRandom,
+      sectionProfile
+    );
     const room = placeRoomInSlot(
       slot,
       primitive,
       nextRandom,
       `room_${String(index + 1).padStart(3, '0')}`,
-      sectionKind
+      sectionKind,
+      sectionProfile
     );
     placedRooms.push(
       resolvePlacementCollision({

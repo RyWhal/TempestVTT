@@ -20,6 +20,7 @@ import {
   generateSectionContent,
   getNextContentRerollState,
 } from './sectionContentGenerator';
+import { resolveSectionProfile } from './sectionProfileResolver';
 import { generateSectionLabel } from './sectionNaming';
 
 const START_SECTION_ID = 'section_start_village';
@@ -71,6 +72,33 @@ const getSectionCoordinates = (section: DungeonSectionRecord) =>
 
 const getPreviewCoordinates = (preview: ProcgenSectionPreviewRecord) =>
   (preview.previewState.coordinates ?? { x: 0, y: 0 }) as { x: number; y: number };
+
+const resolveProfileForCoordinates = ({
+  worldSeed,
+  coordinates,
+  graphDepth,
+  requestedSectionKind,
+  forcedSettlementProfileId,
+  siblingBiomeIds,
+  siblingSettlementProfileIds,
+}: {
+  worldSeed: string;
+  coordinates: { x: number; y: number };
+  graphDepth?: number;
+  requestedSectionKind?: 'exploration' | 'settlement';
+  forcedSettlementProfileId?: string | null;
+  siblingBiomeIds?: string[];
+  siblingSettlementProfileIds?: string[];
+}) =>
+  resolveSectionProfile({
+    worldSeed,
+    coordinates,
+    graphDepth,
+    requestedSectionKind,
+    forcedSettlementProfileId: forcedSettlementProfileId ?? undefined,
+    siblingBiomeIds,
+    siblingSettlementProfileIds,
+  });
 
 const getPreviewAdjacentFromSectionIds = (preview: ProcgenSectionPreviewRecord) => {
   const ids = new Set<string>();
@@ -212,9 +240,11 @@ const createSectionRecord = ({
   worldSeed,
   visitIndex,
   coordinates,
+  graphDepth,
   enteredFromDirection,
   sectionKind,
   settlementArchetypeId = null,
+  sectionProfileOverride = null,
   generatedSectionOverride = null,
   generatedContentOverride = null,
   contentRerollState = DEFAULT_CONTENT_REROLL_STATE,
@@ -225,26 +255,37 @@ const createSectionRecord = ({
   worldSeed: string;
   visitIndex: number;
   coordinates: { x: number; y: number };
+  graphDepth?: number;
   enteredFromDirection: CardinalDirection | null;
   sectionKind: 'exploration' | 'settlement';
   settlementArchetypeId?: string | null;
+  sectionProfileOverride?: ReturnType<typeof resolveSectionProfile> | null;
   generatedSectionOverride?: GeneratedSection | null;
   generatedContentOverride?: GeneratedSectionContent | null;
   contentRerollState?: SectionContentRerollState;
 }): DungeonSectionRecord => {
+  const sectionProfile =
+    sectionProfileOverride ??
+    resolveProfileForCoordinates({
+      worldSeed,
+      coordinates,
+      graphDepth,
+      requestedSectionKind: sectionKind,
+      forcedSettlementProfileId: settlementArchetypeId,
+    });
   const generatedSection =
     generatedSectionOverride ??
     generateSection({
       worldSeed,
       sectionId,
-      sectionKind,
+      sectionProfile,
     });
   const generatedContent =
     generatedContentOverride ??
     generateSectionContent({
       section: generatedSection,
       sectionName: name,
-      settlementArchetypeId,
+      settlementArchetypeId: settlementArchetypeId ?? sectionProfile.settlementProfileId,
       rerollState: contentRerollState,
     });
   const timestamp = new Date().toISOString();
@@ -266,11 +307,12 @@ const createSectionRecord = ({
       generatedSection,
       generatedContent,
       contentRerollState,
-      settlementArchetypeId,
+      settlementArchetypeId: settlementArchetypeId ?? sectionProfile.settlementProfileId,
+      sectionProfile,
       coordinates,
       visitIndex,
       enteredFromDirection,
-      sectionKind,
+      sectionKind: generatedSection.sectionKind,
     },
     presentationState: {
       playerVisibility: 'visited',
@@ -290,11 +332,16 @@ const createPreviewRecord = ({
   sectionId,
   direction,
   coordinates,
+  graphDepth,
   worldSeed,
   playerVisibility,
   label = null,
   settlementArchetypeId = null,
+  sectionProfileOverride = null,
+  siblingBiomeIds = [],
+  siblingSettlementProfileIds = [],
   contentRerollState = DEFAULT_CONTENT_REROLL_STATE,
+  reservedLabels = new Set<string>(),
 }: {
   campaignId: string;
   fromSectionId: string;
@@ -302,22 +349,46 @@ const createPreviewRecord = ({
   sectionId: string;
   direction: CardinalDirection;
   coordinates: { x: number; y: number };
+  graphDepth?: number;
   worldSeed: string;
   playerVisibility: 'known_unvisited' | 'unknown';
   label?: string | null;
   settlementArchetypeId?: string | null;
+  sectionProfileOverride?: ReturnType<typeof resolveSectionProfile> | null;
+  siblingBiomeIds?: string[];
+  siblingSettlementProfileIds?: string[];
   contentRerollState?: SectionContentRerollState;
+  reservedLabels?: Set<string>;
 }): ProcgenSectionPreviewRecord => {
+  const sectionProfile =
+    sectionProfileOverride ??
+    resolveProfileForCoordinates({
+      worldSeed,
+      coordinates,
+      graphDepth,
+      forcedSettlementProfileId: settlementArchetypeId,
+      siblingBiomeIds,
+      siblingSettlementProfileIds,
+    });
   const generatedSection = generateSection({
     worldSeed,
     sectionId,
-    sectionKind: 'exploration',
+    sectionProfile,
   });
-  const resolvedLabel = label ?? generateSectionLabel({ worldSeed, sectionId, section: generatedSection });
+  const generatedLabel = label ?? generateSectionLabel({ worldSeed, sectionId, section: generatedSection });
+  let resolvedLabel = generatedLabel;
+  let duplicateIndex = 2;
+
+  while (reservedLabels.has(resolvedLabel)) {
+    resolvedLabel = `${generatedLabel} ${duplicateIndex}`;
+    duplicateIndex += 1;
+  }
+
+  reservedLabels.add(resolvedLabel);
   const generatedContent = generateSectionContent({
     section: generatedSection,
     sectionName: resolvedLabel,
-    settlementArchetypeId,
+    settlementArchetypeId: settlementArchetypeId ?? sectionProfile.settlementProfileId,
     rerollState: contentRerollState,
   });
   const timestamp = new Date().toISOString();
@@ -332,7 +403,8 @@ const createPreviewRecord = ({
       generatedSection,
       generatedContent,
       contentRerollState,
-      settlementArchetypeId,
+      settlementArchetypeId: settlementArchetypeId ?? sectionProfile.settlementProfileId,
+      sectionProfile,
       coordinates,
       label: resolvedLabel,
       parentSectionId,
@@ -371,25 +443,52 @@ export const createStarterCampaignSnapshot = ({
     worldSeed: START_VILLAGE_WORLD_SEED,
     visitIndex: 0,
     coordinates: { x: 0, y: 0 },
+    graphDepth: 0,
     enteredFromDirection: null,
     sectionKind: 'settlement',
     settlementArchetypeId: 'waystop',
+    sectionProfileOverride: resolveProfileForCoordinates({
+      worldSeed: START_VILLAGE_WORLD_SEED,
+      coordinates: { x: 0, y: 0 },
+      graphDepth: 0,
+      requestedSectionKind: 'settlement',
+      forcedSettlementProfileId: 'waystop',
+    }),
   });
 
+  const reservedLabels = new Set([START_VILLAGE_NAME]);
+  const usedBiomeIds: string[] = [];
+  const usedSettlementProfileIds: string[] = [];
   const previews = CARDINAL_DIRECTIONS.map((direction) => {
     const delta = DIRECTION_DELTAS[direction];
     const sectionId = `${START_SECTION_ID}_${direction}`;
 
-    return createPreviewRecord({
+    const previewRecord = createPreviewRecord({
       campaignId,
       fromSectionId: startingSection.id,
       parentSectionId: START_SECTION_ID,
       sectionId,
       direction,
       coordinates: delta,
+      graphDepth: 1,
       worldSeed,
       playerVisibility: 'known_unvisited',
+      siblingBiomeIds: usedBiomeIds,
+      siblingSettlementProfileIds: usedSettlementProfileIds,
+      reservedLabels,
     });
+
+    const sectionProfile = previewRecord.previewState.sectionProfile as
+      | ReturnType<typeof resolveSectionProfile>
+      | undefined;
+    if (sectionProfile?.biomeProfileId) {
+      usedBiomeIds.push(sectionProfile.biomeProfileId);
+    }
+    if (sectionProfile?.settlementProfileId) {
+      usedSettlementProfileIds.push(sectionProfile.settlementProfileId);
+    }
+
+    return previewRecord;
   });
 
   let dungeonGraph: DungeonGraph = {
@@ -504,8 +603,18 @@ export const visitSectionPreview = (
     worldSeed: snapshot.campaign.worldSeed,
     visitIndex,
     coordinates: previewCoordinates,
+    graphDepth:
+      (preview.previewState.sectionProfile as { graphDepth?: number } | undefined)?.graphDepth,
     enteredFromDirection,
-    sectionKind: 'exploration',
+    sectionKind:
+      (preview.previewState.generatedSection as GeneratedSection | undefined)?.sectionKind ??
+      'exploration',
+    settlementArchetypeId:
+      (preview.previewState.sectionProfile as { settlementProfileId?: string | null } | undefined)
+        ?.settlementProfileId ?? null,
+    sectionProfileOverride:
+      (preview.previewState.sectionProfile as ReturnType<typeof resolveSectionProfile> | undefined) ??
+      null,
     generatedSectionOverride: preview.previewState.generatedSection as GeneratedSection,
     generatedContentOverride: preview.previewState.generatedContent as GeneratedSectionContent,
     contentRerollState:
@@ -516,9 +625,32 @@ export const visitSectionPreview = (
   const outboundDirections = CARDINAL_DIRECTIONS.filter(
     (direction) => direction !== enteredFromDirection
   );
+  const nextGraphDepth =
+    ((sectionRecord.generationState.sectionProfile as { graphDepth?: number } | undefined)
+      ?.graphDepth ?? 0) + 1;
   let dungeonGraph = appendGraphNode(snapshot.campaign.dungeonGraph, preview.sectionStubId);
   let nextPreviews = [...remainingPreviews];
   const nextSections = [...snapshot.sections, sectionRecord];
+  const reservedLabels = new Set<string>([
+    ...nextSections.map((section) => section.name),
+    ...nextPreviews.map((candidate) => String(candidate.previewState.label ?? candidate.sectionStubId)),
+  ]);
+  const siblingBiomeIds: string[] = nextPreviews
+    .filter((candidate) => getPreviewAdjacentFromSectionIds(candidate).includes(sectionRecord.id))
+    .map(
+      (candidate) =>
+        (candidate.previewState.sectionProfile as { biomeProfileId?: string } | undefined)
+          ?.biomeProfileId
+    )
+    .filter((value): value is string => Boolean(value));
+  const siblingSettlementProfileIds: string[] = nextPreviews
+    .filter((candidate) => getPreviewAdjacentFromSectionIds(candidate).includes(sectionRecord.id))
+    .map(
+      (candidate) =>
+        (candidate.previewState.sectionProfile as { settlementProfileId?: string | null } | undefined)
+          ?.settlementProfileId ?? null
+    )
+    .filter((value): value is string => Boolean(value));
 
   for (const direction of outboundDirections) {
     const delta = DIRECTION_DELTAS[direction];
@@ -570,9 +702,23 @@ export const visitSectionPreview = (
       sectionId,
       direction,
       coordinates,
+      graphDepth: nextGraphDepth,
       worldSeed: snapshot.campaign.worldSeed,
       playerVisibility: 'unknown',
+      siblingBiomeIds,
+      siblingSettlementProfileIds,
+      reservedLabels,
     });
+
+    const previewProfile = previewRecord.previewState.sectionProfile as
+      | ReturnType<typeof resolveSectionProfile>
+      | undefined;
+    if (previewProfile?.biomeProfileId) {
+      siblingBiomeIds.push(previewProfile.biomeProfileId);
+    }
+    if (previewProfile?.settlementProfileId) {
+      siblingSettlementProfileIds.push(previewProfile.settlementProfileId);
+    }
 
     nextPreviews.push(previewRecord);
     dungeonGraph = appendGraphEdge(

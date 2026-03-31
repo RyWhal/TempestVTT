@@ -1,10 +1,12 @@
 import type {
   CampaignBookEntryType,
+  CreatureBookFragment,
   GeneratedCampaignBook,
   GeneratedCampaignBookEntry,
   GeneratedSection,
   GeneratedSectionContent,
 } from '../types';
+import { contentRegistry } from '../content/contentRegistry';
 import { generateSectionNarrative } from './sectionNarrativeGenerator';
 import { hashString } from './seed';
 
@@ -72,6 +74,38 @@ const withTrailingPeriod = (value: string) => (/[.!?]$/.test(value) ? value : `$
 
 const uniqueValues = (values: string[]) => [...new Set(values.filter(Boolean))];
 
+const matchesAllowedValues = (value: unknown, candidate: string | null) => {
+  if (!Array.isArray(value) || value.length === 0) {
+    return true;
+  }
+
+  if (!candidate) {
+    return false;
+  }
+
+  return value.includes(candidate);
+};
+
+const pickCreatureBookFragment = (
+  entries: CreatureBookFragment[],
+  category: string,
+  context: { sectionKind: string; biomeId: string }
+) => {
+  const categoryEntries = entries.filter((entry) => entry.category === category);
+  const matching = categoryEntries.filter(
+    (entry) =>
+      matchesAllowedValues(entry.allowed_section_kinds, context.sectionKind) &&
+      matchesAllowedValues(entry.allowed_biomes, context.biomeId)
+  );
+  return matching[0] ?? categoryEntries[0] ?? entries[0];
+};
+
+const applyTemplateTokens = (value: string, tokens: Record<string, string>) =>
+  Object.entries(tokens).reduce(
+    (result, [token, replacement]) => result.split(`{${token}}`).join(replacement),
+    value
+  );
+
 export const generateCampaignBook = ({
   section,
   sectionName,
@@ -82,6 +116,7 @@ export const generateCampaignBook = ({
     sectionName,
     content,
   });
+  const creatureBookFragments = contentRegistry.loadPack('creature_book_fragments').creatureBookFragments;
   const entries: GeneratedCampaignBookEntry[] = [];
 
   entries.push(
@@ -170,13 +205,24 @@ export const generateCampaignBook = ({
   }
 
   for (const creature of content.creatures) {
+    const fragment = pickCreatureBookFragment(creatureBookFragments, 'creature_seed_body', {
+      sectionKind: section.sectionKind,
+      biomeId: section.primaryBiomeId,
+    });
+    const tokens = {
+      creature_name: creature.name,
+      creature_role: creature.role.toLowerCase(),
+      temperament: creature.temperament.toLowerCase(),
+      biome_name: content.biomeName.toLowerCase(),
+      creature_hook: withTrailingPeriod(creature.hook),
+    };
     entries.push(
       createEntry({
         section,
         type: 'creature_seed',
-        title: creature.name,
-        body: `${creature.name} could show up as ${creature.role.toLowerCase()} pressure in this section, and their ${creature.temperament.toLowerCase()} behavior might first be suggested through signs, sounds, or a disrupted route before a direct scene appears.`,
-        summary: withTrailingPeriod(creature.hook),
+        title: applyTemplateTokens(fragment.title_template, tokens),
+        body: applyTemplateTokens(fragment.text, tokens),
+        summary: applyTemplateTokens(fragment.summary_text, tokens),
         tags: ['creature', creature.familyId, creature.role],
         relatedCreatureIds: [creature.id],
       })

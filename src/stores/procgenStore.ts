@@ -3,6 +3,7 @@ import type {
   CampaignWorld,
   DungeonSectionRecord,
   GMOverrideRecord,
+  ProcgenSectionRenderPayloadCacheUpdate,
   ProcgenSectionPreviewRecord,
   RoomStateRecord,
   SharedAssetRecord,
@@ -25,6 +26,7 @@ interface ProcgenStoreActions {
   setError: (error: string | null) => void;
   setActiveSectionId: (sectionId: string | null) => void;
   hydrateProcgenState: (payload: ProcgenHydrationPayload) => void;
+  updateSectionRenderPayloadCache: (payload: ProcgenSectionRenderPayloadCacheUpdate) => void;
   clearProcgenState: () => void;
 }
 
@@ -68,6 +70,25 @@ export const useProcgenStore = create<ProcgenStoreState & ProcgenStoreActions>()
       activeSectionId: campaign?.activeSectionId ?? null,
       isLoading: false,
       error: null,
+    }),
+
+  updateSectionRenderPayloadCache: ({ sectionRecordId, renderPayloadCache }) =>
+    set((state) => {
+      const section = state.sectionsById[sectionRecordId];
+
+      if (!section) {
+        return state;
+      }
+
+      return {
+        sectionsById: {
+          ...state.sectionsById,
+          [sectionRecordId]: {
+            ...section,
+            renderPayloadCache,
+          },
+        },
+      };
     }),
 
   clearProcgenState: () => set(createEmptyProcgenStoreState()),

@@ -32,4 +32,12 @@ describe('navigationPolicy', () => {
       })
     ).toBe('section_start_village_east');
   });
+
+  it('returns the currently active generated section id when provided by the caller', () => {
+    expect(
+      resolveLaunchSectionId({
+        activeSectionId: 'section_current_table_map',
+      })
+    ).toBe('section_current_table_map');
+  });
 });

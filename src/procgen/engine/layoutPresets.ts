@@ -1,4 +1,8 @@
-import type { SectionKind, SectionLayoutType } from '../types';
+import type {
+  ResolvedSectionProfile,
+  SectionKind,
+  SectionLayoutType,
+} from '../types';
 
 const SECTION_GRID_SIZE = 75;
 const LEGACY_PRESET_GRID_SIZE = 100;
@@ -99,7 +103,7 @@ const explorationPresets: LayoutPreset[] = [
   },
 ];
 
-const settlementPresets: LayoutPreset[] = [
+const settlementDensePresets: LayoutPreset[] = [
   {
     layoutType: 'clustered_rooms',
     entranceSlotId: 'west_gate',
@@ -140,6 +144,76 @@ const settlementPresets: LayoutPreset[] = [
   },
 ];
 
-export const getLayoutPresets = (sectionKind: SectionKind): LayoutPreset[] => {
-  return (sectionKind === 'settlement' ? settlementPresets : explorationPresets).map(scalePreset);
+const settlementOpenPresets: LayoutPreset[] = [
+  {
+    layoutType: 'central_hub',
+    entranceSlotId: 'west_gate',
+    exitSlotIds: ['west_gate', 'north_gate', 'east_gate', 'south_gate'],
+    slots: [
+      { id: 'west_gate', x: 4, y: 42, width: 10, height: 14, tags: ['entry', 'exit', 'gate'] },
+      { id: 'north_gate', x: 46, y: 4, width: 12, height: 10, tags: ['exit', 'gate'] },
+      { id: 'watch', x: 14, y: 36, width: 12, height: 18, tags: ['service', 'street_edge'] },
+      { id: 'market_west', x: 18, y: 14, width: 16, height: 16, tags: ['service'] },
+      { id: 'market_center', x: 38, y: 12, width: 18, height: 18, tags: ['service'] },
+      { id: 'hall', x: 66, y: 16, width: 18, height: 18, tags: ['landmark', 'service'] },
+      { id: 'commons_west', x: 16, y: 50, width: 16, height: 16, tags: ['street_edge'] },
+      { id: 'plaza', x: 36, y: 34, width: 30, height: 30, tags: ['hub', 'landmark', 'courtyard'] },
+      { id: 'commons_east', x: 66, y: 50, width: 16, height: 16, tags: ['street_edge'] },
+      { id: 'residence_sw', x: 14, y: 72, width: 18, height: 16, tags: ['residence'] },
+      { id: 'residence_s', x: 42, y: 74, width: 16, height: 14, tags: ['residence'] },
+      { id: 'smith', x: 66, y: 72, width: 18, height: 16, tags: ['landmark', 'service'] },
+      { id: 'east_gate', x: 88, y: 42, width: 8, height: 14, tags: ['exit', 'gate'] },
+      { id: 'south_gate', x: 46, y: 90, width: 12, height: 8, tags: ['exit', 'gate'] },
+    ],
+    edges: [
+      ['west_gate', 'watch'],
+      ['watch', 'market_west'],
+      ['north_gate', 'market_center'],
+      ['market_west', 'plaza'],
+      ['market_center', 'plaza'],
+      ['hall', 'plaza'],
+      ['commons_west', 'plaza'],
+      ['commons_east', 'plaza'],
+      ['commons_west', 'residence_sw'],
+      ['plaza', 'residence_s'],
+      ['commons_east', 'smith'],
+      ['commons_east', 'east_gate'],
+      ['residence_s', 'south_gate'],
+    ],
+  },
+];
+
+const prefersOpenSettlementLayout = (
+  sectionProfile: ResolvedSectionProfile | undefined
+) => {
+  if (!sectionProfile) {
+    return false;
+  }
+
+  return (
+    sectionProfile.openSpaceRatio >= 0.5 ||
+    sectionProfile.corridorDensity <= 0.35 ||
+    sectionProfile.settlementPrimitivePreferenceIds.some((id) =>
+      ['courtyard_open', 'ring_room', 'circle_medium', 'circle_large'].includes(id)
+    )
+  );
+};
+
+export const getLayoutPresets = (
+  sectionKind: SectionKind,
+  sectionProfile?: ResolvedSectionProfile
+): LayoutPreset[] => {
+  if (sectionKind !== 'settlement') {
+    return explorationPresets.map(scalePreset);
+  }
+
+  if (!sectionProfile) {
+    return settlementDensePresets.map(scalePreset);
+  }
+
+  const orderedPresets = prefersOpenSettlementLayout(sectionProfile)
+    ? settlementOpenPresets
+    : settlementDensePresets;
+
+  return orderedPresets.map(scalePreset);
 };

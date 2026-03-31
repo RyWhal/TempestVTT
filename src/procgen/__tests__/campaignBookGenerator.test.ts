@@ -219,8 +219,18 @@ describe('campaignBookGenerator', () => {
     const npc: GeneratedNpcEntity = {
       id: 'npc_001',
       name: 'Mara',
+      speciesId: 'remnant_human',
+      speciesOrigin: 'remnant',
       roleId: 'innkeeper',
       roleName: 'Innkeeper',
+      category: 'civil',
+      tier: 'incidental',
+      settlementType: 'waystop',
+      biomeId: 'bone_gallery',
+      anchorTemplateId: 'commoner',
+      anchorTemplateName: 'Commoner',
+      modifierIds: ['ritual_marked'],
+      modifierNames: ['Ritual-Marked'],
       baselineBackstory: 'Keeps the only inn in town running through hard winters.',
       appearanceSummary: 'Looks like someone who has spent years reading trouble before it reaches the door.',
       personality: 'Measured and cautious',
@@ -233,6 +243,34 @@ describe('campaignBookGenerator', () => {
       currentDisposition: 'friendly',
       factionId: null,
       shopId: 'shop_001',
+      resolvedStats: {
+        ac: 10,
+        hp: 4,
+        hitDice: '1d8',
+        speed: 30,
+        abilities: {
+          str: 10,
+          dex: 10,
+          con: 10,
+          int: 10,
+          wis: 10,
+          cha: 10,
+        },
+        savingThrows: [],
+        skills: ['Insight', 'Persuasion'],
+        senses: ['passive_perception_10'],
+        languages: ['common'],
+        proficiencyBonus: 2,
+        cr: 0,
+      },
+      actions: [],
+      spellcasting: null,
+      equipment: ['room ledger', 'cellar keys'],
+      traits: ['steady'],
+      shortDescription:
+        'Mara is an Innkeeper based in a waystop near the bone gallery. They come across as cautious and are driven to protect the inn.',
+      portraitPrompt: 'Mara, a ritual-marked remnant Innkeeper from the bone gallery.',
+      gmNotes: 'Anchor: commoner · Tier: incidental · Modifiers: Ritual-Marked · Schema steps: 13',
     };
 
     const appearance: GeneratedNpcAppearance = {
@@ -374,6 +412,21 @@ describe('campaignBookGenerator', () => {
       expect(entry.body.toLowerCase()).not.toMatch(/\bis home to\b/);
       expectSuggestiveBody(entry.body);
     }
+
+    expect(
+      book.entries.some((entry) =>
+        /opening atmosphere that stays flexible for the gm|general section impression|pressure note tied to an encounter seed/i.test(
+          entry.summary ?? ''
+        )
+      )
+    ).toBe(true);
+    expect(
+      book.entries.some((entry) =>
+        /suggested through signs, sounds|environmental damage, leftovers|treated as a problem people plan around/i.test(
+          entry.body
+        )
+      )
+    ).toBe(true);
   });
 
   it('avoids repetitive npc profile phrasing in generated settlement prose', () => {

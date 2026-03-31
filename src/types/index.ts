@@ -4,6 +4,7 @@ import type {
   GeneratedCampaignBook,
   GeneratedSection,
   GeneratedSectionContent,
+  ResolvedSectionProfile,
   SectionContentRerollState,
   SectionKind,
   SectionRenderPayload,
@@ -573,8 +574,14 @@ export interface ProcgenSectionPreviewRecord {
   updatedAt: string;
 }
 
+export interface ProcgenSectionRenderPayloadCacheUpdate {
+  sectionRecordId: string;
+  renderPayloadCache: Record<string, unknown> | null;
+}
+
 export interface DungeonSectionGenerationState {
   generatedSection?: GeneratedSection;
+  sectionProfile?: ResolvedSectionProfile;
   generatedContent?: GeneratedSectionContent;
   generatedCampaignBook?: GeneratedCampaignBook;
   contentRerollState?: SectionContentRerollState;
@@ -588,6 +595,7 @@ export interface DungeonSectionGenerationState {
 
 export interface ProcgenSectionPreviewState {
   generatedSection?: GeneratedSection;
+  sectionProfile?: ResolvedSectionProfile;
   generatedContent?: GeneratedSectionContent;
   generatedCampaignBook?: GeneratedCampaignBook;
   contentRerollState?: SectionContentRerollState;

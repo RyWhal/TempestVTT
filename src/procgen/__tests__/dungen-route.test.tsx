@@ -10,8 +10,8 @@ vi.mock('../../hooks/useRealtime', () => ({
   useRealtime: () => undefined,
 }));
 
-describe('/DunGEN route', () => {
-  it('renders the DunGEN home shell', async () => {
+describe('route split', () => {
+  it('renders the new home chooser copy on /', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation((message?: unknown) => {
@@ -35,7 +35,7 @@ describe('/DunGEN route', () => {
     const { default: App } = await import('../../App');
 
     const html = renderToString(
-      <MemoryRouter initialEntries={['/DunGEN']}>
+      <MemoryRouter initialEntries={['/']}>
         <App />
       </MemoryRouter>
     );
@@ -43,7 +43,58 @@ describe('/DunGEN route', () => {
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
 
-    expect(html).toContain('DunGEN Campaigns');
-    expect(html).toContain('Create Campaign');
+    expect(html).toContain('Start Tempest Table');
+    expect(html).toContain('Start Endless Dungeon');
+    expect(html).toContain('Join a Table');
+  });
+
+  it('renders the public Tempest Table hub on /play when no session is active', async () => {
+    const { default: App } = await import('../../App');
+
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/play']}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(html).toContain('Tempest Table');
+    expect(html).toContain('Start a session');
+    expect(html).toContain('Join with code');
+  });
+
+  it('renders Endless Dungeon on /campaign', async () => {
+    const { default: App } = await import('../../App');
+
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/campaign']}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(html).toContain('Endless Dungeon');
+  });
+
+  it('redirects legacy DunGEN and create routes into the new public surfaces', async () => {
+    const { default: App } = await import('../../App');
+
+    const dungenHtml = renderToString(
+      <MemoryRouter initialEntries={['/DunGEN']}>
+        <App />
+      </MemoryRouter>
+    );
+    const createHtml = renderToString(
+      <MemoryRouter initialEntries={['/create']}>
+        <App />
+      </MemoryRouter>
+    );
+    const joinHtml = renderToString(
+      <MemoryRouter initialEntries={['/join']}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(dungenHtml).toContain('Endless Dungeon');
+    expect(createHtml).toContain('Create Session');
+    expect(joinHtml).toContain('Join Session');
   });
 });

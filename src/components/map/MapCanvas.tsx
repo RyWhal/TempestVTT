@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle, Group } from 'react-konva';
 import useImage from 'use-image';
 import {
   ZoomIn,
@@ -26,6 +26,23 @@ import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile }
 import { isDrawingColor } from '../../types';
 import { nanoid } from 'nanoid';
 import { normalizeSectionRenderPayload } from '../../procgen/integration/mapAdapter';
+import { resolveFloorAsset } from '../../procgen/render/floorAssetResolver';
+import type {
+  SectionBakedFloorChunk,
+  SectionBakedFloorTileSprite,
+  SectionBakedFloorTransitionOverlay,
+  SectionRenderRect,
+} from '../../procgen/types';
+import {
+  buildGeneratedImageCandidateUrls,
+  buildGeneratedGritClipRects,
+  buildGeneratedGritOverlayUrl,
+  shouldRenderGeneratedChunkTransitionOverlays,
+  shouldRenderGeneratedGritOverlay,
+  shouldRenderGeneratedLiveWallStamps,
+  shouldPreferGeneratedFloorTileSprites,
+} from './generatedFloorRender';
+import { buildGeneratedWallStamps } from './generatedWallRender';
 
 const TOKEN_SIZE_ORDER: TokenSize[] = [
   'tiny',
@@ -37,6 +54,152 @@ const TOKEN_SIZE_ORDER: TokenSize[] = [
 ];
 
 const GENERATED_FLOOR_OVERLAP_PX = 0.5;
+const EMPTY_FALLBACK_URLS: string[] = [];
+const IS_LOCAL_BROWSER_RUNTIME =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const generatedImageCache = new Map<string, HTMLImageElement | null>();
+const generatedImageInflight = new Map<string, Promise<HTMLImageElement | null>>();
+const GENERATED_MAP_GRIT_ENABLED = false;
+
+interface GeneratedImageDiagnosticEntry {
+  requestedUrl: string;
+  resolvedUrl: string;
+  status: 'loading' | 'loaded' | 'failed';
+  detail?: string;
+}
+
+declare global {
+  interface Window {
+    __tempestGeneratedImageDiagnostics?: Record<string, GeneratedImageDiagnosticEntry>;
+  }
+}
+
+const resolveGeneratedImageUrl = (url: string) => {
+  if (!IS_LOCAL_BROWSER_RUNTIME || !/^https?:\/\//.test(url)) {
+    return url;
+  }
+
+  return `${window.location.origin}/__r2_asset_proxy?url=${encodeURIComponent(url)}`;
+};
+
+const setGeneratedImageDiagnostic = (
+  requestedUrl: string,
+  resolvedUrl: string,
+  status: GeneratedImageDiagnosticEntry['status'],
+  detail?: string
+) => {
+  if (typeof window === 'undefined' || !IS_LOCAL_BROWSER_RUNTIME) {
+    return;
+  }
+
+  window.__tempestGeneratedImageDiagnostics = {
+    ...(window.__tempestGeneratedImageDiagnostics ?? {}),
+    [requestedUrl]: {
+      requestedUrl,
+      resolvedUrl,
+      status,
+      detail,
+    },
+  };
+};
+
+const loadGeneratedImage = (url: string): Promise<HTMLImageElement | null> => {
+  if (!url) {
+    return Promise.resolve(null);
+  }
+
+  if (generatedImageCache.has(url)) {
+    return Promise.resolve(generatedImageCache.get(url) ?? null);
+  }
+
+  const existingPromise = generatedImageInflight.get(url);
+  if (existingPromise) {
+    return existingPromise;
+  }
+
+  const promise = new Promise<HTMLImageElement | null>((resolve) => {
+    const image = new window.Image();
+    const resolvedUrl = resolveGeneratedImageUrl(url);
+
+    setGeneratedImageDiagnostic(url, resolvedUrl, 'loading');
+
+    image.onload = () => {
+      generatedImageCache.set(url, image);
+      generatedImageInflight.delete(url);
+      setGeneratedImageDiagnostic(url, resolvedUrl, 'loaded');
+      resolve(image);
+    };
+    image.onerror = () => {
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        console.warn('Generated image failed to load', {
+          requestedUrl: url.slice(0, 160),
+          resolvedUrl: resolvedUrl.slice(0, 160),
+        });
+      }
+      generatedImageCache.set(url, null);
+      generatedImageInflight.delete(url);
+      setGeneratedImageDiagnostic(url, resolvedUrl, 'failed', 'image decode failed');
+      resolve(null);
+    };
+
+    if (IS_LOCAL_BROWSER_RUNTIME) {
+      void fetch(resolvedUrl, { cache: 'no-store' })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+
+          image.onload = () => {
+            URL.revokeObjectURL(blobUrl);
+            generatedImageCache.set(url, image);
+            generatedImageInflight.delete(url);
+            setGeneratedImageDiagnostic(url, resolvedUrl, 'loaded');
+            resolve(image);
+          };
+          image.onerror = () => {
+            URL.revokeObjectURL(blobUrl);
+            generatedImageCache.set(url, null);
+            generatedImageInflight.delete(url);
+            setGeneratedImageDiagnostic(url, resolvedUrl, 'failed', 'image decode failed');
+            resolve(null);
+          };
+          image.src = blobUrl;
+        })
+        .catch((error) => {
+          if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+            console.warn('Generated image fetch failed', {
+              requestedUrl: url.slice(0, 160),
+              resolvedUrl: resolvedUrl.slice(0, 160),
+              message: error instanceof Error ? error.message : 'unknown error',
+            });
+          }
+          generatedImageCache.set(url, null);
+          generatedImageInflight.delete(url);
+          setGeneratedImageDiagnostic(
+            url,
+            resolvedUrl,
+            'failed',
+            error instanceof Error ? error.message : 'fetch failed'
+          );
+          resolve(null);
+        });
+      return;
+    }
+
+    if (/^(https?:)?\/\//.test(resolvedUrl)) {
+      image.crossOrigin = 'anonymous';
+    }
+
+    image.src = resolvedUrl;
+  });
+
+  generatedImageInflight.set(url, promise);
+  return promise;
+};
 
 const expandGeneratedFloorRect = <T extends { x: number; y: number; width: number; height: number }>(
   rect: T
@@ -47,6 +210,196 @@ const expandGeneratedFloorRect = <T extends { x: number; y: number; width: numbe
   width: rect.width + GENERATED_FLOOR_OVERLAP_PX * 2,
   height: rect.height + GENERATED_FLOOR_OVERLAP_PX * 2,
 });
+
+  const useGeneratedFloorImage = (assetUrl: string | null, fallbackUrls: string[]) => {
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const fallbackUrlsKey = fallbackUrls.join('\u0001');
+
+  useEffect(() => {
+    let cancelled = false;
+    const candidateUrls = buildGeneratedImageCandidateUrls(assetUrl, fallbackUrls);
+
+    if (candidateUrls.length === 0) {
+      setImage(null);
+      return;
+    }
+
+    const cachedImage = candidateUrls
+      .map((url) => generatedImageCache.get(url))
+      .find((entry): entry is HTMLImageElement => entry instanceof window.Image);
+
+    if (cachedImage) {
+      setImage(cachedImage);
+      return;
+    }
+
+    setImage(null);
+
+    const tryLoad = async (index: number): Promise<void> => {
+      if (cancelled) {
+        return;
+      }
+
+      const nextUrl = candidateUrls[index];
+
+      if (!nextUrl) {
+        setImage(null);
+        return;
+      }
+
+      const loadedImage = await loadGeneratedImage(nextUrl);
+      if (cancelled) {
+        return;
+      }
+
+      if (loadedImage) {
+        setImage(loadedImage);
+        return;
+      }
+
+      await tryLoad(index + 1);
+    };
+
+    void tryLoad(0);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assetUrl, fallbackUrlsKey]);
+
+  return image;
+};
+
+const GeneratedFloorRectNode: React.FC<{
+  floor: SectionRenderRect;
+  tileSizePx: number;
+}> = ({ floor, tileSizePx }) => {
+  const asset = useMemo(
+    () =>
+      resolveFloorAsset({
+        materialKey: floor.materialKey,
+      }),
+    [floor.materialKey]
+  );
+  const image = useGeneratedFloorImage(asset.assetUrl, asset.fallbackUrls);
+  const expandedRect = expandGeneratedFloorRect(floor);
+  const fillPatternScale =
+    image && image.width > 0 && image.height > 0
+      ? {
+          x: tileSizePx / image.width,
+          y: tileSizePx / image.height,
+        }
+      : undefined;
+
+  return (
+    <Rect
+      key={floor.id}
+      {...expandedRect}
+      fill={image ? undefined : floor.fill}
+      fillPatternImage={image ?? undefined}
+      fillPatternRepeat="repeat"
+      fillPatternScale={fillPatternScale}
+      stroke={floor.stroke}
+      strokeWidth={floor.strokeWidth}
+      perfectDrawEnabled={false}
+      name="background"
+    />
+  );
+};
+
+const GeneratedFloorChunkNode: React.FC<{
+  chunk: SectionBakedFloorChunk;
+  tileSizePx: number;
+  tileResolutionPx: number;
+  floorCellsPerChunk: number;
+}> = ({ chunk, tileSizePx, tileResolutionPx, floorCellsPerChunk }) => {
+  const image = useGeneratedFloorImage(chunk.imageUrl, EMPTY_FALLBACK_URLS);
+  const displayScale = tileSizePx / tileResolutionPx;
+
+  return (
+    <KonvaImage
+      image={image ?? undefined}
+      x={chunk.chunkX * floorCellsPerChunk * tileSizePx}
+      y={chunk.chunkY * floorCellsPerChunk * tileSizePx}
+      width={chunk.widthPx * displayScale}
+      height={chunk.heightPx * displayScale}
+      listening={false}
+    />
+  );
+};
+
+const GeneratedFloorTileSpriteNode: React.FC<{
+  chunk: SectionBakedFloorChunk;
+  sprite: SectionBakedFloorTileSprite;
+  tileSizePx: number;
+  tileResolutionPx: number;
+  floorCellsPerChunk: number;
+}> = ({ chunk, sprite, tileSizePx, tileResolutionPx, floorCellsPerChunk }) => {
+  const image = useGeneratedFloorImage(
+    sprite.assetUrl,
+    sprite.fallbackAssetUrls ?? EMPTY_FALLBACK_URLS
+  );
+  const displayScale = tileSizePx / tileResolutionPx;
+  const chunkDisplayX = chunk.chunkX * floorCellsPerChunk * tileSizePx;
+  const chunkDisplayY = chunk.chunkY * floorCellsPerChunk * tileSizePx;
+  const displayX = chunkDisplayX + sprite.x * displayScale;
+  const displayY = chunkDisplayY + sprite.y * displayScale;
+  const displayWidth = sprite.widthPx * displayScale;
+  const displayHeight = sprite.heightPx * displayScale;
+  const centerX = displayX + displayWidth / 2;
+  const centerY = displayY + displayHeight / 2;
+
+  return (
+    <>
+      {!image ? (
+        <Rect
+          x={displayX}
+          y={displayY}
+          width={displayWidth}
+          height={displayHeight}
+          fill={IS_LOCAL_BROWSER_RUNTIME ? 'rgba(255, 0, 128, 0.55)' : '#6b7280'}
+          listening={false}
+        />
+      ) : null}
+      <KonvaImage
+        image={image ?? undefined}
+        x={centerX}
+        y={centerY}
+        width={displayWidth}
+        height={displayHeight}
+        rotation={sprite.rotationDegrees}
+        scaleX={sprite.flipHorizontal ? -1 : 1}
+        scaleY={sprite.flipVertical ? -1 : 1}
+        offsetX={displayWidth / 2}
+        offsetY={displayHeight / 2}
+        listening={false}
+      />
+    </>
+  );
+};
+
+const GeneratedFloorTransitionOverlayNode: React.FC<{
+  chunk: SectionBakedFloorChunk;
+  overlay: SectionBakedFloorTransitionOverlay;
+  tileSizePx: number;
+  tileResolutionPx: number;
+  floorCellsPerChunk: number;
+}> = ({ chunk, overlay, tileSizePx, tileResolutionPx, floorCellsPerChunk }) => {
+  const displayScale = tileSizePx / tileResolutionPx;
+  const chunkDisplayX = chunk.chunkX * floorCellsPerChunk * tileSizePx;
+  const chunkDisplayY = chunk.chunkY * floorCellsPerChunk * tileSizePx;
+
+  return (
+  <Rect
+    x={chunkDisplayX + overlay.x * displayScale}
+    y={chunkDisplayY + overlay.y * displayScale}
+    width={overlay.widthPx * displayScale}
+    height={overlay.heightPx * displayScale}
+    fill={overlay.fill}
+    listening={false}
+  />
+  );
+};
 
 export const MapCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -113,6 +466,12 @@ export const MapCanvas: React.FC = () => {
   const [selectedTokenKeys, setSelectedTokenKeys] = useState<string[]>([]);
   const [groupDragStartPositions, setGroupDragStartPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [effectPulse, setEffectPulse] = useState(0);
+  const bakedFloorLayer =
+    generatedRenderPayload?.bakedFloor &&
+    generatedRenderPayload.bakedFloor.status === 'complete' &&
+    generatedRenderPayload.bakedFloor.chunks.length > 0
+      ? generatedRenderPayload.bakedFloor
+      : null;
 
   const syncStageSize = useCallback(() => {
     if (!containerRef.current) return;
@@ -750,6 +1109,40 @@ export const MapCanvas: React.FC = () => {
     requestAnimationFrame(() => fitMapToView());
   };
 
+const GeneratedMapGritOverlay = ({
+  mapId,
+  width,
+  height,
+  floors,
+}: {
+  mapId: string;
+  width: number;
+  height: number;
+  floors: Array<{ x: number; y: number; width: number; height: number }>;
+}) => {
+  const gritUrl = buildGeneratedGritOverlayUrl(mapId);
+  const clipRects = useMemo(() => buildGeneratedGritClipRects(floors), [floors]);
+  const [gritImage] = useImage(gritUrl);
+
+  if (!gritImage || clipRects.length === 0) {
+    return null;
+  }
+
+  return (
+    <Group
+      listening={false}
+      clipFunc={(ctx) => {
+        ctx.beginPath();
+        for (const rect of clipRects) {
+          ctx.rect(rect.x, rect.y, rect.width, rect.height);
+        }
+      }}
+    >
+      <KonvaImage image={gritImage} x={0} y={0} width={width} height={height} listening={false} />
+    </Group>
+  );
+};
+
   // Pan controls
   const panStep = 100;
   const handlePanUp = () => panBy(0, panStep);
@@ -818,17 +1211,78 @@ export const MapCanvas: React.FC = () => {
                     fill={generatedRenderPayload.backgroundColor}
                     name="background"
                   />
-                  {generatedRenderPayload.floors.map((floor) => (
-                    <Rect
-                      key={floor.id}
-                      {...expandGeneratedFloorRect(floor)}
-                      fill={floor.fill}
-                      stroke={floor.stroke}
-                      strokeWidth={floor.strokeWidth}
-                      perfectDrawEnabled={false}
-                      name="background"
+                  {!bakedFloorLayer
+                    ? generatedRenderPayload.floors.map((floor) => (
+                        <GeneratedFloorRectNode
+                          key={floor.id}
+                          floor={floor}
+                          tileSizePx={generatedRenderPayload.tileSizePx}
+                        />
+                      ))
+                    : null}
+                  {bakedFloorLayer
+                    ? bakedFloorLayer.chunks.flatMap((chunk) => {
+                        const chunkImageState =
+                          chunk.imageUrl.length > 0 && generatedImageCache.has(chunk.imageUrl)
+                            ? generatedImageCache.get(chunk.imageUrl)
+                            : undefined;
+                        const chunkImageFailed = chunk.imageUrl.length > 0 && chunkImageState === null;
+                        const preferTileSprites = shouldPreferGeneratedFloorTileSprites({
+                          isLocalBrowserRuntime: IS_LOCAL_BROWSER_RUNTIME,
+                          chunkImageFailed,
+                          hasTileSprites:
+                            Array.isArray(chunk.tileSprites) && chunk.tileSprites.length > 0,
+                        });
+
+                        return [
+                          ...(chunkImageFailed || preferTileSprites
+                            ? (chunk.tileSprites ?? []).map((sprite, index) => (
+                                <GeneratedFloorTileSpriteNode
+                                  key={`${chunk.chunkX}:${chunk.chunkY}:tile:${sprite.assetId}:${index}`}
+                                  chunk={chunk}
+                                  sprite={sprite}
+                                  tileSizePx={generatedRenderPayload.tileSizePx}
+                                  tileResolutionPx={bakedFloorLayer.tileResolutionPx}
+                                  floorCellsPerChunk={bakedFloorLayer.floorCellsPerChunk}
+                                />
+                              ))
+                            : [
+                                <GeneratedFloorChunkNode
+                                  key={`${chunk.chunkX}:${chunk.chunkY}:${chunk.imageUrl}`}
+                                  chunk={chunk}
+                                  tileSizePx={generatedRenderPayload.tileSizePx}
+                                  tileResolutionPx={bakedFloorLayer.tileResolutionPx}
+                                  floorCellsPerChunk={bakedFloorLayer.floorCellsPerChunk}
+                                />,
+                              ]),
+                          ...(shouldRenderGeneratedChunkTransitionOverlays({
+                            hasBakedFloorLayer: true,
+                          })
+                            ? (chunk.transitionOverlays ?? []).map((overlay) => (
+                                <GeneratedFloorTransitionOverlayNode
+                                  key={`${chunk.chunkX}:${chunk.chunkY}:transition:${overlay.id}`}
+                                  chunk={chunk}
+                                  overlay={overlay}
+                                  tileSizePx={generatedRenderPayload.tileSizePx}
+                                  tileResolutionPx={bakedFloorLayer.tileResolutionPx}
+                                  floorCellsPerChunk={bakedFloorLayer.floorCellsPerChunk}
+                                />
+                              ))
+                            : []),
+                        ];
+                      })
+                    : null}
+                  {shouldRenderGeneratedGritOverlay({
+                    gritEnabled: GENERATED_MAP_GRIT_ENABLED,
+                    floorCount: generatedRenderPayload.floors.length,
+                  }) ? (
+                    <GeneratedMapGritOverlay
+                      mapId={activeMap.id}
+                      width={generatedRenderPayload.width}
+                      height={generatedRenderPayload.height}
+                      floors={generatedRenderPayload.floors}
                     />
-                  ))}
+                  ) : null}
                   {generatedRenderPayload.hazards?.map((hazard) => (
                     <Rect
                       key={hazard.id}
@@ -854,15 +1308,26 @@ export const MapCanvas: React.FC = () => {
                       listening={false}
                     />
                   ))}
-                  {generatedRenderPayload.walls.map((wall) => (
-                    <Line
-                      key={wall.id}
-                      points={wall.points}
-                      stroke={wall.stroke}
-                      strokeWidth={wall.strokeWidth}
-                      listening={false}
-                    />
-                  ))}
+                  {shouldRenderGeneratedLiveWallStamps({
+                    hasBakedFloorLayer: Boolean(bakedFloorLayer),
+                  })
+                    ? generatedRenderPayload.walls.flatMap((wall) =>
+                        buildGeneratedWallStamps(wall).map((stamp) => (
+                          <Rect
+                            key={stamp.id}
+                            x={stamp.x}
+                            y={stamp.y}
+                            width={stamp.size}
+                            height={stamp.size}
+                            offsetX={stamp.size / 2}
+                            offsetY={stamp.size / 2}
+                            rotation={stamp.rotation}
+                            fill={stamp.fill}
+                            listening={false}
+                          />
+                        ))
+                      )
+                    : null}
                   {generatedRenderPayload.doors?.map((door) => (
                     <Line
                       key={door.id}

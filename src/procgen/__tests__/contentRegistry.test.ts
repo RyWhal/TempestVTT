@@ -2,6 +2,46 @@ import { describe, expect, it } from 'vitest';
 import { contentRegistry } from '../content/contentRegistry';
 
 describe('contentRegistry', () => {
+  it('loads biome generation profiles from the new biome_generation_profiles.json pack', () => {
+    const pack = contentRegistry.loadPack('biome_generation_profiles');
+
+    expect(pack.entries.length).toBeGreaterThan(0);
+    expect(pack.entries.some((entry) => entry.id === 'bone_gallery')).toBe(true);
+  });
+
+  it('loads settlement generation profiles from the new settlement_generation_profiles.json pack', () => {
+    const pack = contentRegistry.loadPack('settlement_generation_profiles');
+
+    expect(pack.entries.length).toBeGreaterThan(0);
+    expect(pack.entries.some((entry) => entry.id === 'waystop')).toBe(true);
+  });
+
+  it('loads floor material profiles from the new floor_material_profiles.json pack', () => {
+    const pack = contentRegistry.loadPack('floor_material_profiles');
+
+    expect(pack.entries.length).toBeGreaterThan(0);
+    expect(pack.entries.some((entry) => entry.id === 'cobblestone')).toBe(true);
+  });
+
+  it('loads floor transition profiles from the new floor_transition_profiles.json pack', () => {
+    const pack = contentRegistry.loadPack('floor_transition_profiles');
+
+    expect(pack.entries.length).toBeGreaterThan(0);
+    expect(pack.entries.some((entry) => entry.id === 'ice_to_stone')).toBe(true);
+  });
+
+  it('keeps floor transition fallback keys aligned with real floor material ids', () => {
+    const materialPack = contentRegistry.loadPack('floor_material_profiles');
+    const transitionPack = contentRegistry.loadPack('floor_transition_profiles');
+    const materialIds = new Set(materialPack.entries.map((entry) => entry.id));
+
+    for (const entry of transitionPack.entries) {
+      expect(materialIds.has(String(entry.from_material_key))).toBe(true);
+      expect(materialIds.has(String(entry.to_material_key))).toBe(true);
+      expect(materialIds.has(String(entry.fallback_material_key))).toBe(true);
+    }
+  });
+
   it('loads creature families from the aliased creatures.json pack', () => {
     const pack = contentRegistry.loadPack('creature_families');
 
@@ -42,11 +82,15 @@ describe('contentRegistry', () => {
     const encounterTemplates = contentRegistry.loadPack('encounter_templates');
     const rumorFragments = contentRegistry.loadPack('rumor_fragments');
     const hookFragments = contentRegistry.loadPack('hook_fragments');
+    const sectionNarrative = contentRegistry.loadPack('section_narrative_fragments');
+    const creatureBook = contentRegistry.loadPack('creature_book_fragments');
 
     expect(shopFlavor.descriptions.some((entry) => entry.id === 'merchant_waystop_description')).toBe(true);
     expect(encounterTemplates.encounterTemplates.some((entry) => entry.id === 'settlement_gate_tension')).toBe(true);
     expect(rumorFragments.rumorFragments.some((entry) => entry.id === 'settlement_problem_rumor')).toBe(true);
     expect(hookFragments.hookFragments.some((entry) => entry.id === 'hook_from_npc')).toBe(true);
+    expect(sectionNarrative.sectionNarrativeFragments.some((entry) => entry.id === 'intro_settlement_watchful')).toBe(true);
+    expect(creatureBook.creatureBookFragments.some((entry) => entry.id === 'creature_seed_pressure')).toBe(true);
   });
 
   it('returns a typed empty pack for optional content that does not exist yet', () => {

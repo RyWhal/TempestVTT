@@ -167,8 +167,9 @@ describe('npcEntityGenerator', () => {
 
     expect(content.settlementArchetypeId).toBeNull();
     expect(content.settlementArchetypeName).toBeNull();
-    expect(content.npcEntities).toEqual([]);
-    expect(content.npcAppearances).toEqual([]);
+    expect(content.npcEntities.length).toBeGreaterThan(0);
+    expect(content.npcAppearances.length).toBe(content.npcEntities.length);
+    expect(content.npcs.length).toBe(content.npcEntities.length);
   });
 
   it('sources npc physical and roleplay flavor from content packs instead of generic hardcoded prose', () => {
@@ -198,5 +199,73 @@ describe('npcEntityGenerator', () => {
     expect(innkeeperAppearance?.needs[0]?.toLowerCase()).toContain('common room');
     expect(innkeeperAppearance?.offers[0]?.toLowerCase()).toMatch(/shelter|quiet table|gossip/);
     expect(innkeeperAppearance?.knows[0]?.toLowerCase()).toContain('voices');
+  });
+
+  it('resolves anchor templates, tiers, modifiers, and schema-backed output for generated npcs', () => {
+    const section = generateSection({
+      worldSeed: 'starter_hub_seed',
+      sectionId: 'section_hometown',
+      sectionKind: 'settlement',
+    });
+
+    const content = generateSectionContent({
+      section,
+      sectionName: 'Hometown',
+      settlementArchetypeId: 'waystop',
+    });
+
+    const innkeeper = content.npcEntities.find((npc) => npc.roleId === 'innkeeper');
+    const guide = content.npcEntities.find((npc) => npc.roleId === 'guide');
+    const watchman = content.npcEntities.find((npc) => npc.roleId === 'watchman');
+
+    expect(innkeeper).toMatchObject({
+      anchorTemplateId: 'commoner',
+      anchorTemplateName: 'Commoner',
+      tier: 'incidental',
+      settlementType: 'waystop',
+      biomeId: section.primaryBiomeId,
+      category: 'civil',
+      modifierIds: expect.any(Array),
+      modifierNames: expect.any(Array),
+      resolvedStats: {
+        ac: expect.any(Number),
+        hp: expect.any(Number),
+        hitDice: expect.any(String),
+        speed: expect.any(Number),
+        abilities: {
+          str: expect.any(Number),
+          dex: expect.any(Number),
+          con: expect.any(Number),
+          int: expect.any(Number),
+          wis: expect.any(Number),
+          cha: expect.any(Number),
+        },
+        skills: expect.any(Array),
+        proficiencyBonus: expect.any(Number),
+        cr: expect.any(Number),
+      },
+      actions: expect.any(Array),
+      equipment: expect.any(Array),
+      traits: expect.any(Array),
+      shortDescription: expect.any(String),
+      portraitPrompt: expect.any(String),
+      gmNotes: expect.any(String),
+    });
+
+    expect(guide?.anchorTemplateId).toBe('scout');
+    expect(guide?.tier).toBe('capable');
+    expect(guide?.resolvedStats.skills).toEqual(expect.arrayContaining(['Survival']));
+    expect(guide?.equipment.join(' ').toLowerCase()).toMatch(/chalk|rope|lantern|route markers/);
+
+    expect(watchman?.anchorTemplateId).toBe('guard');
+    expect(watchman?.tier).toBe('capable');
+    expect(watchman?.resolvedStats.ac).toBeGreaterThanOrEqual(16);
+    expect(watchman?.actions.length).toBeGreaterThan(0);
+
+    expect(innkeeper?.modifierIds.length).toBeGreaterThan(0);
+    expect(innkeeper?.modifierNames.length).toBe(innkeeper?.modifierIds.length);
+    expect(innkeeper?.portraitPrompt).toContain(innkeeper?.name ?? '');
+    expect(innkeeper?.shortDescription).toContain(innkeeper?.roleName ?? '');
+    expect(innkeeper?.gmNotes.toLowerCase()).toContain('anchor');
   });
 });

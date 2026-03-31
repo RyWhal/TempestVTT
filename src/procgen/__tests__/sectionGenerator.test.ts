@@ -3,6 +3,7 @@ import { generateSection } from '../engine/sectionGenerator';
 import { getLayoutPresets } from '../engine/layoutPresets';
 import { getRoomCells, getOuterBoundarySpans } from '../geometry/roomGeometry';
 import { contentRegistry } from '../content/contentRegistry';
+import type { ResolvedSectionProfile } from '../types';
 
 const computeOccupiedArea = (
   rooms: Array<{ bounds: { x: number; y: number; width: number; height: number } }>
@@ -66,6 +67,28 @@ const collectReachableRoomIds = (
   return visited;
 };
 
+const createSectionProfile = (
+  overrides: Partial<ResolvedSectionProfile> = {}
+): ResolvedSectionProfile => ({
+  seed: 'profile_seed',
+  coordinates: { x: 3, y: 1 },
+  graphDepth: 4,
+  sectionKind: 'settlement',
+  biomeProfileId: 'garden_hold',
+  settlementProfileId: 'garden_hold',
+  livabilityScore: 0.91,
+  defaultFloorMaterialKey: 'wood_planks',
+  roomPrimitiveDensity: 0.44,
+  corridorDensity: 0.48,
+  junctionDensity: 0.12,
+  openSpaceRatio: 0.64,
+  landmarkFrequency: 0.2,
+  allowedRoomPrimitiveIds: ['rectangle_medium', 'circle_large'],
+  allowedCorridorPrimitiveIds: ['rectangle_short'],
+  settlementPrimitivePreferenceIds: ['circle_large', 'square_large'],
+  ...overrides,
+});
+
 describe('generateSection', () => {
   it('returns the same section for the same seed and section id', () => {
     const first = generateSection({
@@ -93,6 +116,58 @@ describe('generateSection', () => {
     });
 
     expect(second).not.toEqual(first);
+  });
+
+  it('threads resolved section profile data into the generated section output', () => {
+    const sectionProfile = createSectionProfile();
+
+    const section = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_profiled_001',
+      sectionProfile,
+    });
+
+    expect(section.sectionKind).toBe('settlement');
+    expect(section.primaryBiomeId).toBe('garden_hold');
+    expect(section.defaultFloorMaterialKey).toBe('wood_planks');
+    expect(section.sectionProfile).toEqual(sectionProfile);
+  });
+
+  it('uses open settlement profiles to favor plaza-style layouts over corridor-heavy ones', () => {
+    const openSettlement = createSectionProfile({
+      roomPrimitiveDensity: 0.34,
+      corridorDensity: 0.22,
+      junctionDensity: 0.08,
+      openSpaceRatio: 0.72,
+      allowedRoomPrimitiveIds: ['circle_medium', 'courtyard_open', 'ring_room'],
+      settlementPrimitivePreferenceIds: ['courtyard_open', 'ring_room', 'circle_medium'],
+    });
+    const denseSettlement = createSectionProfile({
+      roomPrimitiveDensity: 0.8,
+      corridorDensity: 0.74,
+      junctionDensity: 0.28,
+      openSpaceRatio: 0.12,
+      allowedRoomPrimitiveIds: ['rectangle_medium', 'rectangle_long', 'square_large', 't_shape'],
+      settlementPrimitivePreferenceIds: ['rectangle_long', 't_shape'],
+    });
+
+    const openSection = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_settlement_profiled',
+      sectionProfile: openSettlement,
+    });
+    const denseSection = generateSection({
+      worldSeed: 'world_ironbell_042',
+      sectionId: 'section_settlement_profiled',
+      sectionProfile: denseSettlement,
+    });
+
+    expect(openSection.connectors.length).toBeLessThan(denseSection.connectors.length);
+    expect(
+      openSection.rooms.some((room) =>
+        ['circle_medium', 'courtyard_open', 'ring_room'].includes(room.primitiveId)
+      )
+    ).toBe(true);
   });
 
   it('keeps ordinary exploration sections sparse and readable', () => {

@@ -136,6 +136,12 @@ export const normalizeContentPack = <K extends ProcgenContentPackId>(
         biomes: expectIdentifiedArray(record.biomes, packId, 'biomes'),
       } as ProcgenContentPackMap[K];
     }
+    case 'biome_generation_profiles': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        entries: expectIdentifiedArray(record.entries, packId, 'entries'),
+      } as ProcgenContentPackMap[K];
+    }
     case 'creature_families': {
       const record = expectObjectRecord(rawData, packId);
       return {
@@ -148,6 +154,12 @@ export const normalizeContentPack = <K extends ProcgenContentPackId>(
         creatureVariants: expectIdentifiedArray(record.creature_variants, packId, 'creature_variants'),
       } as ProcgenContentPackMap[K];
     }
+    case 'creature_anchor_templates': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        creatureAnchorTemplates: expectIdentifiedArray(record.entries, packId, 'entries'),
+      } as ProcgenContentPackMap[K];
+    }
     case 'encounter_templates': {
       const record = expectObjectRecord(rawData, packId);
       return {
@@ -158,6 +170,12 @@ export const normalizeContentPack = <K extends ProcgenContentPackId>(
       const record = expectObjectRecord(rawData, packId);
       return {
         hookFragments: expectNormalizedEntries(record.entries, packId),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'creature_book_fragments': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        creatureBookFragments: expectNormalizedEntries(record.entries, packId),
       } as ProcgenContentPackMap[K];
     }
     case 'name_phonemes': {
@@ -250,6 +268,12 @@ export const normalizeContentPack = <K extends ProcgenContentPackId>(
         rumorFragments: expectNormalizedEntries(record.entries, packId),
       } as ProcgenContentPackMap[K];
     }
+    case 'section_narrative_fragments': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        sectionNarrativeFragments: expectNormalizedEntries(record.entries, packId),
+      } as ProcgenContentPackMap[K];
+    }
     case 'shop_flavor_fragments': {
       const record = expectObjectRecord(rawData, packId);
       const entries = expectNormalizedEntries(record.entries, packId);
@@ -285,6 +309,24 @@ export const normalizeContentPack = <K extends ProcgenContentPackId>(
       return normalizeRoomTypeLibrary(rawData) as ProcgenContentPackMap[K];
     case 'shop_types':
       return normalizeShopTypes(rawData) as ProcgenContentPackMap[K];
+    case 'settlement_generation_profiles': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        entries: expectIdentifiedArray(record.entries, packId, 'entries'),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'floor_material_profiles': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        entries: expectIdentifiedArray(record.entries, packId, 'entries'),
+      } as ProcgenContentPackMap[K];
+    }
+    case 'floor_transition_profiles': {
+      const record = expectObjectRecord(rawData, packId);
+      return {
+        entries: expectIdentifiedArray(record.entries, packId, 'entries'),
+      } as ProcgenContentPackMap[K];
+    }
     default: {
       const unsupportedPackId: never = packId;
       throw new Error(`Unsupported content pack: ${unsupportedPackId}`);

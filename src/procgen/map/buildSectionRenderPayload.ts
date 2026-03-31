@@ -8,6 +8,8 @@ import {
   type CellKey,
 } from '../geometry/roomGeometry';
 import type {
+  FloorMaterialProfile,
+  FloorTransitionProfile,
   GeneratedSection,
   GeneratedSectionConnector,
   GeneratedSectionRoom,
@@ -21,13 +23,86 @@ const DEFAULT_TILE_SIZE_PX = 28;
 const WALL_STROKE = '#17110b';
 const WALL_STROKE_WIDTH = 6;
 const WALL_MATERIAL_KEY = 'stone_wall';
+const DEFAULT_FLOOR_MATERIAL_KEY = 'dungeon_stone';
+
+const floorMaterialProfiles = contentRegistry.loadPack('floor_material_profiles').entries;
+const floorTransitionProfiles = contentRegistry.loadPack('floor_transition_profiles').entries;
+const floorMaterialById = new Map(floorMaterialProfiles.map((profile) => [profile.id, profile] as const));
+const floorTransitionByPair = new Map(
+  floorTransitionProfiles.flatMap((profile) => [
+    [`${profile.from_material_key}::${profile.to_material_key}`, profile] as const,
+    [`${profile.to_material_key}::${profile.from_material_key}`, profile] as const,
+  ])
+);
+
+const resolveFloorMaterialProfile = (
+  materialKey: string | undefined,
+  visited = new Set<string>()
+): FloorMaterialProfile => {
+  const requestedKey = materialKey ?? DEFAULT_FLOOR_MATERIAL_KEY;
+  const profile = floorMaterialById.get(requestedKey);
+
+  if (profile) {
+    return profile;
+  }
+
+  if (visited.has(requestedKey)) {
+    return floorMaterialById.get(DEFAULT_FLOOR_MATERIAL_KEY) ?? floorMaterialProfiles[0];
+  }
+
+  visited.add(requestedKey);
+  return resolveFloorMaterialProfile(DEFAULT_FLOOR_MATERIAL_KEY, visited);
+};
+
+const resolveFloorTransitionProfile = (
+  fromMaterialKey: string,
+  toMaterialKey: string
+): FloorTransitionProfile | null =>
+  floorTransitionByPair.get(`${fromMaterialKey}::${toMaterialKey}`) ?? null;
+
+const getSectionDefaultMaterialProfile = (section: GeneratedSection) =>
+  resolveFloorMaterialProfile(section.defaultFloorMaterialKey);
+
+const getSectionAlternateMaterialProfile = (
+  section: GeneratedSection,
+  preferredMaterialKeys: string[]
+) => {
+  for (const materialKey of preferredMaterialKeys) {
+    const profile = floorMaterialById.get(materialKey);
+    if (profile && profile.id !== getSectionDefaultMaterialProfile(section).id) {
+      return profile;
+    }
+  }
+
+  return getSectionDefaultMaterialProfile(section);
+};
+
+const getSettlementConnectorMaterialProfile = (section: GeneratedSection) => {
+  const defaultProfile = getSectionDefaultMaterialProfile(section);
+
+  if (defaultProfile.id === 'wood_planks') {
+    return resolveFloorMaterialProfile('messy_stone');
+  }
+  if (defaultProfile.id === 'carpet_red') {
+    return resolveFloorMaterialProfile('dungeon_stone');
+  }
+  if (defaultProfile.id === 'ice_floor') {
+    return resolveFloorMaterialProfile('dungeon_stone');
+  }
+  if (defaultProfile.id === 'dungeon_stone') {
+    return resolveFloorMaterialProfile('cobblestone');
+  }
+
+  return resolveFloorMaterialProfile('dungeon_stone');
+};
 
 const cellsToFloorRects = ({
   cells,
   tileSizePx,
   fill,
   regionType,
-  materialKey,
+  materialProfile,
+  transitionMaterialKey,
   sourceRoomId,
   sourceConnectorId,
 }: {
@@ -35,7 +110,8 @@ const cellsToFloorRects = ({
   tileSizePx: number;
   fill: string;
   regionType: 'room' | 'connector' | 'courtyard' | 'street';
-  materialKey: string;
+  materialProfile: FloorMaterialProfile;
+  transitionMaterialKey?: string;
   sourceRoomId?: string;
   sourceConnectorId?: string;
 }): SectionRenderRect[] => {
@@ -101,31 +177,36 @@ const cellsToFloorRects = ({
     height: rect.height * tileSizePx,
     fill,
     regionType,
-    materialKey,
+    materialKey: materialProfile.id,
+    materialCategory: materialProfile.category,
+    transitionMaterialKey,
     sourceRoomId,
     sourceConnectorId,
   }));
 };
 
-const getRoomMaterialKey = (room: GeneratedSectionRoom, section: GeneratedSection) => {
+const getRoomMaterialProfile = (room: GeneratedSectionRoom, section: GeneratedSection) => {
+  const defaultProfile = getSectionDefaultMaterialProfile(section);
+
   if (section.sectionKind === 'settlement') {
     if (room.tags.includes('courtyard') || room.tags.includes('hub')) {
-      return 'settlement_courtyard_flagstone';
-    }
-    if (room.tags.includes('service')) {
-      return 'settlement_service_floor';
-    }
-    if (room.tags.includes('residence')) {
-      return 'settlement_residence_floor';
+      return getSettlementConnectorMaterialProfile(section);
     }
     if (room.tags.includes('landmark')) {
-      return 'settlement_landmark_floor';
+      const transitionToCarpet = resolveFloorTransitionProfile(defaultProfile.id, 'carpet_red');
+      if (transitionToCarpet) {
+        return resolveFloorMaterialProfile('carpet_red');
+      }
     }
 
-    return 'settlement_room_floor';
+    return defaultProfile;
   }
 
-  return room.tags.includes('landmark') ? 'dungeon_landmark_floor' : 'dungeon_room_floor';
+  if (room.tags.includes('landmark')) {
+    return getSectionAlternateMaterialProfile(section, ['carpet_red', 'dungeon_stone', 'messy_stone']);
+  }
+
+  return defaultProfile;
 };
 
 const getRoomFill = (room: GeneratedSectionRoom, section: GeneratedSection) => {
@@ -163,23 +244,38 @@ const connectorToFloorRects = (
   connector: GeneratedSectionConnector,
   tileSizePx: number,
   section: GeneratedSection
-): SectionRenderRect[] =>
-  cellsToFloorRects({
+): SectionRenderRect[] => {
+  const connectorMaterialProfile =
+    section.sectionKind === 'settlement'
+      ? getSettlementConnectorMaterialProfile(section)
+      : getSectionDefaultMaterialProfile(section);
+  const defaultProfile = getSectionDefaultMaterialProfile(section);
+  const transitionProfile = resolveFloorTransitionProfile(
+    connectorMaterialProfile.id,
+    defaultProfile.id
+  );
+
+  return cellsToFloorRects({
     cells: getConnectorCells(connector),
     tileSizePx,
     fill: section.sectionKind === 'settlement' ? '#4d453c' : '#544635',
     regionType: section.sectionKind === 'settlement' ? 'street' : 'connector',
-    materialKey:
-      section.sectionKind === 'settlement'
-        ? 'settlement_street_flagstone'
-        : 'dungeon_corridor_floor',
+    materialProfile: connectorMaterialProfile,
+    transitionMaterialKey: transitionProfile?.id,
     sourceConnectorId: connector.connectorId,
   });
+};
 
 const mergeWallRuns = (
   buckets: Map<number, Array<{ start: number; end: number }>>,
   orientation: 'horizontal' | 'vertical',
-  tileSizePx: number
+  tileSizePx: number,
+  source: {
+    idPrefix: string;
+    sourceRoomId?: string;
+    sourceConnectorId?: string;
+    biomeId?: string;
+  }
 ): SectionRenderLine[] => {
   const lines: SectionRenderLine[] = [];
 
@@ -195,7 +291,7 @@ const mergeWallRuns = (
       }
 
       lines.push({
-        id: `wall_${orientation}_${fixed}_${lines.length}`,
+        id: `${source.idPrefix}_${orientation}_${fixed}_${lines.length}`,
         points:
           orientation === 'horizontal'
             ? [current.start * tileSizePx, fixed * tileSizePx, current.end * tileSizePx, fixed * tileSizePx]
@@ -204,13 +300,16 @@ const mergeWallRuns = (
         strokeWidth: WALL_STROKE_WIDTH,
         surfaceType: 'wall',
         materialKey: WALL_MATERIAL_KEY,
+        sourceRoomId: source.sourceRoomId,
+        sourceConnectorId: source.sourceConnectorId,
+        biomeId: source.biomeId,
       });
       current = run;
     }
 
     if (current) {
       lines.push({
-        id: `wall_${orientation}_${fixed}_${lines.length}`,
+        id: `${source.idPrefix}_${orientation}_${fixed}_${lines.length}`,
         points:
           orientation === 'horizontal'
             ? [current.start * tileSizePx, fixed * tileSizePx, current.end * tileSizePx, fixed * tileSizePx]
@@ -219,6 +318,9 @@ const mergeWallRuns = (
         strokeWidth: WALL_STROKE_WIDTH,
         surfaceType: 'wall',
         materialKey: WALL_MATERIAL_KEY,
+        sourceRoomId: source.sourceRoomId,
+        sourceConnectorId: source.sourceConnectorId,
+        biomeId: source.biomeId,
       });
     }
   }
@@ -226,10 +328,23 @@ const mergeWallRuns = (
   return lines;
 };
 
-const roomToWallLines = (
-  roomCells: Set<CellKey>,
-  connectorCells: Set<CellKey>,
-  tileSizePx: number
+const cellsToWallLines = ({
+  cells,
+  openCells,
+  tileSizePx,
+  idPrefix,
+  sourceRoomId,
+  sourceConnectorId,
+  biomeId,
+}: {
+  cells: Set<CellKey>;
+  openCells: Set<CellKey>;
+  tileSizePx: number;
+  idPrefix: string;
+  sourceRoomId?: string;
+  sourceConnectorId?: string;
+  biomeId?: string;
+}
 ): SectionRenderLine[] => {
   const horizontalRuns = new Map<number, Array<{ start: number; end: number }>>();
   const verticalRuns = new Map<number, Array<{ start: number; end: number }>>();
@@ -246,26 +361,36 @@ const roomToWallLines = (
     verticalRuns.set(x, runs);
   };
 
-  for (const key of roomCells) {
+  for (const key of cells) {
     const { x, y } = parseCellKey(key);
 
-    if (!roomCells.has(toCellKey(x, y - 1)) && !connectorCells.has(toCellKey(x, y - 1))) {
+    if (!cells.has(toCellKey(x, y - 1)) && !openCells.has(toCellKey(x, y - 1))) {
       addHorizontal(y, x, x + 1);
     }
-    if (!roomCells.has(toCellKey(x + 1, y)) && !connectorCells.has(toCellKey(x + 1, y))) {
+    if (!cells.has(toCellKey(x + 1, y)) && !openCells.has(toCellKey(x + 1, y))) {
       addVertical(x + 1, y, y + 1);
     }
-    if (!roomCells.has(toCellKey(x, y + 1)) && !connectorCells.has(toCellKey(x, y + 1))) {
+    if (!cells.has(toCellKey(x, y + 1)) && !openCells.has(toCellKey(x, y + 1))) {
       addHorizontal(y + 1, x, x + 1);
     }
-    if (!roomCells.has(toCellKey(x - 1, y)) && !connectorCells.has(toCellKey(x - 1, y))) {
+    if (!cells.has(toCellKey(x - 1, y)) && !openCells.has(toCellKey(x - 1, y))) {
       addVertical(x, y, y + 1);
     }
   }
 
   return [
-    ...mergeWallRuns(horizontalRuns, 'horizontal', tileSizePx),
-    ...mergeWallRuns(verticalRuns, 'vertical', tileSizePx),
+    ...mergeWallRuns(horizontalRuns, 'horizontal', tileSizePx, {
+      idPrefix,
+      sourceRoomId,
+      sourceConnectorId,
+      biomeId,
+    }),
+    ...mergeWallRuns(verticalRuns, 'vertical', tileSizePx, {
+      idPrefix,
+      sourceRoomId,
+      sourceConnectorId,
+      biomeId,
+    }),
   ];
 };
 
@@ -332,6 +457,22 @@ export const buildSectionRenderPayload = (
   const roomCellsById = new Map(
     section.rooms.map((room) => [room.roomId, getRoomCells(room, primitiveMap.get(room.primitiveId))] as const)
   );
+  const connectorCellsById = new Map(
+    section.connectors.map((connector) => [connector.connectorId, getConnectorCells(connector)] as const)
+  );
+  const occupiedCells = createEmptyCellSet();
+
+  for (const cells of roomCellsById.values()) {
+    for (const key of cells) {
+      occupiedCells.add(key);
+    }
+  }
+
+  for (const cells of connectorCellsById.values()) {
+    for (const key of cells) {
+      occupiedCells.add(key);
+    }
+  }
 
   return {
     width: section.grid.width * tileSizePx,
@@ -346,14 +487,33 @@ export const buildSectionRenderPayload = (
           tileSizePx,
           fill: getRoomFill(room, section),
           regionType: getRoomRegionType(room, section),
-          materialKey: getRoomMaterialKey(room, section),
+          materialProfile: getRoomMaterialProfile(room, section),
           sourceRoomId: room.roomId,
         })
       ),
     ],
-    walls: section.rooms.flatMap((room) =>
-      roomToWallLines(roomCellsById.get(room.roomId) ?? createEmptyCellSet(), connectorCells, tileSizePx)
-    ),
+    walls: [
+      ...section.rooms.flatMap((room) =>
+        cellsToWallLines({
+          cells: roomCellsById.get(room.roomId) ?? createEmptyCellSet(),
+          openCells: occupiedCells,
+          tileSizePx,
+          idPrefix: `wall_room_${room.roomId}`,
+          sourceRoomId: room.roomId,
+          biomeId: room.biomeId,
+        })
+      ),
+      ...section.connectors.flatMap((connector) =>
+        cellsToWallLines({
+          cells: connectorCellsById.get(connector.connectorId) ?? createEmptyCellSet(),
+          openCells: occupiedCells,
+          tileSizePx,
+          idPrefix: `wall_connector_${connector.connectorId}`,
+          sourceConnectorId: connector.connectorId,
+          biomeId: section.primaryBiomeId,
+        })
+      ),
+    ],
     doors: [],
     markers: buildMarkers(section, tileSizePx),
     hazards: [],

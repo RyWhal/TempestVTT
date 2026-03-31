@@ -24,6 +24,7 @@ describe('campaignFlow', () => {
     expect(startingSection.state).toBe('locked');
     expect(startingSection.name).toBe('Hometown');
     expect(startingSection.generationState.visitIndex).toBe(0);
+    expect(startingSection.generationState.sectionProfile?.graphDepth).toBe(0);
     expect(startingSection.generationState.generatedContent).toBeTruthy();
     const startingContent = startingSection.generationState.generatedContent;
     expect(startingContent?.npcs.length).toBeGreaterThan(0);
@@ -36,7 +37,22 @@ describe('campaignFlow', () => {
       expect(preview.previewState.playerVisibility).toBe('known_unvisited');
       expect(preview.previewState.generatedContent).toBeTruthy();
       expect(preview.previewState.generatedContent?.creatures.length).toBeGreaterThan(0);
+      expect(preview.previewState.sectionProfile?.graphDepth).toBe(1);
     }
+  });
+
+  it('diversifies sibling preview biomes around the starter village', () => {
+    const snapshot = createStarterCampaignSnapshot({
+      sessionId: 'session_001',
+      campaignName: 'The Bloom Beneath',
+      worldSeed: 'world_ironbell_042',
+    });
+
+    const biomeIds = snapshot.previews.map(
+      (preview) => preview.previewState.generatedSection?.primaryBiomeId
+    );
+
+    expect(new Set(biomeIds).size).toBeGreaterThanOrEqual(3);
   });
 
   it('keeps the starter village structurally fixed even when the campaign world seed changes', () => {
@@ -77,6 +93,7 @@ describe('campaignFlow', () => {
     expect(eastSection?.state).toBe('locked');
     expect(eastSection?.generationState.visitIndex).toBe(1);
     expect(eastSection?.generationState.enteredFromDirection).toBe('west');
+    expect(eastSection?.generationState.sectionProfile?.graphDepth).toBe(1);
 
     const eastBranchDirections = next.previews
       .filter((preview) => preview.fromSectionId === eastSection?.id)
@@ -86,6 +103,94 @@ describe('campaignFlow', () => {
     expect(eastBranchDirections).toEqual(['east', 'north', 'south']);
     expect(eastBranchDirections).not.toContain('west');
     expect(next.previews).toHaveLength(6);
+    for (const preview of next.previews.filter((candidate) => candidate.fromSectionId === eastSection?.id)) {
+      expect(preview.previewState.sectionProfile?.graphDepth).toBe(2);
+    }
+  });
+
+  it('keeps downstream previews mixed instead of forcing every hospitable branch into a settlement', () => {
+    const starter = createStarterCampaignSnapshot({
+      sessionId: 'session_001',
+      campaignName: 'The Bloom Beneath',
+      worldSeed: 'world_ironbell_042',
+    });
+
+    const next = visitSectionPreview(starter, 'preview_section_start_village_east');
+    const outboundPreviews = next.previews.filter((preview) =>
+      String(preview.fromSectionId).includes('section_record_section_start_village_east')
+    );
+
+    expect(outboundPreviews.length).toBeGreaterThan(0);
+    expect(
+      outboundPreviews.some(
+        (preview) => preview.previewState.generatedSection?.sectionKind === 'exploration'
+      )
+    ).toBe(true);
+    expect(
+      outboundPreviews.some((preview) => {
+        const profile = preview.previewState.sectionProfile as
+          | {
+              sectionKind?: string;
+              settlementProfileId?: string | null;
+              defaultFloorMaterialKey?: string;
+            }
+          | undefined;
+        return (
+          profile?.sectionKind === 'settlement' &&
+          typeof profile.settlementProfileId === 'string' &&
+          profile.defaultFloorMaterialKey !== undefined
+        );
+      })
+    ).toBe(
+      outboundPreviews.some(
+        (preview) => preview.previewState.generatedSection?.sectionKind === 'settlement'
+      )
+    );
+  });
+
+  it('promotes a settlement preview using the same resolved profile data', () => {
+    const starter = createStarterCampaignSnapshot({
+      sessionId: 'session_001',
+      campaignName: 'The Bloom Beneath',
+      worldSeed: 'world_ironbell_042',
+    });
+
+    const next = visitSectionPreview(starter, 'preview_section_start_village_east');
+    const settlementPreview = next.previews.find(
+      (preview) => preview.previewState.generatedSection?.sectionKind === 'settlement'
+    );
+
+    expect(settlementPreview).toBeDefined();
+
+    if (!settlementPreview) {
+      return;
+    }
+
+    const visited = visitSectionPreview(next, settlementPreview.id);
+    const visitedSection = visited.sections.find(
+      (section) => section.sectionId === settlementPreview.sectionStubId
+    );
+    const previewProfile = settlementPreview.previewState.sectionProfile as
+      | {
+          biomeProfileId?: string;
+          settlementProfileId?: string | null;
+          defaultFloorMaterialKey?: string;
+        }
+      | undefined;
+    const sectionProfile = visitedSection?.generationState.sectionProfile as
+      | {
+          biomeProfileId?: string;
+          settlementProfileId?: string | null;
+          defaultFloorMaterialKey?: string;
+        }
+      | undefined;
+
+    expect(visitedSection?.generationState.sectionKind).toBe('settlement');
+    expect(visitedSection?.generationState.settlementArchetypeId).toBe(
+      previewProfile?.settlementProfileId ?? null
+    );
+    expect(visitedSection?.generationState.generatedSection?.sectionKind).toBe('settlement');
+    expect(sectionProfile).toEqual(previewProfile);
   });
 
   it('shows only visited and known sections to players while exposing full previews to the GM', () => {
