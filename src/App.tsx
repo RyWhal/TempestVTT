@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastProvider } from './components/shared/Toast';
 import { Home } from './components/session/Home';
 import { SessionCreate } from './components/session/SessionCreate';
@@ -31,8 +31,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Main app with realtime connection
 const AppContent: React.FC = () => {
+  const location = useLocation();
+  const isCampaignRoute = location.pathname.startsWith('/campaign') || location.pathname.startsWith('/DunGEN');
   // Set up realtime subscriptions when in a session
-  useRealtime();
+  useRealtime({ mode: isCampaignRoute ? 'campaign' : 'play' });
   const { joinSession, loadSessionData } = useSession();
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
@@ -55,7 +57,9 @@ const AppContent: React.FC = () => {
       }
 
       lastAttemptedRejoinKey.current = rejoinKey;
-      const result = await joinSession(sessionCode, username);
+      const result = await joinSession(sessionCode, username, {
+        hydrateSession: !isCampaignRoute,
+      });
 
       if (!result.success) {
         clearSession();
@@ -64,7 +68,7 @@ const AppContent: React.FC = () => {
     };
 
     void attemptRejoin();
-  }, [session, currentUser, joinSession, clearSession, setCurrentUser]);
+  }, [session, currentUser, joinSession, clearSession, setCurrentUser, isCampaignRoute]);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -86,7 +90,9 @@ const AppContent: React.FC = () => {
       if (!liveSession) {
         if (session.code) {
           lastHydratedSessionId.current = null;
-          await joinSession(session.code, currentUser.username);
+          await joinSession(session.code, currentUser.username, {
+            hydrateSession: !isCampaignRoute,
+          });
           return;
         }
 
@@ -96,11 +102,14 @@ const AppContent: React.FC = () => {
       }
 
       lastHydratedSessionId.current = session.id;
+      if (isCampaignRoute) {
+        return;
+      }
       await loadSessionData(session.id);
     };
 
     void hydrateSession();
-  }, [session, currentUser, joinSession, loadSessionData, clearSession, setCurrentUser]);
+  }, [session, currentUser, joinSession, loadSessionData, clearSession, setCurrentUser, isCampaignRoute]);
 
   return (
     <Routes>

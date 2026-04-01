@@ -40,17 +40,43 @@ const loadCampaignScopedRows = async <T>(table: string, campaignId: string): Pro
   return (data as T[] | null) ?? [];
 };
 
-const loadSharedAssets = async (): Promise<DbSharedAsset[]> => {
-  const { data, error } = await supabase
-    .from('shared_assets')
-    .select('*')
-    .order('created_at', { ascending: true });
+let sharedAssetsCache: DbSharedAsset[] | null = null;
+let sharedAssetsInFlight: Promise<DbSharedAsset[]> | null = null;
 
-  if (error) {
-    throw error;
+export const resetSharedAssetsCacheForTests = () => {
+  sharedAssetsCache = null;
+  sharedAssetsInFlight = null;
+};
+
+const loadSharedAssets = async (): Promise<DbSharedAsset[]> => {
+  if (sharedAssetsCache) {
+    return sharedAssetsCache;
   }
 
-  return (data as DbSharedAsset[] | null) ?? [];
+  if (sharedAssetsInFlight) {
+    return sharedAssetsInFlight;
+  }
+
+  sharedAssetsInFlight = (async () => {
+    const { data, error } = await supabase
+      .from('shared_assets')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = (data as DbSharedAsset[] | null) ?? [];
+    sharedAssetsCache = rows;
+    return rows;
+  })();
+
+  try {
+    return await sharedAssetsInFlight;
+  } finally {
+    sharedAssetsInFlight = null;
+  }
 };
 
 const getErrorMessage = (error: unknown) =>
@@ -145,6 +171,12 @@ const isLocalBrowserRuntime = () =>
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
+const isPersistableChunkUrl = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  value.length > 0 &&
+  !value.startsWith('blob:') &&
+  !value.startsWith('data:');
+
 const hasEphemeralChunkUrls = (renderPayloadCache: Record<string, unknown>) => {
   const bakedFloor = renderPayloadCache.bakedFloor;
 
@@ -164,6 +196,160 @@ const hasEphemeralChunkUrls = (renderPayloadCache: Record<string, unknown>) => {
       (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:'))
     );
   });
+};
+
+const toPersistedRenderPayloadCache = (renderPayloadCache: Record<string, unknown> | null) => {
+  if (!renderPayloadCache) {
+    return null;
+  }
+
+  const compactCache: Record<string, unknown> = {};
+  const bakedFloor =
+    renderPayloadCache.bakedFloor && typeof renderPayloadCache.bakedFloor === 'object'
+      ? (renderPayloadCache.bakedFloor as Record<string, unknown>)
+      : null;
+
+  if (bakedFloor) {
+    const chunks = Array.isArray(bakedFloor.chunks)
+      ? bakedFloor.chunks
+          .filter((chunk): chunk is Record<string, unknown> => Boolean(chunk) && typeof chunk === 'object')
+          .map((chunk) => {
+            const compactChunk: Record<string, unknown> = {
+              chunkX: typeof chunk.chunkX === 'number' ? chunk.chunkX : 0,
+              chunkY: typeof chunk.chunkY === 'number' ? chunk.chunkY : 0,
+              x: typeof chunk.x === 'number' ? chunk.x : 0,
+              y: typeof chunk.y === 'number' ? chunk.y : 0,
+              widthPx: typeof chunk.widthPx === 'number' ? chunk.widthPx : 0,
+              heightPx: typeof chunk.heightPx === 'number' ? chunk.heightPx : 0,
+            };
+
+            if (typeof chunk.imagePath === 'string' && chunk.imagePath.length > 0) {
+              compactChunk.imagePath = chunk.imagePath;
+            }
+
+            if (isPersistableChunkUrl(chunk.imageUrl)) {
+              compactChunk.imageUrl = chunk.imageUrl;
+            }
+
+            return compactChunk;
+          })
+      : [];
+
+    compactCache.bakedFloor = {
+      status: typeof bakedFloor.status === 'string' ? bakedFloor.status : 'pending',
+      chunkSizePx: typeof bakedFloor.chunkSizePx === 'number' ? bakedFloor.chunkSizePx : 0,
+      tileResolutionPx:
+        typeof bakedFloor.tileResolutionPx === 'number' ? bakedFloor.tileResolutionPx : 0,
+      floorCellsPerChunk:
+        typeof bakedFloor.floorCellsPerChunk === 'number' ? bakedFloor.floorCellsPerChunk : 0,
+      chunks,
+    };
+  }
+
+  const bakeJobState =
+    renderPayloadCache.bakeJobState && typeof renderPayloadCache.bakeJobState === 'object'
+      ? (renderPayloadCache.bakeJobState as Record<string, unknown>)
+      : null;
+
+  if (bakeJobState) {
+    compactCache.bakeJobState = {
+      status: typeof bakeJobState.status === 'string' ? bakeJobState.status : undefined,
+      contentSignature:
+        typeof bakeJobState.contentSignature === 'string' ? bakeJobState.contentSignature : undefined,
+    };
+  }
+
+  return compactCache;
+};
+
+const toPersistedSectionGenerationState = (generationState: Record<string, unknown>) => {
+  if (!isLocalBrowserRuntime()) {
+    return generationState;
+  }
+
+  return {
+    generatedSection:
+      generationState.generatedSection && typeof generationState.generatedSection === 'object'
+        ? generationState.generatedSection
+        : undefined,
+    generatedContent:
+      generationState.generatedContent && typeof generationState.generatedContent === 'object'
+        ? generationState.generatedContent
+        : undefined,
+    contentRerollState:
+      generationState.contentRerollState && typeof generationState.contentRerollState === 'object'
+        ? generationState.contentRerollState
+        : undefined,
+    sectionProfile:
+      generationState.sectionProfile && typeof generationState.sectionProfile === 'object'
+        ? generationState.sectionProfile
+        : undefined,
+    settlementArchetypeId:
+      typeof generationState.settlementArchetypeId === 'string' || generationState.settlementArchetypeId === null
+        ? generationState.settlementArchetypeId
+        : undefined,
+    coordinates:
+      generationState.coordinates && typeof generationState.coordinates === 'object'
+        ? generationState.coordinates
+        : undefined,
+    visitIndex: typeof generationState.visitIndex === 'number' ? generationState.visitIndex : undefined,
+    enteredFromDirection:
+      typeof generationState.enteredFromDirection === 'string' || generationState.enteredFromDirection === null
+        ? generationState.enteredFromDirection
+        : undefined,
+    sectionKind: typeof generationState.sectionKind === 'string' ? generationState.sectionKind : undefined,
+  };
+};
+
+const toPersistedPreviewState = (previewState: Record<string, unknown>) => {
+  if (!isLocalBrowserRuntime()) {
+    return previewState;
+  }
+
+  return {
+    generatedSection:
+      previewState.generatedSection && typeof previewState.generatedSection === 'object'
+        ? previewState.generatedSection
+        : undefined,
+    generatedContent:
+      previewState.generatedContent && typeof previewState.generatedContent === 'object'
+        ? previewState.generatedContent
+        : undefined,
+    contentRerollState:
+      previewState.contentRerollState && typeof previewState.contentRerollState === 'object'
+        ? previewState.contentRerollState
+        : undefined,
+    sectionProfile:
+      previewState.sectionProfile && typeof previewState.sectionProfile === 'object'
+        ? previewState.sectionProfile
+        : undefined,
+    settlementArchetypeId:
+      typeof previewState.settlementArchetypeId === 'string' || previewState.settlementArchetypeId === null
+        ? previewState.settlementArchetypeId
+        : undefined,
+    coordinates:
+      previewState.coordinates && typeof previewState.coordinates === 'object'
+        ? previewState.coordinates
+        : undefined,
+    label: typeof previewState.label === 'string' ? previewState.label : undefined,
+    parentSectionId:
+      typeof previewState.parentSectionId === 'string' ? previewState.parentSectionId : undefined,
+    playerVisibility:
+      typeof previewState.playerVisibility === 'string' ? previewState.playerVisibility : undefined,
+    returnDirection:
+      typeof previewState.returnDirection === 'string' ? previewState.returnDirection : undefined,
+    adjacentFromSectionIds: Array.isArray(previewState.adjacentFromSectionIds)
+      ? previewState.adjacentFromSectionIds
+      : undefined,
+    branchDirectionsBySectionId:
+      previewState.branchDirectionsBySectionId && typeof previewState.branchDirectionsBySectionId === 'object'
+        ? previewState.branchDirectionsBySectionId
+        : undefined,
+    returnDirectionsBySectionId:
+      previewState.returnDirectionsBySectionId && typeof previewState.returnDirectionsBySectionId === 'object'
+        ? previewState.returnDirectionsBySectionId
+        : undefined,
+  };
 };
 
 const hasRenderableBakedChunks = (bakedFloor: unknown): boolean => {
@@ -295,10 +481,10 @@ export const persistCampaignSnapshotBySession = async ({
       room_ids: section.roomIds,
       entrance_connection_ids: section.entranceConnectionIds,
       exit_connection_ids: section.exitConnectionIds,
-      generation_state: section.generationState,
+      generation_state: toPersistedSectionGenerationState(section.generationState),
       presentation_state: section.presentationState,
       override_state: section.overrideState,
-      render_payload_cache: section.renderPayloadCache,
+      render_payload_cache: toPersistedRenderPayloadCache(section.renderPayloadCache),
       locked_at: section.lockedAt,
     }));
 
@@ -344,33 +530,48 @@ export const persistCampaignSnapshotBySession = async ({
       return recordId;
     };
 
-    const { error: previewDeleteError } = await supabase
+    const { data: existingPreviews, error: existingPreviewsError } = await supabase
       .from('procgen_section_previews')
-      .delete()
+      .select('id, section_stub_id')
       .eq('campaign_id', campaignId);
 
-    if (previewDeleteError) {
-      throw previewDeleteError;
+    if (existingPreviewsError) {
+      throw existingPreviewsError;
     }
 
-    if (snapshot.previews.length > 0) {
-      const previewRows = snapshot.previews.map((preview) => ({
-        campaign_id: campaignId,
-        from_section_id: translateSectionRecordId(preview.fromSectionId),
-        section_stub_id: preview.sectionStubId,
-        direction: preview.direction,
-        preview_state: translatePreviewStateSectionReferences(
-          preview.previewState,
-          translateSectionRecordId
+    const previewRows = snapshot.previews.map((preview) => ({
+      campaign_id: campaignId,
+      from_section_id: translateSectionRecordId(preview.fromSectionId),
+      section_stub_id: preview.sectionStubId,
+      direction: preview.direction,
+        preview_state: toPersistedPreviewState(
+          translatePreviewStateSectionReferences(preview.previewState, translateSectionRecordId)
         ),
-      }));
+    }));
 
-      const { error: previewInsertError } = await supabase
+    if (previewRows.length > 0) {
+      const { error: previewUpsertError } = await supabase
         .from('procgen_section_previews')
-        .insert(previewRows);
+        .upsert(previewRows, { onConflict: 'campaign_id,section_stub_id' });
 
-      if (previewInsertError) {
-        throw previewInsertError;
+      if (previewUpsertError) {
+        throw previewUpsertError;
+      }
+    }
+
+    const activePreviewStubIds = new Set(snapshot.previews.map((preview) => preview.sectionStubId));
+    const stalePreviewIds = ((existingPreviews as Pick<DbProcgenSectionPreview, 'id' | 'section_stub_id'>[] | null) ?? [])
+      .filter((preview) => !activePreviewStubIds.has(preview.section_stub_id))
+      .map((preview) => preview.id);
+
+    if (stalePreviewIds.length > 0) {
+      const { error: previewDeleteError } = await supabase
+        .from('procgen_section_previews')
+        .delete()
+        .in('id', stalePreviewIds);
+
+      if (previewDeleteError) {
+        throw previewDeleteError;
       }
     }
 
@@ -556,7 +757,7 @@ export const bakeSectionFloorCache = async (
 
   const { error } = await supabase
     .from('procgen_sections')
-    .update({ render_payload_cache: renderPayloadCache })
+    .update({ render_payload_cache: toPersistedRenderPayloadCache(renderPayloadCache) })
     .eq('id', section.id);
 
   if (error) {

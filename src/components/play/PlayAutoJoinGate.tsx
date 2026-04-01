@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../shared/Card';
 import { useSession } from '../../hooks/useSession';
 
@@ -17,20 +17,49 @@ const getLaunchJoinParams = (searchParams: URLSearchParams) => {
 
 export const PlayAutoJoinGate: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { joinSession } = useSession();
   const [error, setError] = useState<string | null>(null);
-  const params = getLaunchJoinParams(searchParams);
+  const autoJoinFlag = searchParams.get('autojoin');
+  const code = searchParams.get('code');
+  const username = searchParams.get('username');
+  const attemptedJoinKeyRef = useRef<string | null>(null);
+  const params = useMemo(
+    () =>
+      getLaunchJoinParams(
+        new URLSearchParams({
+          ...(autoJoinFlag ? { autojoin: autoJoinFlag } : {}),
+          ...(code ? { code } : {}),
+          ...(username ? { username } : {}),
+        })
+      ),
+    [autoJoinFlag, code, username]
+  );
+  const joinKey = params ? `${params.code}:${params.username}` : null;
 
   useEffect(() => {
-    if (!params) {
+    if (!params || !joinKey) {
       return;
     }
+
+    if (attemptedJoinKeyRef.current === joinKey) {
+      return;
+    }
+
+    attemptedJoinKeyRef.current = joinKey;
 
     let cancelled = false;
 
     const autoJoinSession = async () => {
-      const result = await joinSession(params.code, params.username);
-      if (cancelled || result.success) {
+      const result = await joinSession(params.code, params.username, {
+        hydrateSession: false,
+      });
+      if (cancelled) {
+        return;
+      }
+
+      if (result.success) {
+        navigate('/play', { replace: true });
         return;
       }
 
@@ -42,7 +71,7 @@ export const PlayAutoJoinGate: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [joinSession, params]);
+  }, [joinSession, navigate, params, joinKey]);
 
   return (
     <main className="tempest-shell flex items-center justify-center px-4 py-10">

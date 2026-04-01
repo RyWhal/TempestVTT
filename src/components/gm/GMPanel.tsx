@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Map as MapIcon,
@@ -15,6 +15,8 @@ import { FogTools } from './FogTools';
 import { GMSettings } from './GMSettings';
 import { InitiativePanel } from '../initiative/InitiativePanel';
 import { useMapStore } from '../../stores/mapStore';
+import { useSession } from '../../hooks/useSession';
+import { useConnectionStatus } from '../../stores/sessionStore';
 
 type GMTab = 'maps' | 'characters' | 'npcs' | 'fog' | 'initiative' | 'settings';
 
@@ -25,6 +27,8 @@ interface GMPanelProps {
 export const GMPanel: React.FC<GMPanelProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<GMTab>('maps');
   const setFogToolMode = useMapStore((state) => state.setFogToolMode);
+  const { session, loadNpcTemplateData, loadInitiativeData } = useSession();
+  const connectionStatus = useConnectionStatus();
 
   const handleTabChange = (tab: GMTab) => {
     // Prevent fog painting from remaining active when leaving the Fog tab.
@@ -34,6 +38,25 @@ export const GMPanel: React.FC<GMPanelProps> = ({ onClose }) => {
 
     setActiveTab(tab);
   };
+
+  useEffect(() => {
+    if (connectionStatus === 'disconnected' || connectionStatus === 'reconnecting') {
+      return;
+    }
+
+    if (!session?.id) {
+      return;
+    }
+
+    if (activeTab === 'npcs') {
+      void loadNpcTemplateData(session.id);
+      return;
+    }
+
+    if (activeTab === 'initiative') {
+      void loadInitiativeData(session.id);
+    }
+  }, [activeTab, session?.id, connectionStatus, loadNpcTemplateData, loadInitiativeData]);
 
   return (
     <div className="h-full flex flex-col">

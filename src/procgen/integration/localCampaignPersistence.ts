@@ -1,6 +1,12 @@
 import type { CampaignSnapshot } from '../engine/campaignFlow';
 
 const LOCAL_CAMPAIGN_STORAGE_PREFIX = 'tempest:endless-dungeon:campaign:';
+const LOCAL_CAMPAIGN_BROADCAST_CHANNEL = 'tempest:endless-dungeon:campaign-updates';
+
+type LocalCampaignSnapshotUpdateMessage = {
+  type: 'snapshot_saved';
+  sessionId: string;
+};
 
 const getStorage = () => {
   if (typeof window === 'undefined' || !window.localStorage) {
@@ -8,6 +14,14 @@ const getStorage = () => {
   }
 
   return window.localStorage;
+};
+
+const getBroadcastChannel = () => {
+  if (typeof window === 'undefined' || typeof window.BroadcastChannel !== 'function') {
+    return null;
+  }
+
+  return new window.BroadcastChannel(LOCAL_CAMPAIGN_BROADCAST_CHANNEL);
 };
 
 export const getLocalCampaignStorageKey = (sessionId: string) =>
@@ -55,11 +69,37 @@ export const saveLocalCampaignSnapshot = ({
         snapshot: compactSnapshotForLocalStorage(snapshot),
       })
     );
+    const channel = getBroadcastChannel();
+    channel?.postMessage({
+      type: 'snapshot_saved',
+      sessionId,
+    } satisfies LocalCampaignSnapshotUpdateMessage);
+    channel?.close();
     return true;
   } catch (error) {
     console.warn('Failed to save Endless Dungeon snapshot locally.', error);
     return false;
   }
+};
+
+export const subscribeLocalCampaignSnapshotUpdates = (
+  sessionId: string,
+  onSnapshotSaved: () => void
+) => {
+  const channel = getBroadcastChannel();
+  if (!channel) {
+    return () => undefined;
+  }
+
+  channel.onmessage = (event: MessageEvent<LocalCampaignSnapshotUpdateMessage>) => {
+    if (event.data?.type === 'snapshot_saved' && event.data.sessionId === sessionId) {
+      onSnapshotSaved();
+    }
+  };
+
+  return () => {
+    channel.close();
+  };
 };
 
 export const loadLocalCampaignSnapshot = (sessionId: string): CampaignSnapshot | null => {

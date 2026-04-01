@@ -286,7 +286,7 @@ export const DunGENCampaignView: React.FC<DunGENCampaignViewProps> = ({ snapshot
   const maps = useMapStore((state) => state.maps);
   const activeMap = useMapStore((state) => state.activeMap);
   const { setMapActive } = useMap();
-  const { createSession, loadSessionData } = useSession();
+  const { createSession, syncGeneratedSessionState } = useSession();
   const { bakeSectionFloorCache, loadCampaignBySession } = useProcgenCampaign();
   const [bookFocus, setBookFocus] = useState<BookFocus | null>(null);
   const [activeBookTab, setActiveBookTab] = useState<CampaignBookTab>('narrative');
@@ -947,7 +947,7 @@ export const DunGENCampaignView: React.FC<DunGENCampaignViewProps> = ({ snapshot
           window.open(playWindowUrl, '_blank');
         }
 
-        void loadSessionData(targetSession.id);
+        void syncGeneratedSessionState(targetSession.id);
         showToast(`Endless Dungeon launched. Code: ${targetSession.code}`, 'success');
       } catch (error) {
         pendingPlayWindow?.close();

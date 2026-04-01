@@ -17,7 +17,6 @@ import {
   dbCharacterToCharacter,
   dbNPCTemplateToNPCTemplate,
   dbNPCInstanceToNPCInstance,
-  dbHandoutToHandout,
   dbSessionPlayerToSessionPlayer,
   dbChatMessageToChatMessage,
   dbDiceRollToDiceRoll,
@@ -28,16 +27,56 @@ import {
   type DbCharacter,
   type DbNPCTemplate,
   type DbNPCInstance,
-  type DbHandout,
   type DbSessionPlayer,
   type DbChatMessage,
   type DbDiceRoll,
   type DbInitiativeEntry,
   type DbInitiativeRollLog,
+  type CampaignWorld,
+  type DungeonSectionRecord,
   type Map,
   type Session,
 } from '../types';
 
+const inFlightSessionLoads = new Map<string, Promise<void>>();
+const pendingSessionReloads = new Set<string>();
+
+export const resetSessionLoadQueueForTests = () => {
+  inFlightSessionLoads.clear();
+  pendingSessionReloads.clear();
+};
+
+export const runDedupedSessionLoad = (
+  key: string,
+  loader: () => Promise<void>,
+  options?: { rerunIfRequested?: boolean }
+) => {
+  const existingLoad = inFlightSessionLoads.get(key);
+  if (existingLoad) {
+    if (options?.rerunIfRequested) {
+      pendingSessionReloads.add(key);
+    }
+    return existingLoad;
+  }
+
+  let loadPromise: Promise<void> = Promise.resolve();
+  loadPromise = (async () => {
+    try {
+      await loader();
+    } finally {
+      if (inFlightSessionLoads.get(key) === loadPromise) {
+        inFlightSessionLoads.delete(key);
+      }
+
+       if (pendingSessionReloads.delete(key)) {
+        void runDedupedSessionLoad(key, loader, options);
+      }
+    }
+  })();
+
+  inFlightSessionLoads.set(key, loadPromise);
+  return loadPromise;
+};
 
 const isMissingRelationError = (error: { code?: string; message?: string } | null) =>
   error?.code === '42P01' || error?.message?.toLowerCase().includes('does not exist');
@@ -49,6 +88,85 @@ const wait = (durationMs: number) =>
   new Promise<void>((resolve) => {
     globalThis.setTimeout(resolve, durationMs);
   });
+
+type BakeSectionFloorCacheResult =
+  | {
+      success: true;
+      renderPayloadCache: Record<string, unknown>;
+      persistenceError?: string;
+    }
+  | { success: false; error: string };
+
+const resolveSessionId = (explicitSessionId?: string | null) =>
+  explicitSessionId ?? useSessionStore.getState().session?.id ?? null;
+
+export const buildGeneratedSessionMapState = async ({
+  sessionId,
+  uploadedMaps,
+  uploadedActiveMapId,
+  loadCampaignBySession,
+  bakeSectionFloorCache,
+}: {
+  sessionId: string;
+  uploadedMaps: Map[];
+  uploadedActiveMapId: string | null;
+  loadCampaignBySession: (sessionId: string) => Promise<CampaignWorld | null>;
+  bakeSectionFloorCache: (section: DungeonSectionRecord) => Promise<BakeSectionFloorCacheResult>;
+}): Promise<{
+  maps: Map[];
+  activeMap: Map | null;
+  hasGeneratedCampaign: boolean;
+}> => {
+  let campaignWorld = await loadCampaignBySession(sessionId);
+  if (!campaignWorld && uploadedMaps.length === 0) {
+    for (const retryDelayMs of PROCGEN_LOAD_RETRY_DELAYS_MS) {
+      await wait(retryDelayMs);
+      campaignWorld = await loadCampaignBySession(sessionId);
+      if (campaignWorld) {
+        break;
+      }
+    }
+  }
+
+  let generatedMaps: Map[] = [];
+  let generatedActiveMap: Map | null = null;
+
+  if (campaignWorld) {
+    const procgenState = useProcgenStore.getState();
+    const sections = await ensureSectionsHaveCurrentBakedFloors({
+      sections: Object.values(procgenState.sectionsById),
+      expectedContentSignature: CURRENT_BAKE_CONTENT_SIGNATURE,
+      bakeSectionFloorCache,
+    });
+    const snapshot = createSnapshotFromStore({
+      campaign: procgenState.campaign ?? campaignWorld,
+      sections,
+      previews: Object.values(procgenState.sectionPreviewsById),
+    });
+    const generatedSessionState = createGeneratedMapsFromSnapshot({
+      sessionId,
+      snapshot,
+    });
+    generatedMaps = generatedSessionState.maps;
+    generatedActiveMap = generatedSessionState.activeMap;
+  }
+
+  const mergedMaps = [
+    ...uploadedMaps,
+    ...generatedMaps.filter(
+      (generatedMap) => !uploadedMaps.some((uploadedMap) => uploadedMap.id === generatedMap.id)
+    ),
+  ];
+  const uploadedActiveMap = uploadedActiveMapId
+    ? uploadedMaps.find((map) => map.id === uploadedActiveMapId) ?? null
+    : null;
+
+  return {
+    maps: mergedMaps,
+    activeMap: uploadedActiveMap ?? generatedActiveMap,
+    hasGeneratedCampaign: campaignWorld !== null,
+  };
+};
 
 export const useSession = () => {
   const {
@@ -67,7 +185,6 @@ export const useSession = () => {
     setCharacters,
     setNPCTemplates,
     setNPCInstances,
-    setHandouts,
     clearMapState,
   } = useMapStore();
 
@@ -155,9 +272,11 @@ export const useSession = () => {
   const joinSession = useCallback(
     async (
       code: string,
-      username: string
+      username: string,
+      options?: { hydrateSession?: boolean }
     ): Promise<{ success: boolean; error?: string }> => {
       try {
+        const hydrateSession = options?.hydrateSession ?? true;
         const { data: sessionData, error: sessionError } = await supabase
           .from('sessions')
           .select('*')
@@ -204,7 +323,9 @@ export const useSession = () => {
           isGm,
         });
 
-        await loadSessionData(joinedSession.id);
+        if (hydrateSession) {
+          await loadSessionData(joinedSession.id);
+        }
 
         return { success: true };
       } catch (error) {
@@ -219,16 +340,15 @@ export const useSession = () => {
 
   const loadSessionData = useCallback(
     async (sessionId: string) => {
-      try {
-        let uploadedMaps: Map[] = [];
-        const { data: mapsData } = await supabase
-          .from('maps')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('sort_order', { ascending: true });
+      await runDedupedSessionLoad(`core:${sessionId}`, async () => {
+        try {
+          const { data: mapsData } = await supabase
+            .from('maps')
+            .select('*')
+            .eq('session_id', sessionId)
+            .order('sort_order', { ascending: true });
 
-        if (mapsData) {
-          uploadedMaps = (mapsData as DbMap[]).map(dbMapToMap);
+          const uploadedMaps = ((mapsData as DbMap[] | null) ?? []).map(dbMapToMap);
           setMaps(uploadedMaps);
 
           const { data: sessionData } = await supabase
@@ -236,184 +356,215 @@ export const useSession = () => {
             .select('active_map_id')
             .eq('id', sessionId)
             .single();
+          const uploadedActiveMapId = sessionData?.active_map_id ?? null;
+          const uploadedActiveMap = uploadedActiveMapId
+            ? uploadedMaps.find((map) => map.id === uploadedActiveMapId) ?? null
+            : null;
+          setActiveMap(uploadedActiveMap);
 
-          if (sessionData?.active_map_id) {
-            const activeMap = uploadedMaps.find((m) => m.id === sessionData.active_map_id);
-            if (activeMap) setActiveMap(activeMap);
+          const { data: charactersData } = await supabase
+            .from('characters')
+            .select('*')
+            .eq('session_id', sessionId);
+
+          if (charactersData) {
+            setCharacters((charactersData as DbCharacter[]).map(dbCharacterToCharacter));
           }
-        }
 
-        const { data: charactersData } = await supabase
-          .from('characters')
-          .select('*')
-          .eq('session_id', sessionId);
+          const uploadedMapIds = uploadedMaps.map((map) => map.id);
+          if (uploadedMapIds.length > 0) {
+            const { data: instancesData } = await supabase
+              .from('npc_instances')
+              .select('*')
+              .in('map_id', uploadedMapIds);
 
-        if (charactersData) {
-          setCharacters((charactersData as DbCharacter[]).map(dbCharacterToCharacter));
-        }
-
-        const { data: templatesData } = await supabase
-          .from('npc_templates')
-          .select('*')
-          .eq('session_id', sessionId);
-
-        if (templatesData) {
-          setNPCTemplates((templatesData as DbNPCTemplate[]).map(dbNPCTemplateToNPCTemplate));
-        }
-
-        const { data: handoutData, error: handoutError } = await supabase
-          .from('handouts')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('sort_order', { ascending: true });
-
-        if (!handoutError) {
-          setHandouts(
-            (handoutData as DbHandout[] | null | undefined)?.map(dbHandoutToHandout) || []
-          );
-        }
-
-        const { data: instancesData } = await supabase
-          .from('npc_instances')
-          .select('*')
-          .in(
-            'map_id',
-            mapsData?.map((m: DbMap) => m.id) || []
-          );
-
-        if (instancesData) {
-          setNPCInstances((instancesData as DbNPCInstance[]).map(dbNPCInstanceToNPCInstance));
-        }
-
-        const { data: playersData } = await supabase
-          .from('session_players')
-          .select('*')
-          .eq('session_id', sessionId);
-
-        if (playersData) {
-          setPlayers((playersData as DbSessionPlayer[]).map(dbSessionPlayerToSessionPlayer));
-        }
-
-        const { data: messagesData } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        if (messagesData) {
-          setMessages((messagesData as DbChatMessage[]).map(dbChatMessageToChatMessage).reverse());
-        }
-
-        const { data: rollsData } = await supabase
-          .from('dice_rolls')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        if (rollsData) {
-          setDiceRolls((rollsData as DbDiceRoll[]).map(dbDiceRollToDiceRoll).reverse());
-        }
-
-        const { data: initiativeData, error: initiativeError } = await supabase
-          .from('initiative_entries')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: true });
-
-        if (!initiativeError && initiativeData) {
-          setEntries((initiativeData as DbInitiativeEntry[]).map(dbInitiativeEntryToInitiativeEntry));
-        }
-
-        const { data: initiativeLogsData, error: initiativeLogsError } = await supabase
-          .from('initiative_roll_logs')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(200);
-
-        if (!initiativeLogsError && initiativeLogsData) {
-          setRollLogs((initiativeLogsData as DbInitiativeRollLog[]).map(dbInitiativeRollLogToInitiativeRollLog));
-        }
-
-        if (isMissingRelationError(initiativeError) || isMissingRelationError(initiativeLogsError)) {
-          console.warn('Initiative tables are not available yet; skipping initiative hydration.');
-        }
-        if (isMissingRelationError(handoutError)) {
-          console.warn('Handout tables are not available yet; skipping handout hydration.');
-        }
-
-        let campaignWorld = await loadCampaignBySession(sessionId);
-        if (!campaignWorld && uploadedMaps.length === 0) {
-          for (const retryDelayMs of PROCGEN_LOAD_RETRY_DELAYS_MS) {
-            await wait(retryDelayMs);
-            campaignWorld = await loadCampaignBySession(sessionId);
-            if (campaignWorld) {
-              break;
+            if (instancesData) {
+              setNPCInstances((instancesData as DbNPCInstance[]).map(dbNPCInstanceToNPCInstance));
             }
+          } else {
+            setNPCInstances([]);
           }
-        }
 
-        if (campaignWorld) {
-          const procgenState = useProcgenStore.getState();
-          const sections = await ensureSectionsHaveCurrentBakedFloors({
-            sections: Object.values(procgenState.sectionsById),
-            expectedContentSignature: CURRENT_BAKE_CONTENT_SIGNATURE,
+          const { data: playersData } = await supabase
+            .from('session_players')
+            .select('*')
+            .eq('session_id', sessionId);
+
+          if (playersData) {
+            setPlayers((playersData as DbSessionPlayer[]).map(dbSessionPlayerToSessionPlayer));
+          }
+
+          const generatedSessionState = await buildGeneratedSessionMapState({
+            sessionId,
+            uploadedMaps,
+            uploadedActiveMapId,
+            loadCampaignBySession,
             bakeSectionFloorCache,
           });
-          const snapshot = createSnapshotFromStore({
-            campaign: procgenState.campaign ?? campaignWorld,
-            sections,
-            previews: Object.values(procgenState.sectionPreviewsById),
-          });
-          const { maps: generatedMaps, activeMap: generatedActiveMap } = createGeneratedMapsFromSnapshot({
-            sessionId,
-            snapshot,
-          });
-          const mergedMaps = [
-            ...uploadedMaps,
-            ...generatedMaps.filter(
-              (generatedMap) => !uploadedMaps.some((uploadedMap) => uploadedMap.id === generatedMap.id)
-            ),
-          ];
-
-          setMaps(mergedMaps);
-
-          const { data: sessionData } = await supabase
-            .from('sessions')
-            .select('active_map_id')
-            .eq('id', sessionId)
-            .single();
-          const uploadedActiveMap = sessionData?.active_map_id
-            ? uploadedMaps.find((map) => map.id === sessionData.active_map_id) ?? null
-            : null;
-
-          if (uploadedActiveMap) {
-            setActiveMap(uploadedActiveMap);
-          } else if (generatedActiveMap) {
-            setActiveMap(generatedActiveMap);
-          }
+          setMaps(generatedSessionState.maps);
+          setActiveMap(generatedSessionState.activeMap);
+        } catch (error) {
+          console.error('Error loading session data:', error);
         }
-      } catch (error) {
-        console.error('Error loading session data:', error);
-      }
+      });
     },
     [
       setMaps,
       setActiveMap,
       setCharacters,
-      setNPCTemplates,
       setNPCInstances,
-      setHandouts,
       setPlayers,
-      setMessages,
-      setDiceRolls,
-      setEntries,
-      setRollLogs,
       loadCampaignBySession,
       bakeSectionFloorCache,
     ]
+  );
+
+  const loadNpcTemplateData = useCallback(
+    async (explicitSessionId?: string) => {
+      const sessionId = resolveSessionId(explicitSessionId);
+      if (!sessionId) {
+        return;
+      }
+
+      await runDedupedSessionLoad(`npc_templates:${sessionId}`, async () => {
+        try {
+          const { data: templatesData } = await supabase
+            .from('npc_templates')
+            .select('*')
+            .eq('session_id', sessionId);
+
+          if (templatesData) {
+            setNPCTemplates((templatesData as DbNPCTemplate[]).map(dbNPCTemplateToNPCTemplate));
+          }
+        } catch (error) {
+          console.error('Error loading NPC template data:', error);
+        }
+      });
+    },
+    [setNPCTemplates]
+  );
+
+  const loadChatData = useCallback(
+    async (explicitSessionId?: string) => {
+      const sessionId = resolveSessionId(explicitSessionId);
+      if (!sessionId) {
+        return;
+      }
+
+      await runDedupedSessionLoad(`chat:${sessionId}`, async () => {
+        try {
+          const [messagesResult, rollsResult] = await Promise.all([
+            supabase
+              .from('chat_messages')
+              .select('*')
+              .eq('session_id', sessionId)
+              .order('created_at', { ascending: false })
+              .limit(100),
+            supabase
+              .from('dice_rolls')
+              .select('*')
+              .eq('session_id', sessionId)
+              .order('created_at', { ascending: false })
+              .limit(50),
+          ]);
+
+          if (messagesResult.data) {
+            setMessages(
+              (messagesResult.data as DbChatMessage[]).map(dbChatMessageToChatMessage).reverse()
+            );
+          }
+
+          if (rollsResult.data) {
+            setDiceRolls((rollsResult.data as DbDiceRoll[]).map(dbDiceRollToDiceRoll).reverse());
+          }
+        } catch (error) {
+          console.error('Error loading chat data:', error);
+        }
+      });
+    },
+    [setMessages, setDiceRolls]
+  );
+
+  const loadInitiativeData = useCallback(
+    async (explicitSessionId?: string) => {
+      const sessionId = resolveSessionId(explicitSessionId);
+      if (!sessionId) {
+        return;
+      }
+
+      await runDedupedSessionLoad(`initiative:${sessionId}`, async () => {
+        try {
+          const [initiativeResult, initiativeLogsResult] = await Promise.all([
+            supabase
+              .from('initiative_entries')
+              .select('*')
+              .eq('session_id', sessionId)
+              .order('created_at', { ascending: true }),
+            supabase
+              .from('initiative_roll_logs')
+              .select('*')
+              .eq('session_id', sessionId)
+              .order('created_at', { ascending: false })
+              .limit(200),
+          ]);
+
+          if (!isMissingRelationError(initiativeResult.error) && initiativeResult.data) {
+            setEntries(
+              (initiativeResult.data as DbInitiativeEntry[]).map(dbInitiativeEntryToInitiativeEntry)
+            );
+          }
+
+          if (!isMissingRelationError(initiativeLogsResult.error) && initiativeLogsResult.data) {
+            setRollLogs(
+              (initiativeLogsResult.data as DbInitiativeRollLog[]).map(
+                dbInitiativeRollLogToInitiativeRollLog
+              )
+            );
+          }
+
+          if (
+            isMissingRelationError(initiativeResult.error) ||
+            isMissingRelationError(initiativeLogsResult.error)
+          ) {
+            console.warn('Initiative tables are not available yet; skipping initiative hydration.');
+          }
+        } catch (error) {
+          console.error('Error loading initiative data:', error);
+        }
+      });
+    },
+    [setEntries, setRollLogs]
+  );
+
+  const syncGeneratedSessionState = useCallback(
+    async (sessionId: string) => {
+      await runDedupedSessionLoad(`generated:${sessionId}`, async () => {
+        try {
+          const mapState = useMapStore.getState();
+          const sessionState = useSessionStore.getState();
+          const uploadedMaps = mapState.maps.filter((map) => map.sourceType === 'uploaded');
+          const uploadedActiveMapId =
+            sessionState.session?.id === sessionId
+              ? sessionState.session.activeMapId ??
+                (mapState.activeMap?.sourceType === 'uploaded' ? mapState.activeMap.id : null)
+              : null;
+
+          const generatedSessionState = await buildGeneratedSessionMapState({
+            sessionId,
+            uploadedMaps,
+            uploadedActiveMapId,
+            loadCampaignBySession,
+            bakeSectionFloorCache,
+          });
+
+          setMaps(generatedSessionState.maps);
+          setActiveMap(generatedSessionState.activeMap);
+        } catch (error) {
+          console.error('Error syncing generated session maps:', error);
+        }
+      }, { rerunIfRequested: true });
+    },
+    [setMaps, setActiveMap, loadCampaignBySession, bakeSectionFloorCache]
   );
 
   const claimGM = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
@@ -573,6 +724,10 @@ export const useSession = () => {
     createSession,
     joinSession,
     loadSessionData,
+    loadNpcTemplateData,
+    loadChatData,
+    loadInitiativeData,
+    syncGeneratedSessionState,
     claimGM,
     releaseGM,
     leaveSession,

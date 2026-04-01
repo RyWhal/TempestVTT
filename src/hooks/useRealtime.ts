@@ -11,7 +11,6 @@ import {
   dbMapToMap,
   dbCharacterToCharacter,
   dbNPCInstanceToNPCInstance,
-  dbHandoutToHandout,
   dbSessionPlayerToSessionPlayer,
   dbChatMessageToChatMessage,
   dbDiceRollToDiceRoll,
@@ -21,7 +20,6 @@ import {
   type DbMap,
   type DbCharacter,
   type DbNPCInstance,
-  type DbHandout,
   type DbSessionPlayer,
   type DbChatMessage,
   type DbDiceRoll,
@@ -32,12 +30,39 @@ import {
   type Map,
 } from '../types';
 import { clearTokenBroadcastChannel, getTokenBroadcastChannel } from '../lib/tokenBroadcast';
-import { getLocalCampaignStorageKey } from '../procgen/integration/localCampaignPersistence';
+import {
+  getLocalCampaignStorageKey,
+  subscribeLocalCampaignSnapshotUpdates,
+} from '../procgen/integration/localCampaignPersistence';
 
 const isMissingRelationError = (error: { code?: string; message?: string } | null) =>
   error?.code === '42P01' || error?.message?.toLowerCase().includes('does not exist');
 
-export const useRealtime = () => {
+const initiativeRealtimeTableAvailability = new Map<
+  'initiative_entries' | 'initiative_roll_logs',
+  boolean
+>();
+
+export const resetInitiativeRealtimeAvailabilityForTests = () => {
+  initiativeRealtimeTableAvailability.clear();
+};
+
+export const canUseInitiativeRealtimeTable = async (
+  table: 'initiative_entries' | 'initiative_roll_logs'
+) => {
+  const cachedAvailability = initiativeRealtimeTableAvailability.get(table);
+  if (cachedAvailability !== undefined) {
+    return cachedAvailability;
+  }
+
+  const { error } = await supabase.from(table).select('id').limit(1);
+  const isAvailable = !isMissingRelationError(error);
+  initiativeRealtimeTableAvailability.set(table, isAvailable);
+  return isAvailable;
+};
+
+export const useRealtime = (options?: { mode?: 'play' | 'campaign' }) => {
+  const mode = options?.mode ?? 'play';
   const channelRef = useRef<RealtimeChannel | null>(null);
   const initiativeChannelRef = useRef<RealtimeChannel | null>(null);
   const shouldResyncRef = useRef(false);
@@ -47,8 +72,16 @@ export const useRealtime = () => {
     characterId: string | null;
     isGm: boolean;
   } | null>(null);
-  const { loadSessionData } = useSession();
-  const { session, currentUser, updateSession, setPlayers, addPlayer, removePlayer, setConnectionStatus } =
+  const { loadSessionData, syncGeneratedSessionState } = useSession();
+  const {
+    session,
+    currentUser,
+    updateSession,
+    addPlayer,
+    removePlayer,
+    updatePlayer,
+    setConnectionStatus,
+  } =
     useSessionStore();
   const {
     maps,
@@ -66,14 +99,11 @@ export const useRealtime = () => {
     addNPCInstance,
     removeNPCInstance,
     moveNPCInstance,
-    addHandout,
-    updateHandout,
-    removeHandout,
     setTokenLock,
     clearTokenLock,
   } = useMapStore();
-  const { addMessage, addDiceRoll, setMessages, setDiceRolls } = useChatStore();
-  const { upsertEntry, removeEntry, addRollLog, setEntries, setRollLogs } = useInitiativeStore();
+  const { addMessage, addDiceRoll } = useChatStore();
+  const { upsertEntry, removeEntry, addRollLog } = useInitiativeStore();
 
   useEffect(() => {
     mapsRef.current = maps;
@@ -85,6 +115,11 @@ export const useRealtime = () => {
 
   useEffect(() => {
     if (!session?.id) {
+      setConnectionStatus('disconnected');
+      return;
+    }
+
+    if (mode === 'campaign') {
       setConnectionStatus('disconnected');
       return;
     }
@@ -131,7 +166,7 @@ export const useRealtime = () => {
         filter: `session_id=eq.${sessionId}`,
       },
       () => {
-        void loadSessionData(sessionId);
+        void syncGeneratedSessionState(sessionId);
       }
     );
 
@@ -221,45 +256,6 @@ export const useRealtime = () => {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'handouts',
-          filter: `session_id=eq.${sessionId}`,
-        },
-        (payload) => {
-          addHandout(dbHandoutToHandout(payload.new as DbHandout));
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'handouts',
-          filter: `session_id=eq.${sessionId}`,
-        },
-        (payload) => {
-          const updated = dbHandoutToHandout(payload.new as DbHandout);
-          updateHandout(updated.id, updated);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'handouts',
-          filter: `session_id=eq.${sessionId}`,
-        },
-        (payload) => {
-          removeHandout((payload.old as { id: string }).id);
-        }
-      );
-
-    channel
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
           table: 'npc_instances',
           filter: `session_id=eq.${sessionId}`,
         },
@@ -317,16 +313,9 @@ export const useRealtime = () => {
           table: 'session_players',
           filter: `session_id=eq.${sessionId}`,
         },
-        () => {
-          supabase
-            .from('session_players')
-            .select('*')
-            .eq('session_id', sessionId)
-            .then(({ data }) => {
-              if (data) {
-                setPlayers((data as DbSessionPlayer[]).map(dbSessionPlayerToSessionPlayer));
-              }
-            });
+        (payload) => {
+          const updatedPlayer = dbSessionPlayerToSessionPlayer(payload.new as DbSessionPlayer);
+          updatePlayer(updatedPlayer.id, updatedPlayer);
         }
       )
       .on(
@@ -377,78 +366,7 @@ export const useRealtime = () => {
     );
 
     const resyncSessionState = async () => {
-      if (currentUserRef.current?.isGm) {
-        await loadSessionData(sessionId);
-        return;
-      }
-
-      const mapIds = mapsRef.current.map((map) => map.id);
-      const [
-        playersResult,
-        charactersResult,
-        npcInstancesResult,
-        messagesResult,
-        rollsResult,
-        initiativeResult,
-        initiativeLogsResult,
-      ] = await Promise.all([
-        supabase.from('session_players').select('*').eq('session_id', sessionId),
-        supabase.from('characters').select('*').eq('session_id', sessionId),
-        mapIds.length > 0
-          ? supabase.from('npc_instances').select('*').in('map_id', mapIds)
-          : Promise.resolve({ data: [] as DbNPCInstance[] | null, error: null }),
-        supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('dice_rolls')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(50),
-        supabase
-          .from('initiative_entries')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('initiative_roll_logs')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: false })
-          .limit(200),
-      ]);
-
-      if (cancelled) return;
-
-      if (playersResult.data) {
-        setPlayers((playersResult.data as DbSessionPlayer[]).map(dbSessionPlayerToSessionPlayer));
-      }
-      if (charactersResult.data) {
-        setCharacters((charactersResult.data as DbCharacter[]).map(dbCharacterToCharacter));
-      }
-      if (npcInstancesResult.data) {
-        setNPCInstances((npcInstancesResult.data as DbNPCInstance[]).map(dbNPCInstanceToNPCInstance));
-      }
-      if (messagesResult.data) {
-        setMessages((messagesResult.data as DbChatMessage[]).map(dbChatMessageToChatMessage).reverse());
-      }
-      if (rollsResult.data) {
-        setDiceRolls((rollsResult.data as DbDiceRoll[]).map(dbDiceRollToDiceRoll).reverse());
-      }
-      if (!isMissingRelationError(initiativeResult.error) && initiativeResult.data) {
-        setEntries(
-          (initiativeResult.data as DbInitiativeEntry[]).map(dbInitiativeEntryToInitiativeEntry)
-        );
-      }
-      if (!isMissingRelationError(initiativeLogsResult.error) && initiativeLogsResult.data) {
-        setRollLogs(
-          (initiativeLogsResult.data as DbInitiativeRollLog[]).map(dbInitiativeRollLogToInitiativeRollLog)
-        );
-      }
+      await loadSessionData(sessionId);
     };
 
     channel.subscribe((status) => {
@@ -569,12 +487,12 @@ export const useRealtime = () => {
         return;
       }
 
-      void loadSessionData(sessionId);
+      void syncGeneratedSessionState(sessionId);
     });
 
     const connectInitiativeChannel = async () => {
-      const { error: entriesError } = await supabase.from('initiative_entries').select('id').limit(1);
-      if (isMissingRelationError(entriesError) || cancelled) {
+      const hasInitiativeEntriesTable = await canUseInitiativeRealtimeTable('initiative_entries');
+      if (!hasInitiativeEntriesTable || cancelled) {
         return;
       }
 
@@ -618,8 +536,8 @@ export const useRealtime = () => {
           }
         );
 
-      const { error: logsError } = await supabase.from('initiative_roll_logs').select('id').limit(1);
-      if (!isMissingRelationError(logsError)) {
+      const hasInitiativeLogsTable = await canUseInitiativeRealtimeTable('initiative_roll_logs');
+      if (hasInitiativeLogsTable) {
         initiativeChannel.on(
           'postgres_changes',
           {
@@ -645,18 +563,27 @@ export const useRealtime = () => {
         return;
       }
 
-      void loadSessionData(sessionId);
+      void syncGeneratedSessionState(sessionId);
     };
 
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', handleLocalCampaignSnapshotChange);
     }
+    const unsubscribeLocalCampaignBroadcast = subscribeLocalCampaignSnapshotUpdates(
+      sessionId,
+      () => {
+        if (!cancelled) {
+          void syncGeneratedSessionState(sessionId);
+        }
+      }
+    );
 
     return () => {
       cancelled = true;
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage', handleLocalCampaignSnapshotChange);
       }
+      unsubscribeLocalCampaignBroadcast();
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -671,9 +598,9 @@ export const useRealtime = () => {
     session?.id,
     currentUser?.username,
     updateSession,
-    setPlayers,
     addPlayer,
     removePlayer,
+    updatePlayer,
     setCharacters,
     setNPCInstances,
     updateMap,
@@ -688,9 +615,6 @@ export const useRealtime = () => {
     addNPCInstance,
     removeNPCInstance,
     moveNPCInstance,
-    addHandout,
-    updateHandout,
-    removeHandout,
     setTokenLock,
     clearTokenLock,
     addMessage,
@@ -698,12 +622,10 @@ export const useRealtime = () => {
     upsertEntry,
     removeEntry,
     addRollLog,
-    setMessages,
-    setDiceRolls,
-    setEntries,
-    setRollLogs,
     setConnectionStatus,
+    mode,
     loadSessionData,
+    syncGeneratedSessionState,
   ]);
 
   return {

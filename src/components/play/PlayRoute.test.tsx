@@ -111,6 +111,28 @@ describe('PlayRoute', () => {
     expect(html).not.toContain('Play Session');
   });
 
+  it('shows the live session once the auto-join target is already active in session state', () => {
+    mockSessionState.session = {
+      id: 'session_new',
+      code: 'NEW456',
+      name: 'New Session',
+    };
+    mockSessionState.currentUser = {
+      username: 'Ryan',
+      characterId: null,
+      isGm: true,
+    };
+
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/play?autojoin=1&code=NEW456&username=Ryan']}>
+        <PlayRoute />
+      </MemoryRouter>
+    );
+
+    expect(html).toContain('Play Session');
+    expect(html).not.toContain('Play Auto Join');
+  });
+
   it('prioritizes the launch gate over a previously persisted session', () => {
     mockSessionState.session = {
       id: 'session_old',

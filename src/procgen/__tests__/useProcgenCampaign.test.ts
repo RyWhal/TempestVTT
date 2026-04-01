@@ -3,6 +3,7 @@ import {
   bakeSectionFloorCache,
   hydrateProcgenCampaignBySession,
   persistCampaignSnapshotBySession,
+  resetSharedAssetsCacheForTests,
 } from '../../hooks/useProcgenCampaign';
 import { useProcgenStore } from '../../stores/procgenStore';
 import { generateSection } from '../engine/sectionGenerator';
@@ -24,6 +25,7 @@ vi.mock('../../lib/supabase', () => ({
 describe('hydrateProcgenCampaignBySession', () => {
   beforeEach(() => {
     fromMock.mockReset();
+    resetSharedAssetsCacheForTests();
     useProcgenStore.getState().clearProcgenState();
     vi.unstubAllGlobals();
   });
@@ -397,6 +399,69 @@ describe('hydrateProcgenCampaignBySession', () => {
     expect(Object.keys(state.sectionsById)).toHaveLength(2);
   });
 
+  it('reuses cached shared assets across repeated campaign hydrations', async () => {
+    const sharedAssetsOrderMock = vi.fn().mockResolvedValue({ data: [], error: null });
+
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'procgen_campaigns') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: {
+              id: 'campaign_001',
+              session_id: 'session_001',
+              name: 'The Bloom Beneath',
+              world_seed: 'world_ironbell_042',
+              campaign_goal_id: null,
+              difficulty_model: 'distance_scaled_balanced',
+              tone_profile: {},
+              starting_section_id: 'section_start_001',
+              active_section_id: 'section_start_001',
+              dungeon_graph: { nodes: ['section_start_001'], edges: [] },
+              generation_state: {},
+              presentation_state: {},
+              created_at: '2026-03-22T00:00:00.000Z',
+              updated_at: '2026-03-22T00:00:00.000Z',
+            },
+            error: null,
+          }),
+        };
+      }
+
+      if (table === 'shared_assets') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          order: sharedAssetsOrderMock,
+        };
+      }
+
+      if (
+        table === 'procgen_sections' ||
+        table === 'procgen_room_states' ||
+        table === 'procgen_overrides' ||
+        table === 'procgen_section_previews'
+      ) {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        };
+      }
+
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+
+    await hydrateProcgenCampaignBySession('session_001');
+    await hydrateProcgenCampaignBySession('session_002');
+
+    expect(sharedAssetsOrderMock).toHaveBeenCalledTimes(1);
+  });
+
   it('bakes section floor cache and persists it onto procgen_sections', async () => {
     const updateMock = vi.fn().mockReturnThis();
     const eqMock = vi.fn().mockResolvedValue({ error: null });
@@ -706,10 +771,68 @@ describe('hydrateProcgenCampaignBySession', () => {
       campaignName: 'The Bloom Beneath',
       worldSeed: 'world_ironbell_042',
     });
+    starter.sections[0] = {
+      ...starter.sections[0],
+      renderPayloadCache: {
+        bakedFloor: {
+          status: 'complete',
+          chunkSizePx: 1024,
+          tileResolutionPx: 256,
+          floorCellsPerChunk: 16,
+          chunks: [
+            {
+              chunkX: 0,
+              chunkY: 0,
+              x: 0,
+              y: 0,
+              widthPx: 1024,
+              heightPx: 1024,
+              imageUrl: 'https://example.com/chunk.png',
+              tileSprites: [
+                {
+                  assetId: 'sprite_001',
+                  assetUrl: 'https://example.com/sprite.png',
+                  x: 0,
+                  y: 0,
+                  widthPx: 256,
+                  heightPx: 256,
+                  rotationDegrees: 0,
+                  flipHorizontal: false,
+                  flipVertical: false,
+                },
+              ],
+              transitionOverlays: [
+                {
+                  id: 'overlay_001',
+                  x: 0,
+                  y: 0,
+                  widthPx: 32,
+                  heightPx: 32,
+                  fill: '#ffffff',
+                },
+              ],
+            },
+          ],
+        },
+        bakeManifest: {
+          assets: new Array(50).fill('asset_001'),
+        },
+        bakeJobState: {
+          status: 'complete',
+          contentSignature: 'current-signature',
+          dirtyChunkKeys: ['0:0'],
+          completedChunkKeys: ['0:0'],
+          chunkFingerprints: { '0:0': 'fingerprint' },
+          bakedFloor: {
+            status: 'complete',
+          },
+        },
+      },
+    };
     const finalCampaignUpdateEqMock = vi.fn().mockResolvedValue({ error: null });
     const upsertMock = vi.fn().mockResolvedValue({ error: null });
-    const previewDeleteEqMock = vi.fn().mockResolvedValue({ error: null });
-    const previewInsertMock = vi.fn().mockResolvedValue({ error: null });
+    const previewDeleteInMock = vi.fn().mockResolvedValue({ error: null });
+    const previewUpsertMock = vi.fn().mockResolvedValue({ error: null });
     const insertedCampaignRow = {
       id: '9a7a3d4d-d92f-4dc6-ac62-5b7e39c0ec10',
       session_id: 'session_001',
@@ -753,6 +876,28 @@ describe('hydrateProcgenCampaignBySession', () => {
         updated_at: starter.sections[0].updatedAt,
       },
     ];
+    const existingPreviewRows = [
+      {
+        id: 'preview_stale_001',
+        campaign_id: insertedCampaignRow.id,
+        from_section_id: null,
+        section_stub_id: 'section_stub_stale_001',
+        direction: 'north',
+        preview_state: {},
+        created_at: starter.previews[0].createdAt,
+        updated_at: starter.previews[0].updatedAt,
+      },
+      {
+        id: 'preview_current_001',
+        campaign_id: insertedCampaignRow.id,
+        from_section_id: persistedSections[0].id,
+        section_stub_id: starter.previews[0].sectionStubId,
+        direction: starter.previews[0].direction,
+        preview_state: {},
+        created_at: starter.previews[0].createdAt,
+        updated_at: starter.previews[0].updatedAt,
+      },
+    ];
 
     fromMock.mockImplementation((table: string) => {
       if (table === 'procgen_campaigns') {
@@ -782,10 +927,12 @@ describe('hydrateProcgenCampaignBySession', () => {
 
       if (table === 'procgen_section_previews') {
         return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockResolvedValue({ data: existingPreviewRows, error: null }),
+          upsert: previewUpsertMock,
           delete: vi.fn().mockReturnValue({
-            eq: previewDeleteEqMock,
+            in: previewDeleteInMock,
           }),
-          insert: previewInsertMock,
         };
       }
 
@@ -799,15 +946,180 @@ describe('hydrateProcgenCampaignBySession', () => {
 
     expect(result.success).toBe(true);
     expect(upsertMock).toHaveBeenCalledTimes(1);
-    expect(previewDeleteEqMock).toHaveBeenCalledWith('campaign_id', insertedCampaignRow.id);
-    expect(previewInsertMock).toHaveBeenCalledTimes(1);
+    const sectionRows = upsertMock.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
+    expect(sectionRows[0]?.render_payload_cache).toEqual({
+      bakedFloor: {
+        status: 'complete',
+        chunkSizePx: 1024,
+        tileResolutionPx: 256,
+        floorCellsPerChunk: 16,
+        chunks: [
+          {
+            chunkX: 0,
+            chunkY: 0,
+            x: 0,
+            y: 0,
+            widthPx: 1024,
+            heightPx: 1024,
+            imageUrl: 'https://example.com/chunk.png',
+          },
+        ],
+      },
+      bakeJobState: {
+        status: 'complete',
+        contentSignature: 'current-signature',
+      },
+    });
+    expect(previewUpsertMock).toHaveBeenCalledTimes(1);
+    expect(previewUpsertMock).toHaveBeenCalledWith(expect.any(Array), {
+      onConflict: 'campaign_id,section_stub_id',
+    });
+    expect(previewDeleteInMock).toHaveBeenCalledWith('id', ['preview_stale_001']);
     expect(finalCampaignUpdateEqMock).toHaveBeenCalledWith('id', insertedCampaignRow.id);
-    const previewRows = previewInsertMock.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
+    const previewRows = previewUpsertMock.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
     expect(previewRows).toHaveLength(starter.previews.length);
     expect(previewRows[0]?.from_section_id).toBe(persistedSections[0].id);
     expect(
       (previewRows[0]?.preview_state as { adjacentFromSectionIds?: string[] }).adjacentFromSectionIds?.[0]
     ).toBe(persistedSections[0].id);
+  });
+
+  it('compacts localhost section persistence to map-critical fields only', async () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'localhost',
+      },
+    } as Window & typeof globalThis);
+
+    const starter = createStarterCampaignSnapshot({
+      sessionId: 'session_001',
+      campaignName: 'The Bloom Beneath',
+      worldSeed: 'world_ironbell_042',
+    });
+    const finalCampaignUpdateEqMock = vi.fn().mockResolvedValue({ error: null });
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    const previewDeleteInMock = vi.fn().mockResolvedValue({ error: null });
+    const previewUpsertMock = vi.fn().mockResolvedValue({ error: null });
+    const insertedCampaignRow = {
+      id: '9a7a3d4d-d92f-4dc6-ac62-5b7e39c0ec10',
+      session_id: 'session_001',
+      name: starter.campaign.name,
+      world_seed: starter.campaign.worldSeed,
+      campaign_goal_id: null,
+      difficulty_model: starter.campaign.difficultyModel,
+      tone_profile: starter.campaign.toneProfile,
+      starting_section_id: starter.campaign.startingSectionId,
+      active_section_id: starter.campaign.activeSectionId,
+      dungeon_graph: starter.campaign.dungeonGraph,
+      generation_state: starter.campaign.generationState,
+      presentation_state: starter.campaign.presentationState,
+      created_at: starter.campaign.createdAt,
+      updated_at: starter.campaign.updatedAt,
+    };
+    const persistedSections = [
+      {
+        id: '0c31bf42-1e66-4d13-8ba3-7792c47e3f34',
+        campaign_id: insertedCampaignRow.id,
+        section_id: starter.sections[0].sectionId,
+        name: starter.sections[0].name,
+        state: starter.sections[0].state,
+        primary_biome_id: starter.sections[0].primaryBiomeId,
+        secondary_biome_ids: starter.sections[0].secondaryBiomeIds,
+        layout_type: starter.sections[0].layoutType,
+        grid: {
+          width: starter.sections[0].grid.width,
+          height: starter.sections[0].grid.height,
+          tile_size_ft: starter.sections[0].grid.tileSizeFt,
+        },
+        room_ids: starter.sections[0].roomIds,
+        entrance_connection_ids: starter.sections[0].entranceConnectionIds,
+        exit_connection_ids: starter.sections[0].exitConnectionIds,
+        generation_state: starter.sections[0].generationState,
+        presentation_state: starter.sections[0].presentationState,
+        override_state: starter.sections[0].overrideState,
+        render_payload_cache: starter.sections[0].renderPayloadCache,
+        locked_at: starter.sections[0].lockedAt,
+        created_at: starter.sections[0].createdAt,
+        updated_at: starter.sections[0].updatedAt,
+      },
+    ];
+    const existingPreviewRows = [
+      {
+        id: 'preview_current_001',
+        campaign_id: insertedCampaignRow.id,
+        from_section_id: persistedSections[0].id,
+        section_stub_id: starter.previews[0].sectionStubId,
+        direction: starter.previews[0].direction,
+        preview_state: {},
+        created_at: starter.previews[0].createdAt,
+        updated_at: starter.previews[0].updatedAt,
+      },
+    ];
+
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'procgen_campaigns') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          update: vi.fn().mockReturnValue({
+            eq: finalCampaignUpdateEqMock,
+          }),
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: insertedCampaignRow, error: null }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'procgen_sections') {
+        return {
+          upsert: upsertMock,
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          order: vi.fn().mockResolvedValue({ data: persistedSections, error: null }),
+        };
+      }
+
+      if (table === 'procgen_section_previews') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockResolvedValue({ data: existingPreviewRows, error: null }),
+          upsert: previewUpsertMock,
+          delete: vi.fn().mockReturnValue({
+            in: previewDeleteInMock,
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const result = await persistCampaignSnapshotBySession({
+      sessionId: 'session_001',
+      snapshot: starter,
+    });
+
+    expect(result.success).toBe(true);
+    const sectionRows = upsertMock.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
+    expect(sectionRows[0]?.generation_state).toEqual({
+      generatedSection: starter.sections[0].generationState.generatedSection,
+      generatedContent: starter.sections[0].generationState.generatedContent,
+      contentRerollState: starter.sections[0].generationState.contentRerollState,
+      sectionProfile: starter.sections[0].generationState.sectionProfile,
+      settlementArchetypeId: starter.sections[0].generationState.settlementArchetypeId,
+      coordinates: starter.sections[0].generationState.coordinates,
+      visitIndex: starter.sections[0].generationState.visitIndex,
+      enteredFromDirection: starter.sections[0].generationState.enteredFromDirection,
+      sectionKind: starter.sections[0].generationState.sectionKind,
+    });
+    const previewRows = previewUpsertMock.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
+    expect(previewRows[0]?.preview_state).toMatchObject({
+      generatedSection: starter.previews[0].previewState.generatedSection,
+      generatedContent: starter.previews[0].previewState.generatedContent,
+      contentRerollState: starter.previews[0].previewState.contentRerollState,
+    });
   });
 
   it('rebuilds baked floors when a cache was produced under the previous bake runtime format', async () => {

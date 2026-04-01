@@ -41,7 +41,7 @@ export const PlaySession: React.FC = () => {
   const activeMap = useMapStore((state) => state.activeMap);
   const drawingData = useMapStore((state) => state.drawingData);
   const isGM = useIsGM();
-  const { leaveSession, claimGM, releaseGM } = useSession();
+  const { leaveSession, claimGM, releaseGM, loadChatData, loadInitiativeData } = useSession();
   const { updateDrawingData } = useMap();
   const canUseDrawTools = isGM || Boolean(session?.allowPlayersDrawings);
 
@@ -68,6 +68,25 @@ export const PlaySession: React.FC = () => {
       setSideTab('chat');
     }
   }, [sideTab, canUseDrawTools]);
+
+  useEffect(() => {
+    if (connectionStatus === 'disconnected' || connectionStatus === 'reconnecting') {
+      return;
+    }
+
+    if (!session?.id) {
+      return;
+    }
+
+    if (sideTab === 'chat' || sideTab === 'dice') {
+      void loadChatData(session.id);
+      return;
+    }
+
+    if (!isGM && sideTab === 'initiative') {
+      void loadInitiativeData(session.id);
+    }
+  }, [session?.id, sideTab, isGM, connectionStatus, loadChatData, loadInitiativeData]);
 
   if (!session || !currentUser) return null;
 

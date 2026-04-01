@@ -10,13 +10,21 @@ export const PlayRoute: React.FC = () => {
   const [searchParams] = useSearchParams();
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
+  const autoJoinCode = searchParams.get('code');
+  const autoJoinUsername = searchParams.get('username');
   const shouldAutoJoin =
     searchParams.get('autojoin') === '1' &&
-    Boolean(searchParams.get('code')) &&
-    Boolean(searchParams.get('username'));
+    Boolean(autoJoinCode) &&
+    Boolean(autoJoinUsername);
   const isLaunchPreparation = searchParams.get('launching') === '1';
+  const hasActiveAutoJoinTarget =
+    shouldAutoJoin &&
+    Boolean(session?.code) &&
+    Boolean(currentUser?.username) &&
+    session?.code.toUpperCase() === autoJoinCode?.toUpperCase() &&
+    currentUser?.username === autoJoinUsername;
 
-  if (shouldAutoJoin) {
+  if (shouldAutoJoin && !hasActiveAutoJoinTarget) {
     return <PlayAutoJoinGate />;
   }
 

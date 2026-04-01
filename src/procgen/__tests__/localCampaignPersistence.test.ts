@@ -4,6 +4,7 @@ import {
   getLocalCampaignStorageKey,
   loadLocalCampaignSnapshot,
   saveLocalCampaignSnapshot,
+  subscribeLocalCampaignSnapshotUpdates,
 } from '../integration/localCampaignPersistence';
 
 describe('localCampaignPersistence', () => {
@@ -114,5 +115,63 @@ describe('localCampaignPersistence', () => {
 
     expect(loaded?.campaign.name).toBe('The Bloom Beneath');
     expect(loaded?.sections[0]?.renderPayloadCache).toBeNull();
+  });
+
+  it('broadcasts and receives local campaign snapshot update events across tabs', () => {
+    const starter = createStarterCampaignSnapshot({
+      sessionId: 'session_001',
+      campaignName: 'The Bloom Beneath',
+      worldSeed: 'world_ironbell_042',
+    });
+
+    const listeners = new Set<(event: { data: { type: string; sessionId: string } }) => void>();
+    const postMessage = vi.fn((payload: { type: string; sessionId: string }) => {
+      for (const listener of listeners) {
+        listener({ data: payload });
+      }
+    });
+
+    class BroadcastChannelMock {
+      onmessage: ((event: { data: { type: string; sessionId: string } }) => void) | null = null;
+
+      constructor(_name: string) {
+        listeners.add((event) => {
+          this.onmessage?.(event);
+        });
+      }
+
+      postMessage = postMessage;
+      close = vi.fn();
+    }
+
+    const setItem = vi.fn();
+    const callback = vi.fn();
+
+    vi.stubGlobal('window', {
+      BroadcastChannel: BroadcastChannelMock,
+      localStorage: {
+        getItem: vi.fn(),
+        setItem,
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+        key: vi.fn(),
+        length: 0,
+      },
+    });
+
+    const unsubscribe = subscribeLocalCampaignSnapshotUpdates('session_001', callback);
+    const saved = saveLocalCampaignSnapshot({
+      sessionId: 'session_001',
+      snapshot: starter,
+    });
+
+    expect(saved).toBe(true);
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'snapshot_saved',
+      sessionId: 'session_001',
+    });
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
   });
 });
