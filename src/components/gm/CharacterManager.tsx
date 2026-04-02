@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Plus, User, Trash2, Upload, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Plus, User, Trash2, Upload, X } from 'lucide-react';
 import { useCharacters } from '../../hooks/useCharacters';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
@@ -43,7 +43,24 @@ export const CharacterManager: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newTokenFile, setNewTokenFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [openStatusMenuFor, setOpenStatusMenuFor] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const statusMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!openStatusMenuFor) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!statusMenuRef.current?.contains(event.target as Node)) {
+        setOpenStatusMenuFor(null);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [openStatusMenuFor]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,6 +126,26 @@ export const CharacterManager: React.FC = () => {
       showToast(result.error || 'Failed to update token', 'error');
     }
   };
+
+  const selectedStatusRing = (value: string | null) =>
+    STATUS_RING_COLORS.find((color) => color.value === value) ?? STATUS_RING_COLORS[0];
+
+  const renderStatusRingSwatch = (value: string | null, filled = true) => (
+    <span
+      className={`relative inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border ${
+        value ? 'border-slate-200/20' : 'border-slate-500'
+      }`}
+      style={{ backgroundColor: value ?? 'transparent' }}
+      aria-hidden="true"
+    >
+      {!value && (
+        <span className="absolute h-5 w-px rotate-45 bg-slate-500" />
+      )}
+      {!filled && value && (
+        <span className="absolute inset-[3px] rounded-full bg-slate-950/70" />
+      )}
+    </span>
+  );
 
   return (
     <div className="h-full overflow-y-auto p-4">
@@ -196,6 +233,7 @@ export const CharacterManager: React.FC = () => {
               key={char.id}
               className="bg-slate-800/50 rounded-lg border border-slate-700 p-3 cursor-pointer hover:border-tempest-500"
               onClick={() => {
+                setOpenStatusMenuFor(null);
                 if (!activeMap) return;
                 selectToken(char.id, 'character');
                 focusToken(char.positionX, char.positionY);
@@ -222,13 +260,19 @@ export const CharacterManager: React.FC = () => {
                     accept="image/png,image/jpeg,image/webp,image/gif"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handleTokenUpload(char.id, file);
+                      if (file) {
+                        void handleTokenUpload(char.id, file);
+                      }
+                      e.currentTarget.value = '';
                     }}
                     className="hidden"
                     id={`token-${char.id}`}
+                    aria-label={`Change token for ${char.name}`}
+                    onClick={(e) => e.stopPropagation()}
                   />
                   <label
                     htmlFor={`token-${char.id}`}
+                    onClick={(e) => e.stopPropagation()}
                     className="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-full cursor-pointer transition-opacity"
                   >
                     <Upload className="w-4 h-4 text-slate-200" />
@@ -249,32 +293,61 @@ export const CharacterManager: React.FC = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1">
-                  <select
-                    value={char.statusRingColor || 'none'}
+                  <div
+                    ref={openStatusMenuFor === char.id ? statusMenuRef : null}
+                    className="relative"
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const selected = STATUS_RING_COLORS.find((color) =>
-                        (color.value ?? 'none') === value
-                      );
-                      void updateCharacterDetails(char.id, {
-                        statusRingColor: selected?.value ?? null,
-                      });
-                    }}
-                    className="bg-slate-900 border border-slate-600 rounded px-1 py-0.5 text-xs text-slate-300 max-w-[84px]"
-                    title="Status ring color"
                   >
-                    {STATUS_RING_COLORS.map((color) => (
-                      <option key={color.label} value={color.value ?? 'none'}>
-                        {color.label}
-                      </option>
-                    ))}
-                  </select>
+                    <button
+                      type="button"
+                      aria-label={`Status ring color for ${char.name}`}
+                      aria-expanded={openStatusMenuFor === char.id}
+                      className="flex h-9 w-11 items-center justify-center gap-1 rounded-lg border border-slate-600 bg-slate-900/90 text-slate-200 transition-colors hover:border-tempest-400"
+                      onClick={() =>
+                        setOpenStatusMenuFor((current) => (current === char.id ? null : char.id))
+                      }
+                      title={`Status ring color: ${selectedStatusRing(char.statusRingColor).label}`}
+                    >
+                      {renderStatusRingSwatch(char.statusRingColor)}
+                      <ChevronDown className="h-3 w-3 text-slate-400" />
+                    </button>
+
+                    {openStatusMenuFor === char.id && (
+                      <div className="absolute right-0 top-full z-20 mt-2 w-36 rounded-xl border border-slate-700 bg-slate-950/95 p-2 shadow-xl shadow-slate-950/40 backdrop-blur">
+                        <div className="grid grid-cols-4 gap-2">
+                          {STATUS_RING_COLORS.map((color) => (
+                            <button
+                              key={color.label}
+                              type="button"
+                              aria-label={`${color.label} status ring`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                                color.value === char.statusRingColor
+                                  ? 'border-tempest-400 bg-slate-800'
+                                  : 'border-slate-700 hover:border-slate-500 hover:bg-slate-800/70'
+                              }`}
+                              onClick={() => {
+                                setOpenStatusMenuFor(null);
+                                void updateCharacterDetails(char.id, {
+                                  statusRingColor: color.value,
+                                });
+                              }}
+                              title={color.label}
+                            >
+                              {renderStatusRingSwatch(color.value)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   {char.isClaimed && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleRelease(char.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleRelease(char.id);
+                      }}
                       title="Release character"
                     >
                       <X className="w-4 h-4" />
@@ -283,7 +356,10 @@ export const CharacterManager: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDelete(char.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(char.id);
+                    }}
                     title="Delete character"
                   >
                     <Trash2 className="w-4 h-4 text-red-400" />

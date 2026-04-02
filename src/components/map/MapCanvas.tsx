@@ -521,6 +521,13 @@ export const MapCanvas: React.FC = () => {
   }, [activeMap?.id]);
 
   useEffect(() => {
+    if (!drawingTool || !canDrawOnMap) {
+      setCurrentDrawing(null);
+      setIsDrawing(false);
+    }
+  }, [drawingTool, canDrawOnMap]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => setEffectPulse((prev) => (prev + 1) % 100000), 40);
     return () => window.clearInterval(timer);
   }, []);
@@ -818,6 +825,7 @@ export const MapCanvas: React.FC = () => {
       return {
         id: nanoid(),
         authorRole: isGM ? 'gm' : 'player',
+        authorUsername: currentUser?.username,
         shape,
         points: shape === 'free' ? [startPoint] : [startPoint, startPoint],
         strokeWidth: drawingStrokeWidth,
@@ -828,7 +836,7 @@ export const MapCanvas: React.FC = () => {
         createdAt: new Date().toISOString(),
       };
     },
-    [drawingColor, drawingStrokeWidth, drawingEmoji, drawingEmojiScale, isGM]
+    [drawingColor, drawingStrokeWidth, drawingEmoji, drawingEmojiScale, isGM, currentUser?.username]
   );
 
   const getDrawingBounds = useCallback((region: DrawingRegion) => {

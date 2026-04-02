@@ -11,6 +11,9 @@ interface RollSource {
   sourceName: string;
 }
 
+const PLAYER_REROLL_BLOCK_MESSAGE =
+  'You are already in the initiative order. Ask the GM to remove you before rolling again.';
+
 export const useInitiative = () => {
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
@@ -32,6 +35,57 @@ export const useInitiative = () => {
     return rollLogs.filter((log) => log.visibility === 'public');
   }, [rollLogs, currentUser?.isGm]);
 
+  const currentCharacter = useMemo(
+    () => characters.find((character) => character.claimedByUsername === currentUser?.username) ?? null,
+    [characters, currentUser?.username]
+  );
+
+  const hasCurrentPlayerEntry = useMemo(() => {
+    if (!currentUser) return false;
+
+    return entries.some((entry) => {
+      if (entry.sourceType !== 'player') {
+        return false;
+      }
+
+      if (currentCharacter?.id && entry.sourceId === currentCharacter.id) {
+        return true;
+      }
+
+      return entry.sourceId === null && entry.sourceName === currentUser.username;
+    });
+  }, [entries, currentUser, currentCharacter?.id]);
+
+  const findExistingEntryId = useCallback(
+    async (source: RollSource) => {
+      if (!session) return null;
+
+      if (source.sourceId) {
+        const { data: existing } = await supabase
+          .from('initiative_entries')
+          .select('id')
+          .eq('session_id', session.id)
+          .eq('source_type', source.sourceType)
+          .eq('source_id', source.sourceId)
+          .maybeSingle();
+
+        return existing?.id ?? null;
+      }
+
+      const { data: existing } = await supabase
+        .from('initiative_entries')
+        .select('id')
+        .eq('session_id', session.id)
+        .eq('source_type', source.sourceType)
+        .is('source_id', null)
+        .eq('source_name', source.sourceName)
+        .maybeSingle();
+
+      return existing?.id ?? null;
+    },
+    [session]
+  );
+
   const upsertRollForSource = useCallback(
     async (
       source: RollSource,
@@ -44,30 +98,7 @@ export const useInitiative = () => {
 
       const total = rollValue + modifier;
 
-      let existingEntryId: string | null = null;
-
-      if (source.sourceId) {
-        const { data: existing } = await supabase
-          .from('initiative_entries')
-          .select('id')
-          .eq('session_id', session.id)
-          .eq('source_type', source.sourceType)
-          .eq('source_id', source.sourceId)
-          .maybeSingle();
-
-        existingEntryId = existing?.id ?? null;
-      } else {
-        const { data: existing } = await supabase
-          .from('initiative_entries')
-          .select('id')
-          .eq('session_id', session.id)
-          .eq('source_type', source.sourceType)
-          .is('source_id', null)
-          .eq('source_name', source.sourceName)
-          .maybeSingle();
-
-        existingEntryId = existing?.id ?? null;
-      }
+      let existingEntryId = await findExistingEntryId(source);
 
       if (existingEntryId) {
         const { error } = await supabase
@@ -151,22 +182,28 @@ export const useInitiative = () => {
 
       const player = players.find((p) => p.username === currentUser.username);
       const modifier = player?.initiativeModifier ?? 0;
+      const source = {
+        sourceType: 'player' as const,
+        sourceId: currentCharacter?.id || null,
+        sourceName: currentCharacter?.name || currentUser.username,
+      };
+      const existingEntryId = await findExistingEntryId(source);
+
+      if (existingEntryId) {
+        return { success: false, error: PLAYER_REROLL_BLOCK_MESSAGE };
+      }
+
       const rollValue = Math.floor(Math.random() * 20) + 1;
-      const myCharacter = characters.find((c) => c.claimedByUsername === currentUser.username);
 
       return upsertRollForSource(
-        {
-          sourceType: 'player',
-          sourceId: myCharacter?.id || null,
-          sourceName: myCharacter?.name || currentUser.username,
-        },
+        source,
         phase,
         visibility,
         modifier,
         rollValue
       );
     },
-    [session, currentUser, players, characters, upsertRollForSource]
+    [session, currentUser, players, currentCharacter, findExistingEntryId, upsertRollForSource]
   );
 
   const addNpcInitiative = useCallback(
@@ -254,6 +291,7 @@ export const useInitiative = () => {
     allEntries: entries,
     rollLogs: visibleLogs,
     currentMapNpcs,
+    hasCurrentPlayerEntry,
     setMyModifier,
     addPlayerInitiative,
     addNpcInitiative,

@@ -21,6 +21,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = ({ gmView = false
     entries,
     rollLogs,
     currentMapNpcs,
+    hasCurrentPlayerEntry,
     setMyModifier,
     addPlayerInitiative,
     addNpcInitiative,
@@ -133,9 +134,16 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = ({ gmView = false
             </label>
           </div>
 
-          <Button onClick={handleRollSelf} className="w-full">
-            Roll Initiative (d20 {myModifier >= 0 ? '+' : ''}{myModifier})
+          <Button onClick={handleRollSelf} className="w-full" disabled={hasCurrentPlayerEntry}>
+            {hasCurrentPlayerEntry
+              ? 'Already in initiative order'
+              : `Roll Initiative (d20 ${myModifier >= 0 ? '+' : ''}${myModifier})`}
           </Button>
+          {hasCurrentPlayerEntry && (
+            <p className="text-xs text-slate-400">
+              Ask the GM to remove you from the tracker before rolling again.
+            </p>
+          )}
         </div>
       )}
 

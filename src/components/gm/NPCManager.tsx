@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Plus,
   Skull,
@@ -8,6 +8,7 @@ import {
   EyeOff,
   MapPin,
   Library,
+  X,
 } from 'lucide-react';
 import { useNPCs } from '../../hooks/useNPCs';
 import { useMapStore } from '../../stores/mapStore';
@@ -30,6 +31,7 @@ const STATUS_RING_COLORS = [
   { label: 'Purple', value: '#8b5cf6' },
   { label: 'Pink', value: '#ec4899' },
 ] as const;
+const PREVIEW_LIMIT = 4;
 
 export const NPCManager: React.FC = () => {
   const { showToast } = useToast();
@@ -57,6 +59,7 @@ export const NPCManager: React.FC = () => {
   const [selectedGlobalAsset, setSelectedGlobalAsset] = useState<GlobalAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAssetBrowser, setShowAssetBrowser] = useState(false);
+  const [activeView, setActiveView] = useState<'library' | 'active' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,6 +181,20 @@ export const NPCManager: React.FC = () => {
           )}
         </div>
 
+        <NPCPreviewCard
+          title="NPC Library"
+          subtitle="Templates ready for the table"
+          count={npcTemplates.length}
+          emptyLabel="No templates yet"
+          previewItems={npcTemplates.map((template) => ({
+            id: template.id,
+            name: template.name,
+            tokenUrl: template.tokenUrl,
+          }))}
+          onClick={() => setActiveView('library')}
+          ariaLabel="Open NPC library"
+        />
+
         {/* Create form */}
         {isCreating && (
           <div className="mb-4 p-3 bg-slate-800 rounded-lg border border-slate-600">
@@ -241,7 +258,7 @@ export const NPCManager: React.FC = () => {
                     onClick={() => setShowAssetBrowser(true)}
                   >
                     <Library className="w-4 h-4 mr-1" />
-                    Library
+                    Global Library
                   </Button>
                   <Button
                     variant="secondary"
@@ -286,168 +303,240 @@ export const NPCManager: React.FC = () => {
           </div>
         )}
 
-        {/* Template list */}
-        {npcTemplates.length === 0 ? (
-          <p className="text-slate-500 text-sm text-center py-4">
-            No NPC templates yet
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {npcTemplates.map((template) => (
-              <div
-                key={template.id}
-                className="flex items-center gap-2 p-2 bg-slate-800/50 rounded border border-slate-700"
-              >
-                <div className="w-8 h-8 rounded bg-slate-700 overflow-hidden flex-shrink-0">
-                  {template.tokenUrl ? (
-                    <img
-                      src={template.tokenUrl}
-                      alt={template.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Skull className="w-4 h-4 text-slate-400" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-200 truncate">
-                    {template.name}
-                  </p>
-                  <p className="text-xs text-slate-500 capitalize">
-                    {template.defaultSize}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleAddToMap(template.id)}
-                  disabled={!activeMap}
-                  title="Add to map"
-                >
-                  <MapPin className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeleteTemplate(template.id)}
-                >
-                  <Trash2 className="w-4 h-4 text-red-400" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* NPCs on Current Map */}
       <div>
-        <h3 className="text-sm font-medium text-slate-300 mb-3">
-          NPCs on Current Map
-        </h3>
+        <NPCPreviewCard
+          title="NPCs on Current Map"
+          subtitle={
+            activeMap ? 'Active tokens ready to manage' : 'Add or switch to a map to place NPCs'
+          }
+          count={activeMap ? currentMapNPCs.length : 0}
+          emptyLabel={activeMap ? 'No NPCs on this map' : 'No active map'}
+          previewItems={currentMapNPCs.map((npc) => ({
+            id: npc.id,
+            name: npc.displayName || 'NPC',
+            tokenUrl: npc.tokenUrl,
+          }))}
+          onClick={() => {
+            if (activeMap) {
+              setActiveView('active');
+            }
+          }}
+          disabled={!activeMap}
+          ariaLabel="Open active NPCs"
+        />
+      </div>
 
-        {!activeMap ? (
-          <p className="text-slate-500 text-sm text-center py-4">
-            No active map
-          </p>
-        ) : currentMapNPCs.length === 0 ? (
-          <p className="text-slate-500 text-sm text-center py-4">
-            No NPCs on this map
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {currentMapNPCs.map((npc) => (
-              <div
-                key={npc.id}
-                className={`
-                  flex items-center gap-2 p-2 rounded border cursor-pointer
-                  ${npc.isVisible ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-800/30 border-slate-700/50'}
-                `}
-                onClick={() => {
-                  selectToken(npc.id, 'npc');
-                  focusToken(npc.positionX, npc.positionY);
-                }}
+      {activeView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-700 p-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-100">NPC Management</h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  Review the table library and active map roster without squeezing the GM panel.
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveView(null)}
+                className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100"
+                aria-label="Close NPC manager"
               >
-                <div className="w-8 h-8 rounded bg-slate-700 overflow-hidden flex-shrink-0">
-                  {npc.tokenUrl ? (
-                    <img
-                      src={npc.tokenUrl}
-                      alt={npc.displayName || 'NPC'}
-                      className="w-full h-full object-cover"
-                    />
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex border-b border-slate-700">
+              <button
+                onClick={() => setActiveView('library')}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                  activeView === 'library'
+                    ? 'bg-slate-800 text-slate-100'
+                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                }`}
+              >
+                NPC Library
+              </button>
+              <button
+                onClick={() => setActiveView('active')}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                  activeView === 'active'
+                    ? 'bg-slate-800 text-slate-100'
+                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                }`}
+              >
+                Active NPCs
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-4">
+              {activeView === 'library' && (
+                <>
+                  {npcTemplates.length === 0 ? (
+                    <p className="text-slate-500 text-sm text-center py-4">
+                      No NPC templates yet
+                    </p>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Skull className="w-4 h-4 text-slate-400" />
+                    <div className="space-y-2">
+                      {npcTemplates.map((template) => (
+                        <div
+                          key={template.id}
+                          className="flex items-center gap-2 rounded border border-slate-700 bg-slate-800/50 p-2"
+                        >
+                          <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded bg-slate-700">
+                            {template.tokenUrl ? (
+                              <img
+                                src={template.tokenUrl}
+                                alt={template.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center">
+                                <Skull className="h-4 w-4 text-slate-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm text-slate-200">
+                              {template.name}
+                            </p>
+                            <p className="text-xs capitalize text-slate-500">
+                              {template.defaultSize}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddToMap(template.id)}
+                            disabled={!activeMap}
+                            title="Add to map"
+                          >
+                            <MapPin className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTemplate(template.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-400" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <input
-                    type="text"
-                    defaultValue={npc.displayName || 'NPC'}
-                    className={`w-full bg-transparent text-sm truncate focus:outline-none ${
-                      npc.isVisible ? 'text-slate-200' : 'text-slate-400'
-                    }`}
-                    onBlur={(e) => handleRenameNPC(npc.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.currentTarget.blur();
-                      }
-                    }}
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleToggleVisibility(npc.id);
-                  }}
-                  title={npc.isVisible ? 'Hide from players' : 'Show to players'}
-                >
-                  {npc.isVisible ? (
-                    <Eye className="w-4 h-4 text-green-400" />
+                </>
+              )}
+
+              {activeView === 'active' && (
+                <>
+                  {!activeMap ? (
+                    <p className="text-slate-500 text-sm text-center py-4">
+                      No active map
+                    </p>
+                  ) : currentMapNPCs.length === 0 ? (
+                    <p className="text-slate-500 text-sm text-center py-4">
+                      No NPCs on this map
+                    </p>
                   ) : (
-                    <EyeOff className="w-4 h-4 text-slate-400" />
+                    <div className="space-y-2">
+                      {currentMapNPCs.map((npc) => (
+                        <div
+                          key={npc.id}
+                          className={`
+                            flex items-center gap-2 rounded border p-2 cursor-pointer
+                            ${npc.isVisible ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-800/30 border-slate-700/50'}
+                          `}
+                          onClick={() => {
+                            selectToken(npc.id, 'npc');
+                            focusToken(npc.positionX, npc.positionY);
+                          }}
+                        >
+                          <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded bg-slate-700">
+                            {npc.tokenUrl ? (
+                              <img
+                                src={npc.tokenUrl}
+                                alt={npc.displayName || 'NPC'}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center">
+                                <Skull className="h-4 w-4 text-slate-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <input
+                              type="text"
+                              defaultValue={npc.displayName || 'NPC'}
+                              className={`w-full truncate bg-transparent text-sm focus:outline-none ${
+                                npc.isVisible ? 'text-slate-200' : 'text-slate-400'
+                              }`}
+                              onBlur={(e) => handleRenameNPC(npc.id, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                            />
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleToggleVisibility(npc.id);
+                            }}
+                            title={npc.isVisible ? 'Hide from players' : 'Show to players'}
+                          >
+                            {npc.isVisible ? (
+                              <Eye className="h-4 w-4 text-green-400" />
+                            ) : (
+                              <EyeOff className="h-4 w-4 text-slate-400" />
+                            )}
+                          </Button>
+                          <select
+                            value={npc.statusRingColor || 'none'}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const selected = STATUS_RING_COLORS.find((color) =>
+                                (color.value ?? 'none') === value
+                              );
+                              void updateNPCInstanceDetails(npc.id, {
+                                statusRingColor: selected?.value ?? null,
+                              });
+                            }}
+                            className="max-w-[84px] rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-xs text-slate-300"
+                            title="Status ring color"
+                          >
+                            {STATUS_RING_COLORS.map((color) => (
+                              <option key={color.label} value={color.value ?? 'none'}>
+                                {color.label}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleRemoveFromMap(npc.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-400" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </Button>
-                <select
-                  value={npc.statusRingColor || 'none'}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    const selected = STATUS_RING_COLORS.find((color) =>
-                      (color.value ?? 'none') === value
-                    );
-                    void updateNPCInstanceDetails(npc.id, {
-                      statusRingColor: selected?.value ?? null,
-                    });
-                  }}
-                  className="bg-slate-900 border border-slate-600 rounded px-1 py-0.5 text-xs text-slate-300 max-w-[84px]"
-                  title="Status ring color"
-                >
-                  {STATUS_RING_COLORS.map((color) => (
-                    <option key={color.label} value={color.value ?? 'none'}>
-                      {color.label}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleRemoveFromMap(npc.id);
-                  }}
-                >
-                  <Trash2 className="w-4 h-4 text-red-400" />
-                </Button>
-              </div>
-            ))}
+                </>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Global Asset Browser Modal */}
       {showAssetBrowser && (
@@ -458,5 +547,97 @@ export const NPCManager: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+interface NPCPreviewItem {
+  id: string;
+  name: string;
+  tokenUrl: string | null;
+}
+
+interface NPCPreviewCardProps {
+  title: string;
+  subtitle: string;
+  count: number;
+  emptyLabel: string;
+  previewItems: NPCPreviewItem[];
+  onClick: () => void;
+  ariaLabel: string;
+  disabled?: boolean;
+}
+
+const NPCPreviewCard: React.FC<NPCPreviewCardProps> = ({
+  title,
+  subtitle,
+  count,
+  emptyLabel,
+  previewItems,
+  onClick,
+  ariaLabel,
+  disabled = false,
+}) => {
+  const visibleItems = previewItems.slice(0, PREVIEW_LIMIT);
+  const overflowCount = Math.max(0, previewItems.length - PREVIEW_LIMIT);
+
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-full rounded-lg border border-slate-700 bg-slate-800/40 p-3 text-left transition-colors ${
+        disabled
+          ? 'cursor-not-allowed opacity-70'
+          : 'hover:border-tempest-500 hover:bg-slate-800/70'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-slate-200">{title}</p>
+          <p className="mt-1 text-xs text-slate-400">{subtitle}</p>
+        </div>
+        <span className="rounded-full border border-slate-600 bg-slate-900 px-2 py-0.5 text-xs text-slate-300">
+          {count}
+        </span>
+      </div>
+
+      {previewItems.length === 0 ? (
+        <div className="mt-3 rounded-md border border-dashed border-slate-700 bg-slate-900/40 px-3 py-4 text-center text-xs text-slate-500">
+          {emptyLabel}
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <div className="flex items-center">
+            {visibleItems.map((item, index) => (
+              <div
+                key={item.id}
+                className={`relative ${index === 0 ? '' : '-ml-2'}`}
+              >
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-slate-900 bg-slate-700 shadow-lg shadow-slate-950/40">
+                  {item.tokenUrl ? (
+                    <img
+                      src={item.tokenUrl}
+                      alt={item.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Skull className="h-4 w-4 text-slate-300" />
+                  )}
+                </div>
+              </div>
+            ))}
+            {overflowCount > 0 && (
+              <div className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-900 bg-slate-950 text-xs font-semibold text-slate-200 shadow-lg shadow-slate-950/40">
+                +{overflowCount}
+              </div>
+            )}
+          </div>
+          <span className="text-xs text-slate-400">
+            Click to open
+          </span>
+        </div>
+      )}
+    </button>
   );
 };
