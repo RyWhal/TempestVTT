@@ -44,8 +44,8 @@ describe('route split', () => {
     consoleWarnSpy.mockRestore();
 
     expect(html).toContain('Start Tempest Table');
-    expect(html).toContain('Start Endless Dungeon');
     expect(html).toContain('Join a Table');
+    expect(html).not.toContain('Start Endless Dungeon');
   });
 
   it('renders the public Tempest Table hub on /play when no session is active', async () => {
@@ -62,7 +62,7 @@ describe('route split', () => {
     expect(html).toContain('Join with code');
   });
 
-  it('renders Endless Dungeon on /campaign', async () => {
+  it('does not expose Endless Dungeon on /campaign', async () => {
     const { default: App } = await import('../../App');
 
     const html = renderToString(
@@ -71,10 +71,10 @@ describe('route split', () => {
       </MemoryRouter>
     );
 
-    expect(html).toContain('Endless Dungeon');
+    expect(html).not.toContain('Endless Dungeon');
   });
 
-  it('redirects legacy DunGEN and create routes into the new public surfaces', async () => {
+  it('removes the legacy DunGEN alias while keeping create and join routes', async () => {
     const { default: App } = await import('../../App');
 
     const dungenHtml = renderToString(
@@ -93,7 +93,7 @@ describe('route split', () => {
       </MemoryRouter>
     );
 
-    expect(dungenHtml).toContain('Endless Dungeon');
+    expect(dungenHtml).not.toContain('Endless Dungeon');
     expect(createHtml).toContain('Create Session');
     expect(joinHtml).toContain('Join Session');
   });
