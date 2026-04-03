@@ -40,6 +40,7 @@ export const PlaySession: React.FC = () => {
   const players = useSessionStore((state) => state.players);
   const activeMap = useMapStore((state) => state.activeMap);
   const drawingData = useMapStore((state) => state.drawingData);
+  const setDrawingTool = useMapStore((state) => state.setDrawingTool);
   const isGM = useIsGM();
   const { leaveSession, claimGM, releaseGM, loadChatData, loadInitiativeData } = useSession();
   const { updateDrawingData } = useMap();
@@ -70,6 +71,12 @@ export const PlaySession: React.FC = () => {
   }, [sideTab, canUseDrawTools]);
 
   useEffect(() => {
+    if (sideTab !== 'draw') {
+      setDrawingTool(null);
+    }
+  }, [sideTab, setDrawingTool]);
+
+  useEffect(() => {
     if (connectionStatus === 'disconnected' || connectionStatus === 'reconnecting') {
       return;
     }
@@ -90,6 +97,11 @@ export const PlaySession: React.FC = () => {
 
   if (!session || !currentUser) return null;
 
+  const playerDrawingCount = drawingData.filter(
+    (drawing) => drawing.authorRole === 'player' && drawing.authorUsername === currentUser.username
+  ).length;
+  const allPlayerDrawingCount = drawingData.filter((drawing) => drawing.authorRole === 'player').length;
+
   const handleClaimGM = async () => {
     const confirmed = confirm('Assume GM permissions for this table?');
     if (!confirmed) return;
@@ -100,12 +112,31 @@ export const PlaySession: React.FC = () => {
 
   const handleClearPlayerDrawings = async () => {
     if (!activeMap) return;
-    const confirmed = confirm('Clear all player drawings on this map?');
+    const confirmed = confirm(
+      isGM ? 'Clear all player drawings on this map?' : 'Clear your drawings on this map?'
+    );
     if (!confirmed) return;
 
-    const remainingDrawings = drawingData.filter((drawing) => drawing.authorRole !== 'player');
+    const remainingDrawings = drawingData.filter((drawing) => {
+      if (drawing.authorRole !== 'player') {
+        return true;
+      }
+
+      if (isGM) {
+        return false;
+      }
+
+      return drawing.authorUsername !== currentUser.username;
+    });
     const result = await updateDrawingData(activeMap.id, remainingDrawings);
-    showToast(result.success ? 'Player drawings cleared.' : result.error || 'Failed to clear drawings', result.success ? 'success' : 'error');
+    showToast(
+      result.success
+        ? isGM
+          ? 'Player drawings cleared.'
+          : 'Your drawings cleared.'
+        : result.error || 'Failed to clear drawings',
+      result.success ? 'success' : 'error'
+    );
   };
 
   return (
@@ -191,21 +222,24 @@ export const PlaySession: React.FC = () => {
               {sideTab === 'dice' && <DicePanel />}
               {!isGM && sideTab === 'initiative' && <InitiativePanel />}
               {sideTab === 'draw' && (
-                <div className="h-full space-y-3 overflow-y-auto p-4">
-                  <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+                <div className="flex h-full flex-col p-4">
+                  <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-700 bg-slate-950/60 p-4">
                     <h3 className="text-sm font-semibold text-slate-100">Drawing Tools</h3>
                     <p className="mt-1 text-xs text-slate-400">Quick annotations and planning marks.</p>
                     <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-                      <span>Player drawings: {drawingData.filter((drawing) => drawing.authorRole === 'player').length}</span>
+                      <span>{isGM ? 'Player drawings' : 'Your drawings'}: {isGM ? allPlayerDrawingCount : playerDrawingCount}</span>
                       <button
                         onClick={handleClearPlayerDrawings}
                         className="rounded bg-red-500/20 px-2 py-1 text-red-300 hover:bg-red-500/30"
-                        disabled={!activeMap || drawingData.every((drawing) => drawing.authorRole !== 'player')}
+                        disabled={!activeMap || (isGM ? allPlayerDrawingCount === 0 : playerDrawingCount === 0)}
                       >
                         Clear
                       </button>
                     </div>
-                    <div className="mt-3 max-h-72 overflow-y-auto pr-2">
+                    <div
+                      data-testid="draw-tools-scroll-area"
+                      className="mt-4 min-h-0 flex-1 overflow-visible [@media(max-height:900px)]:overflow-y-auto [@media(max-height:900px)]:pr-2"
+                    >
                       <DrawingTools />
                     </div>
                   </div>

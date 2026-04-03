@@ -4,7 +4,6 @@ import {
   Minus,
   Square as SquareIcon,
   Circle as CircleIcon,
-  Triangle as TriangleIcon,
   Eraser,
   Sticker,
 } from 'lucide-react';
@@ -18,17 +17,12 @@ const TOOL_DEFINITIONS = [
   { tool: 'line' as const, label: 'Line', icon: <Minus className="w-4 h-4" /> },
   { tool: 'square' as const, label: 'Square', icon: <SquareIcon className="w-4 h-4" /> },
   { tool: 'circle' as const, label: 'Circle', icon: <CircleIcon className="w-4 h-4" /> },
-  { tool: 'triangle' as const, label: 'Triangle', icon: <TriangleIcon className="w-4 h-4" /> },
   { tool: 'emoji' as const, label: 'Emoji', icon: <Sticker className="w-4 h-4" /> },
   { tool: 'eraser' as const, label: 'Eraser', icon: <Eraser className="w-4 h-4" /> },
 ];
 
-const STROKE_SIZES = [
-  { label: 'Fine', value: 2 },
-  { label: 'Small', value: 4 },
-  { label: 'Medium', value: 8 },
-  { label: 'Large', value: 12 },
-];
+const SECTION_BASE_CLASS = 'rounded-lg bg-slate-950/40 px-3 py-3';
+const SEPARATED_SECTION_CLASS = `${SECTION_BASE_CLASS} border-t border-slate-800/80 pt-3`;
 
 export const DrawingTools: React.FC = () => {
   const isGM = useIsGM();
@@ -60,14 +54,14 @@ export const DrawingTools: React.FC = () => {
 
   return (
     <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg border border-slate-700 p-3 flex flex-col gap-3">
-      <div>
+      <div data-testid="drawing-section-tools" className={SECTION_BASE_CLASS}>
         <p className="text-xs uppercase tracking-wide text-slate-400 mb-2">Draw</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {TOOL_DEFINITIONS.map(({ tool, label, icon }) => (
             <button
               key={tool}
               onClick={() => handleToolSelect(tool)}
-              className={`flex items-center gap-1 px-2 py-1 rounded border text-xs transition-colors ${
+              className={`flex min-w-0 items-center justify-center gap-1 px-2 py-1 rounded border text-xs transition-colors ${
                 drawingTool === tool
                   ? 'bg-slate-700 border-tempest-400 text-slate-100'
                   : 'border-slate-700 text-slate-300 hover:text-slate-100 hover:border-tempest-500'
@@ -81,7 +75,7 @@ export const DrawingTools: React.FC = () => {
         </div>
       </div>
 
-      <div>
+      <div data-testid="drawing-section-colors" className={SEPARATED_SECTION_CLASS}>
         <p className="text-xs uppercase tracking-wide text-slate-400 mb-2">Colors</p>
         <div className="flex flex-wrap gap-2">
           {DRAWING_COLOR_OPTIONS.map(({ label, value }) => (
@@ -100,26 +94,38 @@ export const DrawingTools: React.FC = () => {
         </div>
       </div>
 
-      <div>
-        <p className="text-xs uppercase tracking-wide text-slate-400 mb-2">Stroke</p>
-        <div className="flex flex-wrap gap-2">
-          {STROKE_SIZES.map(({ label, value }) => (
-            <button
-              key={label}
-              onClick={() => setDrawingStrokeWidth(value)}
-              className={`px-2 py-1 rounded border text-xs transition-colors ${
-                drawingStrokeWidth === value
-                  ? 'bg-slate-700 border-tempest-400 text-slate-100'
-                  : 'border-slate-700 text-slate-300 hover:text-slate-100 hover:border-tempest-500'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+      <div data-testid="drawing-section-stroke" className={SEPARATED_SECTION_CLASS}>
+        <label
+          htmlFor="drawing-stroke-width"
+          className="mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-slate-400"
+        >
+          <span>Stroke width</span>
+          <span className="text-slate-300 normal-case">{drawingStrokeWidth}px</span>
+        </label>
+        <input
+          id="drawing-stroke-width"
+          aria-label="Stroke width"
+          type="range"
+          min={1}
+          max={16}
+          step={1}
+          value={drawingStrokeWidth}
+          onChange={(event) => setDrawingStrokeWidth(Number(event.target.value))}
+          className="w-full"
+        />
+        <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
+          <span>Fine</span>
+          <div className="flex-1 rounded-full bg-slate-800 px-3 py-2">
+            <div
+              className="rounded-full bg-slate-200"
+              style={{ height: Math.max(2, drawingStrokeWidth) }}
+            />
+          </div>
+          <span>Bold</span>
         </div>
       </div>
 
-      <div>
+      <div data-testid="drawing-section-emoji" className={SEPARATED_SECTION_CLASS}>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs uppercase tracking-wide text-slate-400">Emoji Stamps</p>
           <span className="text-lg leading-none" title="Current emoji">{drawingEmoji}</span>
@@ -135,9 +141,9 @@ export const DrawingTools: React.FC = () => {
           className="w-full"
         />
         <div className="mt-2 max-h-40 overflow-y-auto rounded border border-slate-700 p-2 grid grid-cols-10 gap-1 bg-slate-950/40">
-          {STAMP_EMOJIS.map((emoji) => (
+          {STAMP_EMOJIS.map((emoji, index) => (
             <button
-              key={emoji}
+              key={`${emoji}-${index}`}
               onClick={() => {
                 setDrawingEmoji(emoji);
                 if (drawingTool !== 'emoji') {

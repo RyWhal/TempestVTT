@@ -141,6 +141,7 @@ export const isDrawingColor = (value: string): value is DrawingColor => {
 export interface DrawingRegion {
   id: string;
   authorRole: DrawingAuthorRole;
+  authorUsername?: string;
   shape: DrawingShape;
   points: { x: number; y: number }[];
   strokeWidth: number;
