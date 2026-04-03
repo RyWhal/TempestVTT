@@ -24,10 +24,6 @@ vi.mock('./PlayAutoJoinGate', () => ({
   PlayAutoJoinGate: () => <div>Play Auto Join</div>,
 }));
 
-vi.mock('./PlayLaunchGate', () => ({
-  PlayLaunchGate: () => <div>Play Launch Gate</div>,
-}));
-
 describe('PlayRoute', () => {
   it('renders the public entry hub when no session is active', () => {
     mockSessionState.session = null;
@@ -76,7 +72,7 @@ describe('PlayRoute', () => {
     expect(html).toContain('Play Auto Join');
   });
 
-  it('renders the launch gate when a live table tab is pre-opened before auto-join is ready', () => {
+  it('ignores the legacy launching flag when no session is active', () => {
     mockSessionState.session = null;
     mockSessionState.currentUser = null;
 
@@ -86,7 +82,7 @@ describe('PlayRoute', () => {
       </MemoryRouter>
     );
 
-    expect(html).toContain('Play Launch Gate');
+    expect(html).toContain('Play Entry Hub');
   });
 
   it('prioritizes launch auto-join over a previously persisted session', () => {
@@ -133,7 +129,7 @@ describe('PlayRoute', () => {
     expect(html).not.toContain('Play Auto Join');
   });
 
-  it('prioritizes the launch gate over a previously persisted session', () => {
+  it('ignores the legacy launching flag when a session is already active', () => {
     mockSessionState.session = {
       id: 'session_old',
       code: 'OLD123',
@@ -151,7 +147,6 @@ describe('PlayRoute', () => {
       </MemoryRouter>
     );
 
-    expect(html).toContain('Play Launch Gate');
-    expect(html).not.toContain('Play Session');
+    expect(html).toContain('Play Session');
   });
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/shared/Toast';
 import { Home } from './components/session/Home';
 import { SessionCreate } from './components/session/SessionCreate';
@@ -10,8 +10,6 @@ import { PlayRoute } from './components/play/PlayRoute';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AssetCreate } from './components/admin/AssetCreate';
-import { DunGENLayout } from './components/dungen/DunGENLayout';
-import { DunGENCampaignView } from './components/dungen/DunGENCampaignView';
 import { useSessionStore } from './stores/sessionStore';
 import { useSession } from './hooks/useSession';
 import { useRealtime } from './hooks/useRealtime';
@@ -31,10 +29,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Main app with realtime connection
 const AppContent: React.FC = () => {
-  const location = useLocation();
-  const isCampaignRoute = location.pathname.startsWith('/campaign') || location.pathname.startsWith('/DunGEN');
   // Set up realtime subscriptions when in a session
-  useRealtime({ mode: isCampaignRoute ? 'campaign' : 'play' });
+  useRealtime({ mode: 'play' });
   const { joinSession, loadSessionData } = useSession();
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
@@ -58,7 +54,7 @@ const AppContent: React.FC = () => {
 
       lastAttemptedRejoinKey.current = rejoinKey;
       const result = await joinSession(sessionCode, username, {
-        hydrateSession: !isCampaignRoute,
+        hydrateSession: true,
       });
 
       if (!result.success) {
@@ -68,7 +64,7 @@ const AppContent: React.FC = () => {
     };
 
     void attemptRejoin();
-  }, [session, currentUser, joinSession, clearSession, setCurrentUser, isCampaignRoute]);
+  }, [session, currentUser, joinSession, clearSession, setCurrentUser]);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -91,7 +87,7 @@ const AppContent: React.FC = () => {
         if (session.code) {
           lastHydratedSessionId.current = null;
           await joinSession(session.code, currentUser.username, {
-            hydrateSession: !isCampaignRoute,
+            hydrateSession: true,
           });
           return;
         }
@@ -102,41 +98,15 @@ const AppContent: React.FC = () => {
       }
 
       lastHydratedSessionId.current = session.id;
-      if (isCampaignRoute) {
-        return;
-      }
       await loadSessionData(session.id);
     };
 
     void hydrateSession();
-  }, [session, currentUser, joinSession, loadSessionData, clearSession, setCurrentUser, isCampaignRoute]);
+  }, [session, currentUser, joinSession, loadSessionData, clearSession, setCurrentUser]);
 
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/campaign" element={<DunGENLayout />}>
-        <Route index element={<DunGENCampaignView />} />
-      </Route>
-      <Route
-        path="/DunGEN"
-        element={
-          <LegacyRouteAlias to="/campaign">
-            <DunGENLayout>
-              <DunGENCampaignView />
-            </DunGENLayout>
-          </LegacyRouteAlias>
-        }
-      />
-      <Route
-        path="/DunGEN/campaign"
-        element={
-          <LegacyRouteAlias to="/campaign">
-            <DunGENLayout>
-              <DunGENCampaignView />
-            </DunGENLayout>
-          </LegacyRouteAlias>
-        }
-      />
       <Route
         path="/create"
         element={
