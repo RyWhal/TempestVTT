@@ -1,12 +1,40 @@
 -- Remove the extracted campaign schema from StormlightVTT.
 -- Safe for upgrade runs after the repo split.
 
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS procgen_section_previews;
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS procgen_overrides;
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS procgen_room_states;
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS procgen_sections;
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS procgen_campaigns;
-ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS shared_assets;
+DO $$
+DECLARE
+  target_table TEXT;
+BEGIN
+  FOREACH target_table IN ARRAY ARRAY[
+    'procgen_section_previews',
+    'procgen_overrides',
+    'procgen_room_states',
+    'procgen_sections',
+    'procgen_campaigns',
+    'shared_assets'
+  ]
+  LOOP
+    IF EXISTS (
+      SELECT 1
+      FROM pg_publication_rel publication_rel
+      JOIN pg_publication publication
+        ON publication.oid = publication_rel.prpubid
+      JOIN pg_class relation
+        ON relation.oid = publication_rel.prrelid
+      JOIN pg_namespace namespace
+        ON namespace.oid = relation.relnamespace
+      WHERE publication.pubname = 'supabase_realtime'
+        AND namespace.nspname = 'public'
+        AND relation.relname = target_table
+    ) THEN
+      EXECUTE format(
+        'ALTER PUBLICATION supabase_realtime DROP TABLE public.%I',
+        target_table
+      );
+    END IF;
+  END LOOP;
+END
+$$;
 
 DROP TRIGGER IF EXISTS update_procgen_section_previews_updated_at ON procgen_section_previews;
 DROP TRIGGER IF EXISTS update_procgen_overrides_updated_at ON procgen_overrides;
