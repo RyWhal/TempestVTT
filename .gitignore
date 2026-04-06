@@ -30,6 +30,7 @@ dist-ssr
 
 # Local git worktrees
 .worktrees/
+temp/
 
 # TypeScript build info
 *.tsbuildinfo
