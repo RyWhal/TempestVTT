@@ -1,19 +1,55 @@
-import React, { useEffect, useRef } from 'react';
+import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/shared/Toast';
 import { Home } from './components/session/Home';
-import { SessionCreate } from './components/session/SessionCreate';
-import { SessionJoin } from './components/session/SessionJoin';
-import { SessionLobby } from './components/session/SessionLobby';
 import { LegacyRouteAlias } from './components/session/LegacyRouteAlias';
-import { PlayRoute } from './components/play/PlayRoute';
-import { AdminLogin } from './components/admin/AdminLogin';
-import { AdminDashboard } from './components/admin/AdminDashboard';
-import { AssetCreate } from './components/admin/AssetCreate';
 import { useSessionStore } from './stores/sessionStore';
 import { useSession } from './hooks/useSession';
 import { useRealtime } from './hooks/useRealtime';
 import { supabase } from './lib/supabase';
+
+const SessionCreate = lazy(async () => {
+  const module = await import('./components/session/SessionCreate');
+  return { default: module.SessionCreate };
+});
+
+const SessionJoin = lazy(async () => {
+  const module = await import('./components/session/SessionJoin');
+  return { default: module.SessionJoin };
+});
+
+const SessionLobby = lazy(async () => {
+  const module = await import('./components/session/SessionLobby');
+  return { default: module.SessionLobby };
+});
+
+const PlayRoute = lazy(async () => {
+  const module = await import('./components/play/PlayRoute');
+  return { default: module.PlayRoute };
+});
+
+const AdminLogin = lazy(async () => {
+  const module = await import('./components/admin/AdminLogin');
+  return { default: module.AdminLogin };
+});
+
+const AdminDashboard = lazy(async () => {
+  const module = await import('./components/admin/AdminDashboard');
+  return { default: module.AdminDashboard };
+});
+
+const AssetCreate = lazy(async () => {
+  const module = await import('./components/admin/AssetCreate');
+  return { default: module.AssetCreate };
+});
+
+const RouteLoadingFallback: React.FC = () => (
+  <main className="tempest-shell flex min-h-screen items-center justify-center px-4 py-10">
+    <div className="rounded-lg border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
+      Loading Tempest Table...
+    </div>
+  </main>
+);
 
 // Protected route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -105,44 +141,46 @@ const AppContent: React.FC = () => {
   }, [session, currentUser, joinSession, loadSessionData, clearSession, setCurrentUser]);
 
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route
-        path="/create"
-        element={
-          <LegacyRouteAlias to="/play?mode=create">
-            <SessionCreate />
-          </LegacyRouteAlias>
-        }
-      />
-      <Route
-        path="/join"
-        element={
-          <LegacyRouteAlias to="/play?mode=join">
-            <SessionJoin />
-          </LegacyRouteAlias>
-        }
-      />
-      <Route
-        path="/lobby"
-        element={
-          <ProtectedRoute>
-            <SessionLobby />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/play"
-        element={
-          <PlayRoute />
-        }
-      />
-      {/* Admin routes */}
-      <Route path="/admin" element={<AdminLogin />} />
-      <Route path="/admin/dashboard" element={<AdminDashboard />} />
-      <Route path="/admin/assets/new" element={<AssetCreate />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<RouteLoadingFallback />}>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route
+          path="/create"
+          element={
+            <LegacyRouteAlias to="/play?mode=create">
+              <SessionCreate />
+            </LegacyRouteAlias>
+          }
+        />
+        <Route
+          path="/join"
+          element={
+            <LegacyRouteAlias to="/play?mode=join">
+              <SessionJoin />
+            </LegacyRouteAlias>
+          }
+        />
+        <Route
+          path="/lobby"
+          element={
+            <ProtectedRoute>
+              <SessionLobby />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/play"
+          element={
+            <PlayRoute />
+          }
+        />
+        {/* Admin routes */}
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/assets/new" element={<AssetCreate />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 };
 
