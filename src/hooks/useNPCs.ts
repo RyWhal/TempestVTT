@@ -14,8 +14,6 @@ import {
 import { nanoid } from 'nanoid';
 import { broadcastTokenMove } from '../lib/tokenBroadcast';
 
-const LOCAL_GENERATED_NPC_PREFIX = 'generated-local-npc:';
-
 export const useNPCs = () => {
   const session = useSessionStore((state) => state.session);
   const activeMap = useMapStore((state) => state.activeMap);
@@ -196,26 +194,6 @@ export const useNPCs = () => {
 
         const displayName = customName || `${template.name}-${existingCount + 1}`;
 
-        if (activeMap.sourceType === 'generated') {
-          const newInstance: NPCInstance = {
-            id: `${LOCAL_GENERATED_NPC_PREFIX}${nanoid()}`,
-            mapId: activeMap.id,
-            templateId,
-            displayName,
-            tokenUrl: template.tokenUrl,
-            size: template.defaultSize,
-            statusRingColor: null,
-            positionX: position?.x ?? activeMap.width / 2,
-            positionY: position?.y ?? activeMap.height / 2,
-            isVisible: false,
-            notes: '',
-            createdAt: new Date().toISOString(),
-          };
-
-          addNPCInstance(newInstance);
-          return { success: true, instance: newInstance };
-        }
-
         const { data, error } = await supabase
           .from('npc_instances')
           .insert({
@@ -259,11 +237,6 @@ export const useNPCs = () => {
       updates: Partial<Pick<NPCInstance, 'displayName' | 'size' | 'isVisible' | 'notes' | 'statusRingColor'>>
     ): Promise<{ success: boolean; error?: string }> => {
       try {
-        if (instanceId.startsWith(LOCAL_GENERATED_NPC_PREFIX)) {
-          updateNPCInstance(instanceId, updates);
-          return { success: true };
-        }
-
         const dbUpdates: Record<string, unknown> = {};
         if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
         if (updates.size !== undefined) dbUpdates.size = updates.size;
@@ -342,10 +315,6 @@ export const useNPCs = () => {
       const instance = npcInstances.find((i) => i.id === instanceId);
       moveNPCInstance(instanceId, x, y, instance?.mapId);
 
-      if (instanceId.startsWith(LOCAL_GENERATED_NPC_PREFIX)) {
-        return { success: true };
-      }
-
       try {
         const { error } = await supabase
           .from('npc_instances')
@@ -386,11 +355,6 @@ export const useNPCs = () => {
    */
   const removeNPCFromMap = useCallback(
     async (instanceId: string): Promise<{ success: boolean; error?: string }> => {
-      if (instanceId.startsWith(LOCAL_GENERATED_NPC_PREFIX)) {
-        removeNPCInstance(instanceId);
-        return { success: true };
-      }
-
       try {
         const { error } = await supabase
           .from('npc_instances')

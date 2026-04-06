@@ -92,9 +92,6 @@ describe('PlaySession drawing mode', () => {
       activeMap: {
         id: 'map_001',
         sessionId: 'session_001',
-        sourceType: 'uploaded',
-        generatedSectionId: null,
-        generatedRenderPayload: null,
         name: 'Room One',
         imageUrl: '',
         width: 1000,
