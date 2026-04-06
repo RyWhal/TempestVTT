@@ -184,6 +184,13 @@ You can run these in Supabase SQL Editor as separate scripts, in order:
 7. `007_handouts_and_folders.sql`
 8. `008_handouts_storage.sql`
 9. `009_token_size_and_status_rings.sql`
+10. `010_game_settings_defaults_and_toggles.sql`
+11. `011_map_effects_columns.sql`
+12. `012_admin_security_and_realtime.sql`
+
+Existing Stormlight databases that previously enabled the extracted campaign schema should also run:
+
+13. `013_remove_legacy_campaign_schema.sql`
 
 ### 6.1 Notes about storage policies
 

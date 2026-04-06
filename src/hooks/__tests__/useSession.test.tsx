@@ -37,7 +37,7 @@ describe('useSession.createSession', () => {
                 data: {
                   id: 'session_001',
                   code: 'ABCD12',
-                  name: 'Endless Dungeon Campaign',
+                  name: 'Shared Table',
                   current_gm_username: 'DungeonMaster',
                   current_scene: null,
                   grid_settings: {},
@@ -91,7 +91,7 @@ describe('useSession.createSession', () => {
       username: string,
       options?: { activateSession?: boolean }
     ) => Promise<unknown>;
-    const createResult = await createSessionFn('Endless Dungeon Campaign', 'DungeonMaster', {
+    const createResult = await createSessionFn('Shared Table', 'DungeonMaster', {
       activateSession: false,
     });
 
@@ -101,7 +101,7 @@ describe('useSession.createSession', () => {
       session: {
         id: 'session_001',
         code: 'ABCD12',
-        name: 'Endless Dungeon Campaign',
+        name: 'Shared Table',
       },
       currentUser: {
         username: 'DungeonMaster',
@@ -123,7 +123,7 @@ describe('useSession.createSession', () => {
             data: {
               id: 'session_002',
               code: 'JOIN12',
-              name: 'Endless Dungeon Campaign',
+              name: 'Shared Table',
               current_gm_username: 'Goober',
               current_scene: null,
               grid_settings: {},
@@ -337,7 +337,7 @@ describe('useSession.createSession', () => {
     expect(requestedTables).not.toContain('dice_rolls');
     expect(requestedTables).not.toContain('initiative_entries');
     expect(requestedTables).not.toContain('initiative_roll_logs');
-    expect(requestedTables).not.toContain('procgen_campaigns');
+    expect(requestedTables).not.toContain('shared_assets');
   });
 
   it('loads deferred chat, initiative, and npc library data only when requested', async () => {

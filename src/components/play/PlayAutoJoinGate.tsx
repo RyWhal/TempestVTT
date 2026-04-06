@@ -81,7 +81,7 @@ export const PlayAutoJoinGate: React.FC = () => {
           <h1 className="mt-3 text-3xl font-semibold tempest-heading">Opening live table</h1>
           <p className="mt-4 text-sm text-slate-400">
             {error ??
-              'Joining the launched session and syncing the generated maps. This should only take a moment.'}
+              'Joining the launched session and loading the live table. This should only take a moment.'}
           </p>
         </Card>
       </div>
