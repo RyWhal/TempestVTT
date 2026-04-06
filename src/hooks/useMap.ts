@@ -5,10 +5,6 @@ import { useMapStore } from '../stores/mapStore';
 import { dbMapToMap, type DbMap, type Map, type FogRegion, type DrawingRegion, type MapEffectTile } from '../types';
 import { nanoid } from 'nanoid';
 import { broadcastActiveMap } from '../lib/tokenBroadcast';
-import { shouldPersistActiveMapSelection } from '../procgen/integration/navigationPolicy';
-
-const isMissingRelationError = (error: { code?: string; message?: string } | null) =>
-  error?.code === '42P01' || error?.message?.toLowerCase().includes('does not exist');
 
 export const useMap = () => {
   const session = useSessionStore((state) => state.session);
@@ -149,24 +145,13 @@ export const useMap = () => {
       }
 
       try {
-        if (shouldPersistActiveMapSelection(map)) {
-          const { error } = await supabase
-            .from('sessions')
-            .update({ active_map_id: mapId })
-            .eq('id', session.id);
+        const { error } = await supabase
+          .from('sessions')
+          .update({ active_map_id: mapId })
+          .eq('id', session.id);
 
-          if (error) {
-            return { success: false, error: error.message };
-          }
-        } else if (map.generatedSectionId) {
-          const { error } = await supabase
-            .from('procgen_campaigns')
-            .update({ active_section_id: map.generatedSectionId })
-            .eq('session_id', session.id);
-
-          if (error && !isMissingRelationError(error)) {
-            console.warn('Failed to persist generated active section selection.', error.message);
-          }
+        if (error) {
+          return { success: false, error: error.message };
         }
 
         setActiveMap(map);
@@ -205,12 +190,6 @@ export const useMap = () => {
       >
     ): Promise<{ success: boolean; error?: string }> => {
       try {
-        const map = getMapById(mapId);
-        if (map?.sourceType === 'generated') {
-          updateMap(mapId, settings);
-          return { success: true };
-        }
-
         const dbSettings: Record<string, unknown> = {};
         if (settings.name !== undefined) dbSettings.name = settings.name;
         if (settings.gridEnabled !== undefined) dbSettings.grid_enabled = settings.gridEnabled;
@@ -250,12 +229,6 @@ export const useMap = () => {
   const updateFogData = useCallback(
     async (mapId: string, fogData: FogRegion[]): Promise<{ success: boolean; error?: string }> => {
       try {
-        const map = getMapById(mapId);
-        if (map?.sourceType === 'generated') {
-          updateMap(mapId, { fogData });
-          return { success: true };
-        }
-
         const { error } = await supabase
           .from('maps')
           .update({ fog_data: fogData })
@@ -286,12 +259,6 @@ export const useMap = () => {
       drawingData: DrawingRegion[]
     ): Promise<{ success: boolean; error?: string }> => {
       try {
-        const map = getMapById(mapId);
-        if (map?.sourceType === 'generated') {
-          updateMap(mapId, { drawingData });
-          return { success: true };
-        }
-
         const { error } = await supabase
           .from('maps')
           .update({ drawing_data: drawingData })
@@ -316,15 +283,9 @@ export const useMap = () => {
   /**
    * Update map effect tiles
    */
-  const updateEffectData = useCallback(
+    const updateEffectData = useCallback(
     async (mapId: string, effectData: MapEffectTile[]): Promise<{ success: boolean; error?: string }> => {
       try {
-        const map = getMapById(mapId);
-        if (map?.sourceType === 'generated') {
-          updateMap(mapId, { effectData });
-          return { success: true };
-        }
-
         const { error } = await supabase
           .from('maps')
           .update({ effect_data: effectData })

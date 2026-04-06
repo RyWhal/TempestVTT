@@ -30,10 +30,6 @@ import {
   type Map,
 } from '../types';
 import { clearTokenBroadcastChannel, getTokenBroadcastChannel } from '../lib/tokenBroadcast';
-import {
-  getLocalCampaignStorageKey,
-  subscribeLocalCampaignSnapshotUpdates,
-} from '../procgen/integration/localCampaignPersistence';
 
 const isMissingRelationError = (error: { code?: string; message?: string } | null) =>
   error?.code === '42P01' || error?.message?.toLowerCase().includes('does not exist');
@@ -61,8 +57,7 @@ export const canUseInitiativeRealtimeTable = async (
   return isAvailable;
 };
 
-export const useRealtime = (options?: { mode?: 'play' | 'campaign' }) => {
-  const mode = options?.mode ?? 'play';
+export const useRealtime = () => {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const initiativeChannelRef = useRef<RealtimeChannel | null>(null);
   const shouldResyncRef = useRef(false);
@@ -72,7 +67,7 @@ export const useRealtime = (options?: { mode?: 'play' | 'campaign' }) => {
     characterId: string | null;
     isGm: boolean;
   } | null>(null);
-  const { loadSessionData, syncGeneratedSessionState } = useSession();
+  const { loadSessionData } = useSession();
   const {
     session,
     currentUser,
@@ -119,15 +114,9 @@ export const useRealtime = (options?: { mode?: 'play' | 'campaign' }) => {
       return;
     }
 
-    if (mode === 'campaign') {
-      setConnectionStatus('disconnected');
-      return;
-    }
-
     setConnectionStatus('connecting');
 
     const sessionId = session.id;
-    const localCampaignStorageKey = getLocalCampaignStorageKey(sessionId);
     shouldResyncRef.current = false;
     let cancelled = false;
 
@@ -154,19 +143,6 @@ export const useRealtime = (options?: { mode?: 'play' | 'campaign' }) => {
           const activeMap = mapsRef.current.find((m) => m.id === updated.activeMapId);
           setActiveMap(activeMap || null);
         }
-      }
-    );
-
-    channel.on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'procgen_campaigns',
-        filter: `session_id=eq.${sessionId}`,
-      },
-      () => {
-        void syncGeneratedSessionState(sessionId);
       }
     );
 
@@ -484,10 +460,7 @@ export const useRealtime = (options?: { mode?: 'play' | 'campaign' }) => {
       const nextMap = mapsRef.current.find((map) => map.id === mapPayload.mapId);
       if (nextMap) {
         setActiveMap(nextMap);
-        return;
       }
-
-      void syncGeneratedSessionState(sessionId);
     });
 
     const connectInitiativeChannel = async () => {
@@ -558,32 +531,8 @@ export const useRealtime = (options?: { mode?: 'play' | 'campaign' }) => {
 
     void connectInitiativeChannel();
 
-    const handleLocalCampaignSnapshotChange = (event: StorageEvent) => {
-      if (cancelled || event.key !== localCampaignStorageKey) {
-        return;
-      }
-
-      void syncGeneratedSessionState(sessionId);
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', handleLocalCampaignSnapshotChange);
-    }
-    const unsubscribeLocalCampaignBroadcast = subscribeLocalCampaignSnapshotUpdates(
-      sessionId,
-      () => {
-        if (!cancelled) {
-          void syncGeneratedSessionState(sessionId);
-        }
-      }
-    );
-
     return () => {
       cancelled = true;
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('storage', handleLocalCampaignSnapshotChange);
-      }
-      unsubscribeLocalCampaignBroadcast();
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -623,9 +572,7 @@ export const useRealtime = (options?: { mode?: 'play' | 'campaign' }) => {
     removeEntry,
     addRollLog,
     setConnectionStatus,
-    mode,
     loadSessionData,
-    syncGeneratedSessionState,
   ]);
 
   return {

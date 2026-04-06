@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Plus, Sparkles, Users } from 'lucide-react';
+import { BookOpen, Plus, Users } from 'lucide-react';
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
 
@@ -14,21 +14,17 @@ export const Home: React.FC = () => {
         <Card className="p-8 lg:p-10">
           <p className="text-xs uppercase tracking-[0.2em] text-tempest-300">Tempest Table</p>
           <h1 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl tempest-heading">
-            Two GM setup paths. One shared table for players.
+            Start or join a Tempest Table in one step.
           </h1>
           <p className="mt-4 max-w-2xl text-base text-slate-400">
-            Run a classic Tempest Table, build a generated Endless Dungeon campaign, and keep one
-            simple player join flow no matter how the GM set the session up.
+            Create a live table for your group or jump back in with a session code. Everything
+            players need starts from the same streamlined VTT entry point.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
             <Button variant="primary" size="lg" onClick={() => navigate('/play?mode=create')}>
               <Plus className="mr-2 h-4 w-4" />
               Start Tempest Table
-            </Button>
-            <Button variant="secondary" size="lg" onClick={() => navigate('/campaign')}>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Start Endless Dungeon
             </Button>
             <Button variant="secondary" size="lg" onClick={() => navigate('/play?mode=join')}>
               <Users className="mr-2 h-4 w-4" />

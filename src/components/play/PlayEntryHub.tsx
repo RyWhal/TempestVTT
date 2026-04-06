@@ -55,14 +55,14 @@ export const PlayEntryHub: React.FC = () => {
           <Card className="p-8 lg:p-10">
             <p className="text-xs uppercase tracking-[0.2em] text-tempest-300">Tempest Table</p>
             <h1 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl tempest-heading">
-              One table link for every kind of session.
+              One table link for every Tempest session.
             </h1>
             <p className="mt-4 max-w-2xl text-base text-slate-400">
-              Start a classic Tempest Table, invite players to join with a code, or head over to
-              Endless Dungeon if you want the generated campaign flow first.
+              Create a live table for your group or join an existing one with a session code.
+              Everything starts from the same VTT flow now.
             </p>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
               <button
                 type="button"
                 onClick={() => handleOpenMode('create')}
@@ -87,20 +87,6 @@ export const PlayEntryHub: React.FC = () => {
                   <h2 className="text-lg font-semibold text-slate-100">Join with code</h2>
                   <p className="mt-1 text-sm text-slate-400">
                     Use a table code to rejoin an existing Tempest session as a player or GM.
-                  </p>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/campaign')}
-                className="tempest-panel flex flex-col items-start gap-3 p-5 text-left transition-colors hover:border-tempest-500/50 hover:bg-slate-900"
-              >
-                <BookOpen className="h-5 w-5 text-tempest-300" />
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-100">Start Endless Dungeon</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Build a generated campaign first, then launch it into the shared Tempest table.
                   </p>
                 </div>
               </button>
