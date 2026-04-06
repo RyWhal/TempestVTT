@@ -5,12 +5,6 @@ import { useSessionStore } from '../stores/sessionStore';
 import { useMapStore } from '../stores/mapStore';
 import { useChatStore } from '../stores/chatStore';
 import { useInitiativeStore } from '../stores/initiativeStore';
-import { useProcgenStore } from '../stores/procgenStore';
-import { useProcgenCampaign } from './useProcgenCampaign';
-import { createSnapshotFromStore } from '../procgen/engine/campaignFlow';
-import { getMapBakeContentSignature, loadMapBakeContent } from '../procgen/bake/AssetRegistryLoader';
-import { ensureSectionsHaveCurrentBakedFloors } from '../procgen/integration/bakeReadiness';
-import { createGeneratedMapsFromSnapshot } from '../procgen/integration/mapAdapter';
 import {
   dbSessionToSession,
   dbMapToMap,
@@ -32,9 +26,6 @@ import {
   type DbDiceRoll,
   type DbInitiativeEntry,
   type DbInitiativeRollLog,
-  type CampaignWorld,
-  type DungeonSectionRecord,
-  type Map,
   type Session,
 } from '../types';
 
@@ -81,92 +72,8 @@ export const runDedupedSessionLoad = (
 const isMissingRelationError = (error: { code?: string; message?: string } | null) =>
   error?.code === '42P01' || error?.message?.toLowerCase().includes('does not exist');
 
-const CURRENT_BAKE_CONTENT_SIGNATURE = getMapBakeContentSignature(loadMapBakeContent());
-const PROCGEN_LOAD_RETRY_DELAYS_MS = [120, 320];
-
-const wait = (durationMs: number) =>
-  new Promise<void>((resolve) => {
-    globalThis.setTimeout(resolve, durationMs);
-  });
-
-type BakeSectionFloorCacheResult =
-  | {
-      success: true;
-      renderPayloadCache: Record<string, unknown>;
-      persistenceError?: string;
-    }
-  | { success: false; error: string };
-
 const resolveSessionId = (explicitSessionId?: string | null) =>
   explicitSessionId ?? useSessionStore.getState().session?.id ?? null;
-
-export const buildGeneratedSessionMapState = async ({
-  sessionId,
-  uploadedMaps,
-  uploadedActiveMapId,
-  loadCampaignBySession,
-  bakeSectionFloorCache,
-}: {
-  sessionId: string;
-  uploadedMaps: Map[];
-  uploadedActiveMapId: string | null;
-  loadCampaignBySession: (sessionId: string) => Promise<CampaignWorld | null>;
-  bakeSectionFloorCache: (section: DungeonSectionRecord) => Promise<BakeSectionFloorCacheResult>;
-}): Promise<{
-  maps: Map[];
-  activeMap: Map | null;
-  hasGeneratedCampaign: boolean;
-}> => {
-  let campaignWorld = await loadCampaignBySession(sessionId);
-  if (!campaignWorld && uploadedMaps.length === 0) {
-    for (const retryDelayMs of PROCGEN_LOAD_RETRY_DELAYS_MS) {
-      await wait(retryDelayMs);
-      campaignWorld = await loadCampaignBySession(sessionId);
-      if (campaignWorld) {
-        break;
-      }
-    }
-  }
-
-  let generatedMaps: Map[] = [];
-  let generatedActiveMap: Map | null = null;
-
-  if (campaignWorld) {
-    const procgenState = useProcgenStore.getState();
-    const sections = await ensureSectionsHaveCurrentBakedFloors({
-      sections: Object.values(procgenState.sectionsById),
-      expectedContentSignature: CURRENT_BAKE_CONTENT_SIGNATURE,
-      bakeSectionFloorCache,
-    });
-    const snapshot = createSnapshotFromStore({
-      campaign: procgenState.campaign ?? campaignWorld,
-      sections,
-      previews: Object.values(procgenState.sectionPreviewsById),
-    });
-    const generatedSessionState = createGeneratedMapsFromSnapshot({
-      sessionId,
-      snapshot,
-    });
-    generatedMaps = generatedSessionState.maps;
-    generatedActiveMap = generatedSessionState.activeMap;
-  }
-
-  const mergedMaps = [
-    ...uploadedMaps,
-    ...generatedMaps.filter(
-      (generatedMap) => !uploadedMaps.some((uploadedMap) => uploadedMap.id === generatedMap.id)
-    ),
-  ];
-  const uploadedActiveMap = uploadedActiveMapId
-    ? uploadedMaps.find((map) => map.id === uploadedActiveMapId) ?? null
-    : null;
-
-  return {
-    maps: mergedMaps,
-    activeMap: uploadedActiveMap ?? generatedActiveMap,
-    hasGeneratedCampaign: campaignWorld !== null,
-  };
-};
 
 export const useSession = () => {
   const {
@@ -190,7 +97,6 @@ export const useSession = () => {
 
   const { setMessages, setDiceRolls, clearChatState } = useChatStore();
   const { setEntries, setRollLogs, clearInitiativeState } = useInitiativeStore();
-  const { loadCampaignBySession, clearProcgenState, bakeSectionFloorCache } = useProcgenCampaign();
 
   const createSession = useCallback(
     async (
@@ -393,30 +299,12 @@ export const useSession = () => {
           if (playersData) {
             setPlayers((playersData as DbSessionPlayer[]).map(dbSessionPlayerToSessionPlayer));
           }
-
-          const generatedSessionState = await buildGeneratedSessionMapState({
-            sessionId,
-            uploadedMaps,
-            uploadedActiveMapId,
-            loadCampaignBySession,
-            bakeSectionFloorCache,
-          });
-          setMaps(generatedSessionState.maps);
-          setActiveMap(generatedSessionState.activeMap);
         } catch (error) {
           console.error('Error loading session data:', error);
         }
       });
     },
-    [
-      setMaps,
-      setActiveMap,
-      setCharacters,
-      setNPCInstances,
-      setPlayers,
-      loadCampaignBySession,
-      bakeSectionFloorCache,
-    ]
+    [setMaps, setActiveMap, setCharacters, setNPCInstances, setPlayers]
   );
 
   const loadNpcTemplateData = useCallback(
@@ -536,37 +424,6 @@ export const useSession = () => {
     [setEntries, setRollLogs]
   );
 
-  const syncGeneratedSessionState = useCallback(
-    async (sessionId: string) => {
-      await runDedupedSessionLoad(`generated:${sessionId}`, async () => {
-        try {
-          const mapState = useMapStore.getState();
-          const sessionState = useSessionStore.getState();
-          const uploadedMaps = mapState.maps.filter((map) => map.sourceType === 'uploaded');
-          const uploadedActiveMapId =
-            sessionState.session?.id === sessionId
-              ? sessionState.session.activeMapId ??
-                (mapState.activeMap?.sourceType === 'uploaded' ? mapState.activeMap.id : null)
-              : null;
-
-          const generatedSessionState = await buildGeneratedSessionMapState({
-            sessionId,
-            uploadedMaps,
-            uploadedActiveMapId,
-            loadCampaignBySession,
-            bakeSectionFloorCache,
-          });
-
-          setMaps(generatedSessionState.maps);
-          setActiveMap(generatedSessionState.activeMap);
-        } catch (error) {
-          console.error('Error syncing generated session maps:', error);
-        }
-      }, { rerunIfRequested: true });
-    },
-    [setMaps, setActiveMap, loadCampaignBySession, bakeSectionFloorCache]
-  );
-
   const claimGM = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     if (!session || !currentUser) {
       return { success: false, error: 'Not in a session' };
@@ -663,8 +520,7 @@ export const useSession = () => {
     clearMapState();
     clearChatState();
     clearInitiativeState();
-    clearProcgenState();
-  }, [session, currentUser, clearSession, clearMapState, clearChatState, clearInitiativeState, clearProcgenState]);
+  }, [session, currentUser, clearSession, clearMapState, clearChatState, clearInitiativeState]);
 
   const updateNotepad = useCallback(
     async (content: string) => {
@@ -727,7 +583,6 @@ export const useSession = () => {
     loadNpcTemplateData,
     loadChatData,
     loadInitiativeData,
-    syncGeneratedSessionState,
     claimGM,
     releaseGM,
     leaveSession,

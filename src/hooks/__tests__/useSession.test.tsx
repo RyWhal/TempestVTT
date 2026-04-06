@@ -1,14 +1,7 @@
 import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  buildGeneratedSessionMapState,
-  resetSessionLoadQueueForTests,
-  runDedupedSessionLoad,
-  useSession,
-} from '../useSession';
+import { resetSessionLoadQueueForTests, runDedupedSessionLoad, useSession } from '../useSession';
 import { useSessionStore } from '../../stores/sessionStore';
-import { useProcgenStore } from '../../stores/procgenStore';
-import { createStarterCampaignSnapshot } from '../../procgen/engine/campaignFlow';
 
 const { fromMock } = vi.hoisted(() => ({
   fromMock: vi.fn(),
@@ -29,7 +22,6 @@ describe('useSession.createSession', () => {
     fromMock.mockReset();
     resetSessionLoadQueueForTests();
     useSessionStore.getState().clearSession();
-    useProcgenStore.getState().clearProcgenState();
   });
 
   it('can create a session without activating it in the session store', async () => {
@@ -119,49 +111,6 @@ describe('useSession.createSession', () => {
     });
     expect(useSessionStore.getState().session).toBeNull();
     expect(useSessionStore.getState().currentUser).toBeNull();
-  });
-
-  it('builds generated session map state without requiring the full session hydration query fanout', async () => {
-    const starter = createStarterCampaignSnapshot({
-      sessionId: 'session_001',
-      campaignName: 'Endless Dungeon Campaign',
-      worldSeed: 'world_ironbell_042',
-    });
-
-    useProcgenStore.getState().hydrateProcgenState({
-      campaign: starter.campaign,
-      sections: starter.sections,
-      roomStates: [],
-      overrides: [],
-      sectionPreviews: starter.previews,
-      sharedAssets: [],
-    });
-
-    const loadCampaignBySession = vi.fn().mockResolvedValue(starter.campaign);
-    const bakeSectionFloorCache = vi.fn().mockResolvedValue({
-      success: true as const,
-      renderPayloadCache: {
-        bakedFloor: {
-          status: 'complete',
-          chunks: [{ imageUrl: 'https://example.com/chunk.png' }],
-        },
-      },
-    });
-
-    const result = await buildGeneratedSessionMapState({
-      sessionId: 'session_001',
-      uploadedMaps: [],
-      uploadedActiveMapId: null,
-      loadCampaignBySession,
-      bakeSectionFloorCache,
-    });
-
-    expect(loadCampaignBySession).toHaveBeenCalledTimes(1);
-    expect(bakeSectionFloorCache).toHaveBeenCalledTimes(starter.sections.length);
-    expect(result).not.toBeNull();
-    expect(result?.maps).toHaveLength(starter.sections.length);
-    expect(result?.activeMap?.sourceType).toBe('generated');
-    expect(result?.activeMap?.generatedSectionId).toBe(starter.campaign.activeSectionId);
   });
 
   it('can join a session without blocking on the full hydration query fanout', async () => {
@@ -300,25 +249,6 @@ describe('useSession.createSession', () => {
         };
       }
 
-      if (
-        table === 'procgen_campaigns' ||
-        table === 'procgen_sections' ||
-        table === 'procgen_room_states' ||
-        table === 'procgen_overrides' ||
-        table === 'procgen_section_previews' ||
-        table === 'shared_assets'
-      ) {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          maybeSingle:
-            table === 'procgen_campaigns'
-              ? vi.fn().mockResolvedValue({ data: null, error: null })
-              : undefined,
-          order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        };
-      }
-
       throw new Error(`Unexpected table: ${table}`);
     });
 
@@ -380,25 +310,6 @@ describe('useSession.createSession', () => {
         };
       }
 
-      if (
-        table === 'procgen_campaigns' ||
-        table === 'procgen_sections' ||
-        table === 'procgen_room_states' ||
-        table === 'procgen_overrides' ||
-        table === 'procgen_section_previews' ||
-        table === 'shared_assets'
-      ) {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          maybeSingle:
-            table === 'procgen_campaigns'
-              ? vi.fn().mockResolvedValue({ data: null, error: null })
-              : undefined,
-          order: vi.fn().mockResolvedValue({ data: [], error: null }),
-        };
-      }
-
       throw new Error(`Unexpected table: ${table}`);
     });
 
@@ -426,6 +337,7 @@ describe('useSession.createSession', () => {
     expect(requestedTables).not.toContain('dice_rolls');
     expect(requestedTables).not.toContain('initiative_entries');
     expect(requestedTables).not.toContain('initiative_roll_logs');
+    expect(requestedTables).not.toContain('procgen_campaigns');
   });
 
   it('loads deferred chat, initiative, and npc library data only when requested', async () => {
@@ -497,7 +409,7 @@ describe('useSession.createSession', () => {
     expect(requestedTables).not.toContain('maps');
   });
 
-  it('queues a follow-up generated sync when another request arrives during an in-flight load', async () => {
+  it('queues a follow-up load when another request arrives during an in-flight load', async () => {
     const callOrder: string[] = [];
     let releaseFirstLoad: (() => void) | null = null;
 
@@ -511,10 +423,10 @@ describe('useSession.createSession', () => {
       callOrder.push(`end:${loader.mock.calls.length}`);
     });
 
-    const firstLoad = runDedupedSessionLoad('generated:session_001', loader, {
+    const firstLoad = runDedupedSessionLoad('core:session_001', loader, {
       rerunIfRequested: true,
     });
-    const secondLoad = runDedupedSessionLoad('generated:session_001', loader, {
+    const secondLoad = runDedupedSessionLoad('core:session_001', loader, {
       rerunIfRequested: true,
     });
 

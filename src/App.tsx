@@ -30,7 +30,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 // Main app with realtime connection
 const AppContent: React.FC = () => {
   // Set up realtime subscriptions when in a session
-  useRealtime({ mode: 'play' });
+  useRealtime();
   const { joinSession, loadSessionData } = useSession();
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
