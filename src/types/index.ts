@@ -53,6 +53,8 @@ export interface Map {
   gridOffsetY: number;
   gridCellSize: number;
   gridColor: string;
+  tokenSizeOverrideEnabled: boolean;
+  mediumTokenSizePx: number | null;
 
   // Fog
   fogEnabled: boolean;
@@ -277,6 +279,10 @@ export interface SessionExport {
       cellSize: number;
       color: string;
     };
+    tokenSettings: {
+      overrideEnabled: boolean;
+      mediumSizePx: number | null;
+    };
     fogSettings: {
       enabled: boolean;
       defaultState: string;
@@ -349,6 +355,8 @@ export interface DbMap {
   grid_offset_y: number;
   grid_cell_size: number;
   grid_color: string;
+  token_size_override_enabled: boolean | null;
+  medium_token_size_px: number | null;
   fog_enabled: boolean;
   fog_default_state: 'fogged' | 'revealed';
   fog_data: FogRegion[];
@@ -500,6 +508,8 @@ export function dbMapToMap(db: DbMap): Map {
     gridOffsetY: db.grid_offset_y,
     gridCellSize: db.grid_cell_size,
     gridColor: db.grid_color,
+    tokenSizeOverrideEnabled: db.token_size_override_enabled ?? false,
+    mediumTokenSizePx: db.medium_token_size_px ?? null,
     fogEnabled: db.fog_enabled,
     fogDefaultState: db.fog_default_state,
     fogData: db.fog_data || [],

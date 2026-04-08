@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
 import { Group, Circle, Text, Image as KonvaImage, Ring } from 'react-konva';
 import useImage from 'use-image';
-import { TOKEN_SIZE_MULTIPLIERS, type TokenSize } from '../../types';
+import { getTokenPixelSize } from '../../lib/tokenSizing';
+import type { TokenSize } from '../../types';
 
 interface TokenProps {
   id: string;
@@ -12,6 +13,8 @@ interface TokenProps {
   y: number;
   size: TokenSize;
   gridCellSize: number;
+  tokenSizeOverrideEnabled: boolean;
+  mediumTokenSizePx: number | null;
   isSelected: boolean;
   isDraggable: boolean;
   isHidden: boolean;
@@ -52,6 +55,8 @@ export const Token: React.FC<TokenProps> = ({
   y,
   size,
   gridCellSize,
+  tokenSizeOverrideEnabled,
+  mediumTokenSizePx,
   isSelected,
   isDraggable,
   isHidden,
@@ -67,7 +72,12 @@ export const Token: React.FC<TokenProps> = ({
   const groupRef = useRef<any>(null);
   const [image] = useImage(imageUrl || '');
 
-  const pixelSize = gridCellSize * TOKEN_SIZE_MULTIPLIERS[size];
+  const pixelSize = getTokenPixelSize({
+    gridCellSize,
+    tokenSizeOverrideEnabled,
+    mediumTokenSizePx,
+    size,
+  });
   const radius = pixelSize / 2;
   const color = getColorForName(name);
 

@@ -191,6 +191,7 @@ You can run these in Supabase SQL Editor as separate scripts, in order:
 Existing Stormlight databases that previously enabled the extracted campaign schema should also run:
 
 13. `013_remove_legacy_campaign_schema.sql`
+14. `014_map_medium_token_scale.sql`
 
 ### 6.1 Notes about storage policies
 

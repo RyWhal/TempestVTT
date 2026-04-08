@@ -2,9 +2,10 @@ import React, { useState, useRef } from 'react';
 import { Download, Upload, AlertTriangle } from 'lucide-react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useMapStore } from '../../stores/mapStore';
+import { buildSessionExport } from '../../lib/sessionExport';
 import { Button } from '../shared/Button';
 import { useToast } from '../shared/Toast';
-import type { SessionExport as SessionExportType, TokenSize } from '../../types';
+import type { SessionExport as SessionExportType } from '../../types';
 
 export const SessionExport: React.FC = () => {
   const { showToast } = useToast();
@@ -21,126 +22,18 @@ export const SessionExport: React.FC = () => {
     setIsExporting(true);
 
     try {
-      // Convert images to base64
-      const mapsWithImages = await Promise.all(
-        maps.map(async (map) => {
-          let imageBase64 = '';
-          try {
-            const response = await fetch(map.imageUrl);
-            const blob = await response.blob();
-            imageBase64 = await blobToBase64(blob);
-          } catch (e) {
-            console.error('Failed to fetch map image:', e);
-          }
-
-          // Get NPC instances for this map
-          const mapNPCs = npcInstances.filter((i) => i.mapId === map.id);
-          const npcInstancesData = await Promise.all(
-            mapNPCs.map(async (npc) => {
-              let tokenBase64: string | null = null;
-              if (npc.tokenUrl) {
-                try {
-                  const response = await fetch(npc.tokenUrl);
-                  const blob = await response.blob();
-                  tokenBase64 = await blobToBase64(blob);
-                } catch (e) {
-                  console.error('Failed to fetch NPC token:', e);
-                }
-              }
-
-              const template = npcTemplates.find((t) => t.id === npc.templateId);
-
-              return {
-                displayName: npc.displayName || 'NPC',
-                templateName: template?.name || 'Unknown',
-                tokenBase64,
-                size: (npc.size || 'medium') as TokenSize,
-                positionX: npc.positionX,
-                positionY: npc.positionY,
-                isVisible: npc.isVisible,
-                notes: npc.notes,
-              };
-            })
-          );
-
-          return {
-            name: map.name,
-            imageBase64,
-            width: map.width,
-            height: map.height,
-            gridSettings: {
-              enabled: map.gridEnabled,
-              offsetX: map.gridOffsetX,
-              offsetY: map.gridOffsetY,
-              cellSize: map.gridCellSize,
-              color: map.gridColor,
-            },
-            fogSettings: {
-              enabled: map.fogEnabled,
-              defaultState: map.fogDefaultState,
-              fogData: map.fogData,
-            },
-            showPlayerTokens: map.showPlayerTokens,
-            npcInstances: npcInstancesData,
-          };
-        })
-      );
-
-      const charactersWithImages = await Promise.all(
-        characters.map(async (char) => {
-          let tokenBase64: string | null = null;
-          if (char.tokenUrl) {
-            try {
-              const response = await fetch(char.tokenUrl);
-              const blob = await response.blob();
-              tokenBase64 = await blobToBase64(blob);
-            } catch (e) {
-              console.error('Failed to fetch character token:', e);
-            }
-          }
-
-          return {
-            name: char.name,
-            tokenBase64,
-            inventory: char.inventory,
-            notes: char.notes,
-          };
-        })
-      );
-
-      const npcTemplatesWithImages = await Promise.all(
-        npcTemplates.map(async (template) => {
-          let tokenBase64: string | null = null;
-          if (template.tokenUrl) {
-            try {
-              const response = await fetch(template.tokenUrl);
-              const blob = await response.blob();
-              tokenBase64 = await blobToBase64(blob);
-            } catch (e) {
-              console.error('Failed to fetch NPC template token:', e);
-            }
-          }
-
-          return {
-            name: template.name,
-            tokenBase64,
-            defaultSize: template.defaultSize,
-            notes: template.notes,
-          };
-        })
-      );
-
-      const exportData: SessionExportType = {
-        version: '1.0',
-        exportedAt: new Date().toISOString(),
-        session: {
-          name: session.name,
-          notepadContent: session.notepadContent,
+      const exportData = await buildSessionExport({
+        session,
+        maps,
+        characters,
+        npcTemplates,
+        npcInstances,
+        fetchAsBase64: async (url) => {
+          const response = await fetch(url);
+          const blob = await response.blob();
+          return blobToBase64(blob);
         },
-        maps: mapsWithImages,
-        characters: charactersWithImages,
-        npcTemplates: npcTemplatesWithImages,
-      };
+      });
 
       // Download as JSON file
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -249,6 +142,7 @@ export const SessionExport: React.FC = () => {
             ref={fileInputRef}
             type="file"
             accept=".json"
+            aria-label="Import Session File"
             onChange={handleImportFile}
             className="hidden"
           />

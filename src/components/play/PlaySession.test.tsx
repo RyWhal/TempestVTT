@@ -103,6 +103,8 @@ describe('PlaySession drawing mode', () => {
         gridOffsetY: 0,
         gridCellSize: 50,
         gridColor: '#000000',
+        tokenSizeOverrideEnabled: false,
+        mediumTokenSizePx: null,
         fogEnabled: false,
         fogDefaultState: 'revealed',
         fogData: [],
@@ -197,7 +199,7 @@ describe('PlaySession drawing mode', () => {
     ]);
   });
 
-  it('keeps the draw tools panel larger and only enables scrolling on shorter viewports', async () => {
+  it('keeps both sidebars compact on normal desktop widths while preserving the larger draw tools layout', async () => {
     const user = userEvent.setup();
 
     render(
@@ -208,11 +210,19 @@ describe('PlaySession drawing mode', () => {
 
     await user.click(screen.getByRole('button', { name: /draw/i }));
 
+    const gmSidebar = screen.getByText('GM Panel').closest('aside');
     const playerSidebar = screen.getByRole('button', { name: /chat/i }).closest('aside');
     const scrollArea = screen.getByTestId('draw-tools-scroll-area');
+    const gmSidebarClasses = gmSidebar?.className.split(/\s+/) ?? [];
+    const playerSidebarClasses = playerSidebar?.className.split(/\s+/) ?? [];
 
-    expect(playerSidebar?.className).toContain('w-96');
-    expect(playerSidebar?.className).not.toContain('w-[26rem]');
+    expect(gmSidebarClasses).toContain('w-72');
+    expect(gmSidebarClasses).toContain('2xl:w-80');
+    expect(gmSidebarClasses).not.toContain('w-80');
+    expect(playerSidebarClasses).toContain('w-80');
+    expect(playerSidebarClasses).toContain('2xl:w-96');
+    expect(playerSidebarClasses).not.toContain('w-96');
+    expect(playerSidebarClasses).not.toContain('w-[26rem]');
     expect(scrollArea.className).toContain('flex-1');
     expect(scrollArea.className).not.toContain('max-h-72');
     expect(scrollArea.className).toContain('[@media(max-height:900px)]:overflow-y-auto');

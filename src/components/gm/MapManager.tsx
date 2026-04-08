@@ -6,14 +6,34 @@ import {
   Check,
   Image,
   Library,
+  ChevronDown,
 } from 'lucide-react';
 import { useMap } from '../../hooks/useMap';
+import {
+  clampMediumTokenSizePx,
+  DEFAULT_MEDIUM_TOKEN_SIZE_PX,
+  getTokenPixelSize,
+} from '../../lib/tokenSizing';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { useToast } from '../shared/Toast';
 import { validateMapUpload, getImageDimensions } from '../../lib/validation';
 import { GlobalAssetBrowser } from './GlobalAssetBrowser';
+import type { TokenSize } from '../../types';
 import type { GlobalAsset } from '../../hooks/useGlobalAssets';
+
+const TOKEN_SIZE_PREVIEW_ORDER: TokenSize[] = [
+  'tiny',
+  'small',
+  'medium',
+  'large',
+  'huge',
+  'gargantuan',
+];
+
+const PREVIEW_GRID_CELL_SIZE = 14;
+
+const parseMediumTokenSizePx = (value: string) => clampMediumTokenSizePx(Number.parseFloat(value));
 
 export const MapManager: React.FC = () => {
   const { showToast } = useToast();
@@ -187,6 +207,7 @@ export const MapManager: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleSetActive(map.id)}
+                        aria-label={`Activate ${map.name}`}
                       >
                         <Check className="w-4 h-4" />
                       </Button>
@@ -197,6 +218,7 @@ export const MapManager: React.FC = () => {
                       onClick={() =>
                         setEditingMapId(isEditing ? null : map.id)
                       }
+                      aria-label={`Map settings for ${map.name}`}
                     >
                       <Settings className="w-4 h-4" />
                     </Button>
@@ -204,6 +226,7 @@ export const MapManager: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(map.id)}
+                      aria-label={`Delete ${map.name}`}
                     >
                       <Trash2 className="w-4 h-4 text-red-400" />
                     </Button>
@@ -244,6 +267,8 @@ interface MapSettingsData {
   gridOffsetY: number;
   gridCellSize: number;
   gridColor: string;
+  tokenSizeOverrideEnabled: boolean;
+  mediumTokenSizePx: number | null;
   fogEnabled: boolean;
   fogDefaultState: 'fogged' | 'revealed';
   showPlayerTokens: boolean;
@@ -267,9 +292,36 @@ const MapSettings: React.FC<MapSettingsProps> = ({ map, onUpdate, onClose }) => 
     gridOffsetY: map.gridOffsetY,
     gridCellSize: map.gridCellSize,
     gridColor: map.gridColor,
+    tokenSizeOverrideEnabled: map.tokenSizeOverrideEnabled,
+    mediumTokenSizePx: map.mediumTokenSizePx,
     fogEnabled: map.fogEnabled,
     fogDefaultState: map.fogDefaultState,
     showPlayerTokens: map.showPlayerTokens,
+  });
+
+  const previewGridReferenceSize =
+    Number.isFinite(settings.gridCellSize) && settings.gridCellSize > 0
+      ? settings.gridCellSize
+      : DEFAULT_MEDIUM_TOKEN_SIZE_PX;
+  const overrideMediumTokenSizePx = clampMediumTokenSizePx(
+    settings.mediumTokenSizePx ?? previewGridReferenceSize
+  );
+  const previewTokenSizes = TOKEN_SIZE_PREVIEW_ORDER.map((size) => {
+    const pixelSize = getTokenPixelSize({
+      gridCellSize: previewGridReferenceSize,
+      tokenSizeOverrideEnabled: settings.tokenSizeOverrideEnabled,
+      mediumTokenSizePx: settings.mediumTokenSizePx,
+      size,
+    });
+
+    return {
+      size,
+      pixelSize,
+      displaySize: Math.max(
+        10,
+        Math.min((pixelSize / previewGridReferenceSize) * PREVIEW_GRID_CELL_SIZE, 76)
+      ),
+    };
   });
 
   const handleSave = async () => {
@@ -342,6 +394,115 @@ const MapSettings: React.FC<MapSettingsProps> = ({ map, onUpdate, onClose }) => 
             />
           </div>
         )}
+
+        <div className="space-y-2 rounded-lg border border-slate-700/70 bg-slate-900/70 p-3">
+          <label className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-800/80 bg-slate-950/50 px-3 py-2 text-sm text-slate-300">
+            <span className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={settings.tokenSizeOverrideEnabled}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    tokenSizeOverrideEnabled: e.target.checked,
+                    mediumTokenSizePx: e.target.checked
+                      ? clampMediumTokenSizePx(s.mediumTokenSizePx ?? s.gridCellSize)
+                      : s.mediumTokenSizePx,
+                  }))
+                }
+                className="rounded border-slate-600 bg-slate-800"
+              />
+              Override Token Size
+            </span>
+            <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              Customize
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${
+                  settings.tokenSizeOverrideEnabled ? 'rotate-180 text-slate-300' : ''
+                }`}
+              />
+            </span>
+          </label>
+
+          {settings.tokenSizeOverrideEnabled && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400">
+                Medium tokens use the pixel size below on this map, even when the grid overlay is hidden.
+              </p>
+              <Input
+                label="Medium Token Size (px)"
+                type="number"
+                min="16"
+                max="300"
+                step="1"
+                value={overrideMediumTokenSizePx}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    mediumTokenSizePx: parseMediumTokenSizePx(e.target.value),
+                  }))
+                }
+              />
+              <input
+                aria-label="Medium Token Size Slider"
+                type="range"
+                min="16"
+                max="300"
+                step="1"
+                value={overrideMediumTokenSizePx}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    mediumTokenSizePx: parseMediumTokenSizePx(e.target.value),
+                  }))
+                }
+                className="w-full accent-tempest-400"
+              />
+              <p className="text-xs text-slate-400">
+                <span className="font-medium text-slate-200">{Math.round(overrideMediumTokenSizePx)}px</span>
+                {' '}sets the Medium token size directly on this map.
+              </p>
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Token Size Preview
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {previewTokenSizes.map(({ size, pixelSize, displaySize }) => (
+                    <div key={size} className="min-w-0 rounded-lg border border-slate-700/70 bg-slate-950/60 p-2">
+                      <div className="relative flex h-20 items-center justify-center overflow-hidden rounded border border-slate-800 bg-slate-950">
+                        <div
+                          className="absolute border border-dashed border-slate-700/80"
+                          style={{
+                            width: PREVIEW_GRID_CELL_SIZE,
+                            height: PREVIEW_GRID_CELL_SIZE,
+                          }}
+                        />
+                        <div
+                          className="rounded-full border border-tempest-300/70 bg-tempest-500/20"
+                          style={{
+                            width: displaySize,
+                            height: displaySize,
+                          }}
+                        />
+                      </div>
+                      <div className="mt-2 min-w-0 space-y-1 text-center text-[11px] leading-tight">
+                        <span className="block break-words capitalize text-slate-200">{size}</span>
+                        <span className="block text-slate-400">{Math.round(pixelSize)}px</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!settings.tokenSizeOverrideEnabled && (
+            <p className="text-xs text-slate-500">
+              Medium tokens currently follow the grid cell size on this map.
+            </p>
+          )}
+        </div>
 
         <label className="flex items-center gap-2 text-sm text-slate-300">
           <input

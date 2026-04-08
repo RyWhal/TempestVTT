@@ -6,6 +6,21 @@ import { dbMapToMap, type DbMap, type Map, type FogRegion, type DrawingRegion, t
 import { nanoid } from 'nanoid';
 import { broadcastActiveMap } from '../lib/tokenBroadcast';
 
+const getMapSettingsErrorMessage = (message: string, code?: string) => {
+  if (
+    code === 'PGRST204' &&
+    (
+      message.includes('medium_token_scale') ||
+      message.includes('token_size_override_enabled') ||
+      message.includes('medium_token_size_px')
+    )
+  ) {
+    return 'Database schema is missing token size override support. Run supabase/migrations/014_map_medium_token_scale.sql and try again.';
+  }
+
+  return message;
+};
+
 export const useMap = () => {
   const session = useSessionStore((state) => state.session);
   const { maps, activeMap, setActiveMap, addMap, updateMap, removeMap } = useMapStore();
@@ -182,6 +197,8 @@ export const useMap = () => {
           | 'gridOffsetY'
           | 'gridCellSize'
           | 'gridColor'
+          | 'tokenSizeOverrideEnabled'
+          | 'mediumTokenSizePx'
           | 'fogEnabled'
           | 'fogDefaultState'
           | 'showPlayerTokens'
@@ -197,6 +214,12 @@ export const useMap = () => {
         if (settings.gridOffsetY !== undefined) dbSettings.grid_offset_y = settings.gridOffsetY;
         if (settings.gridCellSize !== undefined) dbSettings.grid_cell_size = settings.gridCellSize;
         if (settings.gridColor !== undefined) dbSettings.grid_color = settings.gridColor;
+        if (settings.tokenSizeOverrideEnabled !== undefined) {
+          dbSettings.token_size_override_enabled = settings.tokenSizeOverrideEnabled;
+        }
+        if (settings.mediumTokenSizePx !== undefined) {
+          dbSettings.medium_token_size_px = settings.mediumTokenSizePx;
+        }
         if (settings.fogEnabled !== undefined) dbSettings.fog_enabled = settings.fogEnabled;
         if (settings.fogDefaultState !== undefined) dbSettings.fog_default_state = settings.fogDefaultState;
         if (settings.showPlayerTokens !== undefined) dbSettings.show_player_tokens = settings.showPlayerTokens;
@@ -208,7 +231,7 @@ export const useMap = () => {
           .eq('id', mapId);
 
         if (error) {
-          return { success: false, error: error.message };
+          return { success: false, error: getMapSettingsErrorMessage(error.message, error.code) };
         }
 
         updateMap(mapId, settings);

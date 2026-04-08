@@ -30,6 +30,8 @@ import { useToast } from '../shared/Toast';
 type SideTab = 'chat' | 'dice' | 'initiative' | 'draw';
 
 const PLAYER_PANEL_KEY = 'tempest-player-panel-collapsed';
+const GM_PANEL_WIDTH_CLASS = 'w-72 2xl:w-80';
+const PLAYER_PANEL_WIDTH_CLASS = 'w-80 2xl:w-96';
 
 export const PlaySession: React.FC = () => {
   const navigate = useNavigate();
@@ -195,9 +197,9 @@ export const PlaySession: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden">
         {isGM && showGMPanel && (
-          <aside className="w-80 flex-shrink-0 overflow-hidden border-r border-slate-800 bg-slate-900">
+          <aside className={`${GM_PANEL_WIDTH_CLASS} flex-shrink-0 overflow-hidden border-r border-slate-800 bg-slate-900`}>
             <GMPanel onClose={() => setShowGMPanel(false)} />
           </aside>
         )}
@@ -207,7 +209,7 @@ export const PlaySession: React.FC = () => {
         </section>
 
         {!isPlayerPanelCollapsed && (
-          <aside className="flex w-96 flex-shrink-0 flex-col border-l border-slate-800 bg-slate-900">
+          <aside className={`flex ${PLAYER_PANEL_WIDTH_CLASS} flex-shrink-0 flex-col border-l border-slate-800 bg-slate-900`}>
             <nav className="flex border-b border-slate-800 overflow-x-auto">
               <TabButton active={sideTab === 'chat'} onClick={() => setSideTab('chat')} icon={<MessageSquare className="h-4 w-4" />} label="Chat" />
               <TabButton active={sideTab === 'dice'} onClick={() => setSideTab('dice')} icon={<Dices className="h-4 w-4" />} label="Dice" />

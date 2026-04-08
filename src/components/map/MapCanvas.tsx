@@ -744,6 +744,8 @@ export const MapCanvas: React.FC = () => {
   const handlePanRight = () => panBy(-panStep, 0);
 
   const gridCellSize = activeMap?.gridCellSize ?? 0;
+  const tokenSizeOverrideEnabled = activeMap?.tokenSizeOverrideEnabled ?? false;
+  const mediumTokenSizePx = activeMap?.mediumTokenSizePx ?? null;
   const zoomPercent = Math.round(viewportScale * 100);
   const selectedNpc = useMemo(() => {
     if (selectedTokenType !== 'npc' || !selectedTokenId) return null;
@@ -846,6 +848,8 @@ export const MapCanvas: React.FC = () => {
                     y={npc.positionY}
                     size={npc.size || 'medium'}
                     gridCellSize={gridCellSize}
+                    tokenSizeOverrideEnabled={tokenSizeOverrideEnabled}
+                    mediumTokenSizePx={mediumTokenSizePx}
                     isSelected={selectedTokenKeys.includes(buildTokenKey('npc', npc.id))}
                     isDraggable={canMoveToken('npc', npc.id)}
                     isHidden={!npc.isVisible}
@@ -874,6 +878,8 @@ export const MapCanvas: React.FC = () => {
                     y={char.positionY}
                     size={char.size || 'medium'}
                     gridCellSize={gridCellSize}
+                    tokenSizeOverrideEnabled={tokenSizeOverrideEnabled}
+                    mediumTokenSizePx={mediumTokenSizePx}
                     isSelected={selectedTokenKeys.includes(buildTokenKey('character', char.id))}
                     isDraggable={canMoveToken('character', char.id)}
                     isHidden={false}
