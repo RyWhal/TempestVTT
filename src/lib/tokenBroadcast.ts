@@ -44,6 +44,10 @@ export type DiceRollPayload = {
   };
 };
 
+export type DiceRollHistoryClearedPayload = {
+  sessionId: string;
+};
+
 export type ActiveMapPayload = {
   sessionId: string;
   mapId: string;
@@ -137,6 +141,18 @@ export const broadcastDiceRoll = async (payload: DiceRollPayload) => {
   await channel.send({
     type: 'broadcast',
     event: 'dice_roll',
+    payload,
+  });
+};
+
+export const broadcastDiceRollHistoryCleared = async (
+  payload: DiceRollHistoryClearedPayload
+) => {
+  await ensureTokenBroadcastReady(payload.sessionId);
+  const channel = getTokenBroadcastChannel(payload.sessionId);
+  await channel.send({
+    type: 'broadcast',
+    event: 'dice_rolls_cleared',
     payload,
   });
 };

@@ -97,7 +97,7 @@ export const useRealtime = () => {
     setTokenLock,
     clearTokenLock,
   } = useMapStore();
-  const { addMessage, addDiceRoll } = useChatStore();
+  const { addMessage, addDiceRoll, clearDiceRolls } = useChatStore();
   const { upsertEntry, removeEntry, addRollLog } = useInitiativeStore();
 
   useEffect(() => {
@@ -450,6 +450,15 @@ export const useRealtime = () => {
       }
     });
 
+    tokenChannel.on('broadcast', { event: 'dice_rolls_cleared' }, ({ payload }) => {
+      const clearPayload = payload as {
+        sessionId: string;
+      };
+
+      if (clearPayload.sessionId !== sessionId) return;
+      clearDiceRolls();
+    });
+
     tokenChannel.on('broadcast', { event: 'active_map' }, ({ payload }) => {
       const mapPayload = payload as {
         sessionId: string;
@@ -568,6 +577,7 @@ export const useRealtime = () => {
     clearTokenLock,
     addMessage,
     addDiceRoll,
+    clearDiceRolls,
     upsertEntry,
     removeEntry,
     addRollLog,

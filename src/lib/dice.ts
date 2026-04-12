@@ -1,10 +1,21 @@
-import type { PlotDieFace, RollResults } from '../types';
+import type { PlotDieFace, PlotDieResult, RollAttempt, RollMode, RollResults } from '../types';
 
 // Dice notation parser and roller
 
 interface ParsedDice {
   dice: { count: number; sides: number }[];
   modifier: number;
+}
+
+interface RollRequestOptions {
+  mode?: RollMode;
+  plotDieEnabled?: boolean;
+}
+
+interface RollValidationResult {
+  valid: boolean;
+  error?: string;
+  parsed?: ParsedDice;
 }
 
 /**
@@ -90,34 +101,160 @@ export const rollDice = (parsed: ParsedDice): RollResults => {
  * Parse and roll dice from a string expression
  */
 export const parseAndRoll = (expression: string): RollResults => {
-  const parsed = parseDiceNotation(expression);
-  return rollDice(parsed);
+  return createRollResults(expression);
 };
 
 // Tempest Plot Dice
-const PLOT_DIE_FACES: PlotDieFace[] = [
-  'blank',
-  'blank',
-  'opportunity',
-  'opportunity',
-  'complication',
-  'complication',
+const PLOT_DIE_FACES: PlotDieResult[] = [
+  { face: 'opportunity', kind: 'opportunity', bonus: 0, label: 'Opportunity' },
+  { face: 'opportunity', kind: 'opportunity', bonus: 0, label: 'Opportunity' },
+  { face: 'blank', kind: 'blank', bonus: 0, label: 'Blank' },
+  { face: 'blank', kind: 'blank', bonus: 0, label: 'Blank' },
+  { face: 'complication_bonus_2', kind: 'complication', bonus: 2, label: 'Complication +2' },
+  { face: 'complication_bonus_4', kind: 'complication', bonus: 4, label: 'Complication +4' },
 ];
 
 /**
  * Roll a single plot die
  */
-export const rollPlotDie = (): PlotDieFace => {
-  return PLOT_DIE_FACES[Math.floor(Math.random() * 6)];
+export const rollPlotDie = (): PlotDieResult => {
+  const result = PLOT_DIE_FACES[Math.floor(Math.random() * 6)];
+  return { ...result };
 };
 
 /**
  * Roll multiple plot dice
  */
-export const rollPlotDice = (count: number): PlotDieFace[] => {
+export const rollPlotDice = (count: number): PlotDieResult[] => {
   return Array(count)
     .fill(0)
     .map(() => rollPlotDie());
+};
+
+export const normalizePlotDieResult = (
+  plotDie: Pick<PlotDieResult, 'face'> & Partial<PlotDieResult>
+): PlotDieResult => {
+  switch (plotDie.face) {
+    case 'opportunity':
+      return {
+        face: plotDie.face,
+        kind: 'opportunity',
+        bonus: 0,
+        label: 'Opportunity',
+      };
+    case 'blank':
+      return {
+        face: plotDie.face,
+        kind: 'blank',
+        bonus: 0,
+        label: 'Blank',
+      };
+    case 'complication':
+      return {
+        face: plotDie.face,
+        kind: 'complication',
+        bonus: 0,
+        label: 'Complication',
+      };
+    case 'complication_bonus_2':
+      return {
+        face: plotDie.face,
+        kind: 'complication',
+        bonus: 2,
+        label: 'Complication +2',
+      };
+    case 'complication_bonus_4':
+      return {
+        face: plotDie.face,
+        kind: 'complication',
+        bonus: 4,
+        label: 'Complication +4',
+      };
+  }
+};
+
+export const validateRollRequest = (
+  expression: string,
+  options: Pick<RollRequestOptions, 'plotDieEnabled'> = {}
+): RollValidationResult => {
+  const parsed = parseDiceNotation(expression);
+  const hasStandardDice = parsed.dice.some((die) => Math.abs(die.count) > 0);
+
+  if (!hasStandardDice) {
+    return {
+      valid: false,
+      error: 'Select at least one die to roll.',
+    };
+  }
+
+  if (options.plotDieEnabled) {
+    const hasD20 = parsed.dice.some((die) => die.sides === 20 && Math.abs(die.count) > 0);
+    if (!hasD20) {
+      return {
+        valid: false,
+        error: 'Plot die requires at least one d20 in the roll.',
+      };
+    }
+  }
+
+  return {
+    valid: true,
+    parsed,
+  };
+};
+
+const createAttempt = (parsed: ParsedDice, plotDieEnabled = false): RollAttempt => {
+  const baseRoll = rollDice(parsed);
+  const plotDie = plotDieEnabled ? rollPlotDie() : null;
+
+  return {
+    dice: baseRoll.dice,
+    modifier: baseRoll.modifier,
+    subtotal: baseRoll.total,
+    total: baseRoll.total + (plotDie?.bonus ?? 0),
+    plotDie,
+  };
+};
+
+export const createRollResults = (
+  expression: string,
+  options: RollRequestOptions = {}
+): RollResults => {
+  const { mode = 'normal', plotDieEnabled = false } = options;
+  const validation = validateRollRequest(expression, { plotDieEnabled });
+
+  if (!validation.valid || !validation.parsed) {
+    throw new Error(validation.error || 'Invalid roll');
+  }
+
+  const attemptCount = mode === 'normal' ? 1 : 2;
+  const attempts = Array.from({ length: attemptCount }, () =>
+    createAttempt(validation.parsed as ParsedDice, plotDieEnabled)
+  );
+
+  const keptAttemptIndex =
+    mode === 'advantage'
+      ? attempts[1].total > attempts[0].total
+        ? 1
+        : 0
+      : mode === 'disadvantage'
+        ? attempts[1].total < attempts[0].total
+          ? 1
+          : 0
+        : 0;
+
+  const keptAttempt = attempts[keptAttemptIndex];
+
+  return {
+    dice: keptAttempt.dice,
+    modifier: keptAttempt.modifier,
+    total: keptAttempt.total,
+    mode,
+    expression,
+    attempts,
+    keptAttemptIndex,
+    plotDie: keptAttempt.plotDie,
+  };
 };
 
 /**
@@ -146,10 +283,14 @@ export const getPlotDieFaceName = (face: PlotDieFace): string => {
   switch (face) {
     case 'opportunity':
       return 'Opportunity';
-    case 'complication':
-      return 'Complication';
     case 'blank':
       return 'Blank';
+    case 'complication':
+      return 'Complication';
+    case 'complication_bonus_2':
+      return 'Complication +2';
+    case 'complication_bonus_4':
+      return 'Complication +4';
   }
 };
 
@@ -160,7 +301,7 @@ export const buildDiceExpression = (
   dice: Record<number, number>,
   modifier: number
 ): string => {
-  const parts: string[] = [];
+  const diceParts: string[] = [];
 
   // Standard dice sizes
   const diceTypes = [4, 6, 8, 10, 12, 20];
@@ -168,17 +309,21 @@ export const buildDiceExpression = (
   for (const sides of diceTypes) {
     const count = dice[sides] || 0;
     if (count > 0) {
-      parts.push(`${count}d${sides}`);
+      diceParts.push(`${count}d${sides}`);
     }
   }
 
-  if (modifier !== 0) {
-    if (modifier > 0) {
-      parts.push(`+${modifier}`);
-    } else {
-      parts.push(`${modifier}`);
-    }
+  const diceExpression = diceParts.join('+');
+
+  if (modifier === 0) {
+    return diceExpression || '0';
   }
 
-  return parts.join('+') || '0';
+  if (!diceExpression) {
+    return `${modifier}`;
+  }
+
+  return modifier > 0
+    ? `${diceExpression}+${modifier}`
+    : `${diceExpression}${modifier}`;
 };

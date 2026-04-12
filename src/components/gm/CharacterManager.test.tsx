@@ -96,4 +96,17 @@ describe('CharacterManager', () => {
       statusRingColor: '#22c55e',
     });
   });
+
+  it('renames a character inline from the manager list', () => {
+    render(<CharacterManager />);
+
+    const input = screen.getByRole('textbox', { name: /rename kaladin/i });
+
+    fireEvent.change(input, { target: { value: 'Stormblessed' } });
+    fireEvent.blur(input);
+
+    expect(updateCharacterDetailsMock).toHaveBeenCalledWith('char_001', {
+      name: 'Stormblessed',
+    });
+  });
 });

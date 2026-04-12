@@ -72,6 +72,7 @@ describe('PlaySession drawing mode', () => {
         currentGmUsername: 'GM',
         notepadContent: '',
         allowPlayersRenameNpcs: true,
+        allowPlayersRenamePcs: true,
         allowPlayersMoveNpcs: true,
         enableInitiativePhase: false,
         enablePlotDice: false,

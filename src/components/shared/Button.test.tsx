@@ -1,3 +1,5 @@
+/* @vitest-environment jsdom */
+
 /// <reference types="vitest/globals" />
 
 import { render } from '@testing-library/react';
@@ -21,7 +23,7 @@ describe('Button', () => {
   it('shows loading state when isLoading is true', () => {
     const { getByText, getByRole } = render(<Button isLoading>Rolling...</Button>);
 
-    expect(getByText('Loading...')).toBeInTheDocument();
-    expect(getByRole('button')).toBeDisabled();
+    expect(getByText('Loading...')).not.toBeNull();
+    expect(getByRole('button').hasAttribute('disabled')).toBe(true);
   });
 });

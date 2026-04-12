@@ -9,6 +9,11 @@ interface InitiativeState {
   removeEntry: (id: string) => void;
   setRollLogs: (logs: InitiativeRollLog[]) => void;
   addRollLog: (log: InitiativeRollLog) => void;
+  renameSource: (
+    sourceType: InitiativeEntry['sourceType'],
+    sourceId: string,
+    sourceName: string
+  ) => void;
   clearInitiativeState: () => void;
 }
 
@@ -42,5 +47,22 @@ export const useInitiativeStore = create<InitiativeState>()((set) => ({
   setRollLogs: (rollLogs) => set({ rollLogs: sortLogs(rollLogs).slice(0, 200) }),
   addRollLog: (log) =>
     set((state) => ({ rollLogs: sortLogs([log, ...state.rollLogs]).slice(0, 200) })),
+  renameSource: (sourceType, sourceId, sourceName) =>
+    set((state) => ({
+      entries: sortEntries(
+        state.entries.map((entry) =>
+          entry.sourceType === sourceType && entry.sourceId === sourceId
+            ? { ...entry, sourceName }
+            : entry
+        )
+      ),
+      rollLogs: sortLogs(
+        state.rollLogs.map((log) =>
+          log.sourceType === sourceType && log.sourceId === sourceId
+            ? { ...log, sourceName }
+            : log
+        )
+      ).slice(0, 200),
+    })),
   clearInitiativeState: () => set({ entries: [], rollLogs: [] }),
 }));

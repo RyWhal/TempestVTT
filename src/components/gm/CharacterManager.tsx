@@ -127,6 +127,19 @@ export const CharacterManager: React.FC = () => {
     }
   };
 
+  const handleRenameCharacter = async (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const character = characters.find((entry) => entry.id === id);
+    if (!character || trimmed === character.name) return;
+
+    const result = await updateCharacterDetails(id, { name: trimmed });
+    if (!result.success) {
+      showToast(result.error || 'Failed to rename character', 'error');
+    }
+  };
+
   const selectedStatusRing = (value: string | null) =>
     STATUS_RING_COLORS.find((color) => color.value === value) ?? STATUS_RING_COLORS[0];
 
@@ -281,9 +294,21 @@ export const CharacterManager: React.FC = () => {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-slate-200 truncate">
-                    {char.name}
-                  </h4>
+                  <input
+                    type="text"
+                    defaultValue={char.name}
+                    aria-label={`Rename ${char.name}`}
+                    className="w-full truncate rounded bg-slate-900/70 px-2 py-1 text-sm font-medium text-slate-200 border border-slate-700"
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => {
+                      void handleRenameCharacter(char.id, e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      }
+                    }}
+                  />
                   <p className="text-xs text-slate-400">
                     {char.isClaimed
                       ? `Claimed by ${char.claimedByUsername}`
