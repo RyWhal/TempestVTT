@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dbMapToMap } from './index';
+import { dbMapToMap, dbSessionToSession } from './index';
 
 describe('dbMapToMap', () => {
   it('hydrates token size override fields from the db row', () => {
@@ -30,5 +30,28 @@ describe('dbMapToMap', () => {
 
     expect(map.tokenSizeOverrideEnabled).toBe(true);
     expect(map.mediumTokenSizePx).toBe(72);
+  });
+});
+
+describe('dbSessionToSession', () => {
+  it('hydrates the player PC rename setting from the db row', () => {
+    const session = dbSessionToSession({
+      id: 'session_001',
+      code: 'ABCD12',
+      name: 'Shared Table',
+      active_map_id: null,
+      current_gm_username: 'DungeonMaster',
+      notepad_content: '',
+      allow_players_rename_npcs: true,
+      allow_players_rename_pcs: false,
+      allow_players_move_npcs: true,
+      enable_initiative_phase: true,
+      enable_plot_dice: true,
+      allow_players_drawings: true,
+      created_at: '2026-04-08T00:00:00.000Z',
+      updated_at: '2026-04-08T00:00:00.000Z',
+    });
+
+    expect(session.allowPlayersRenamePcs).toBe(false);
   });
 });

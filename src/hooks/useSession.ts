@@ -537,13 +537,28 @@ export const useSession = () => {
   );
 
   const updateSessionSettings = useCallback(
-    async (settings: Partial<Pick<Session, 'allowPlayersRenameNpcs' | 'allowPlayersMoveNpcs' | 'enableInitiativePhase' | 'enablePlotDice' | 'allowPlayersDrawings'>>) => {
+    async (
+      settings: Partial<
+        Pick<
+          Session,
+          | 'allowPlayersRenameNpcs'
+          | 'allowPlayersRenamePcs'
+          | 'allowPlayersMoveNpcs'
+          | 'enableInitiativePhase'
+          | 'enablePlotDice'
+          | 'allowPlayersDrawings'
+        >
+      >
+    ) => {
       if (!session) return { success: false, error: 'Not in a session' };
 
       try {
         const dbUpdates: Record<string, unknown> = {};
         if (settings.allowPlayersRenameNpcs !== undefined) {
           dbUpdates.allow_players_rename_npcs = settings.allowPlayersRenameNpcs;
+        }
+        if (settings.allowPlayersRenamePcs !== undefined) {
+          dbUpdates.allow_players_rename_pcs = settings.allowPlayersRenamePcs;
         }
         if (settings.allowPlayersMoveNpcs !== undefined) {
           dbUpdates.allow_players_move_npcs = settings.allowPlayersMoveNpcs;

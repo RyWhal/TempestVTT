@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { supabase, uploadFile, deleteFile, STORAGE_BUCKETS } from '../lib/supabase';
 import { useSessionStore } from '../stores/sessionStore';
 import { useMapStore } from '../stores/mapStore';
+import { useInitiativeStore } from '../stores/initiativeStore';
 import {
   dbNPCTemplateToNPCTemplate,
   dbNPCInstanceToNPCInstance,
@@ -28,6 +29,7 @@ export const useNPCs = () => {
     removeNPCInstance,
     moveNPCInstance,
   } = useMapStore();
+  const renameInitiativeSource = useInitiativeStore((state) => state.renameSource);
 
   /**
    * Create an NPC template
@@ -255,14 +257,25 @@ export const useNPCs = () => {
 
         let initiativeErrorMessage: string | null = null;
         if (updates.displayName !== undefined) {
-          const { error: initiativeError } = await supabase
-            .from('initiative_entries')
-            .update({ source_name: updates.displayName })
-            .eq('source_type', 'npc')
-            .eq('source_id', instanceId);
+          const nextDisplayName = updates.displayName ?? 'NPC';
+          const [entriesResult, logsResult] = await Promise.all([
+            supabase
+              .from('initiative_entries')
+              .update({ source_name: nextDisplayName })
+              .eq('source_type', 'npc')
+              .eq('source_id', instanceId),
+            supabase
+              .from('initiative_roll_logs')
+              .update({ source_name: nextDisplayName })
+              .eq('source_type', 'npc')
+              .eq('source_id', instanceId),
+          ]);
 
-          if (initiativeError) {
-            initiativeErrorMessage = initiativeError.message;
+          if (entriesResult.error || logsResult.error) {
+            initiativeErrorMessage =
+              entriesResult.error?.message || logsResult.error?.message || null;
+          } else {
+            renameInitiativeSource('npc', instanceId, nextDisplayName);
           }
         }
 
@@ -280,7 +293,7 @@ export const useNPCs = () => {
         };
       }
     },
-    [updateNPCInstance]
+    [renameInitiativeSource, updateNPCInstance]
   );
 
   /**

@@ -19,6 +19,7 @@ export interface Session {
   currentGmUsername: string | null;
   notepadContent: string;
   allowPlayersRenameNpcs: boolean;
+  allowPlayersRenamePcs: boolean;
   allowPlayersMoveNpcs: boolean;
   enableInitiativePhase: boolean;
   enablePlotDice: boolean;
@@ -199,16 +200,41 @@ export interface DiceRoll {
   createdAt: string;
 }
 
+export type RollMode = 'normal' | 'advantage' | 'disadvantage';
+
+export interface RollAttempt {
+  dice: { type: string; count: number; results: number[] }[];
+  modifier: number;
+  subtotal: number;
+  total: number;
+  plotDie: PlotDieResult | null;
+}
+
 export interface RollResults {
   dice: { type: string; count: number; results: number[] }[];
   modifier: number;
   total: number;
+  mode?: RollMode;
+  expression?: string;
+  attempts?: RollAttempt[];
+  keptAttemptIndex?: number;
+  plotDie?: PlotDieResult | null;
 }
 
-export type PlotDieFace = 'opportunity' | 'complication' | 'blank';
+export type PlotDieFace =
+  | 'opportunity'
+  | 'blank'
+  | 'complication'
+  | 'complication_bonus_2'
+  | 'complication_bonus_4';
+
+export type PlotDieKind = 'opportunity' | 'blank' | 'complication';
 
 export interface PlotDieResult {
   face: PlotDieFace;
+  kind: PlotDieKind;
+  bonus: number;
+  label: string;
 }
 
 export interface ChatMessage {
@@ -323,6 +349,7 @@ export interface DbSession {
   current_gm_username: string | null;
   notepad_content: string;
   allow_players_rename_npcs: boolean;
+  allow_players_rename_pcs?: boolean;
   allow_players_move_npcs: boolean;
   enable_initiative_phase: boolean;
   enable_plot_dice: boolean;
@@ -484,6 +511,7 @@ export function dbSessionToSession(db: DbSession): Session {
     currentGmUsername: db.current_gm_username,
     notepadContent: db.notepad_content,
     allowPlayersRenameNpcs: db.allow_players_rename_npcs ?? true,
+    allowPlayersRenamePcs: db.allow_players_rename_pcs ?? true,
     allowPlayersMoveNpcs: db.allow_players_move_npcs ?? true,
     enableInitiativePhase: db.enable_initiative_phase ?? true,
     enablePlotDice: db.enable_plot_dice ?? true,

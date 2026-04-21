@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { supabase, uploadFile, deleteFile, STORAGE_BUCKETS } from '../lib/supabase';
 import { useSessionStore } from '../stores/sessionStore';
 import { useMapStore } from '../stores/mapStore';
+import { useInitiativeStore } from '../stores/initiativeStore';
 import { dbCharacterToCharacter, type DbCharacter, type Character, type InventoryItem } from '../types';
 import { nanoid } from 'nanoid';
 import { broadcastTokenMove } from '../lib/tokenBroadcast';
@@ -11,6 +12,7 @@ export const useCharacters = () => {
   const currentUser = useSessionStore((state) => state.currentUser);
   const activeMap = useMapStore((state) => state.activeMap);
   const { characters, addCharacter, updateCharacter, removeCharacter, moveCharacter } = useMapStore();
+  const renameInitiativeSource = useInitiativeStore((state) => state.renameSource);
 
   /**
    * Create a new character
@@ -96,7 +98,34 @@ export const useCharacters = () => {
           return { success: false, error: error.message };
         }
 
+        let initiativeErrorMessage: string | null = null;
+        if (updates.name !== undefined) {
+          const [entriesResult, logsResult] = await Promise.all([
+            supabase
+              .from('initiative_entries')
+              .update({ source_name: updates.name })
+              .eq('source_type', 'player')
+              .eq('source_id', characterId),
+            supabase
+              .from('initiative_roll_logs')
+              .update({ source_name: updates.name })
+              .eq('source_type', 'player')
+              .eq('source_id', characterId),
+          ]);
+
+          if (entriesResult.error || logsResult.error) {
+            initiativeErrorMessage = entriesResult.error?.message || logsResult.error?.message || null;
+          } else {
+            renameInitiativeSource('player', characterId, updates.name);
+          }
+        }
+
         updateCharacter(characterId, updates);
+
+        if (initiativeErrorMessage) {
+          return { success: false, error: initiativeErrorMessage };
+        }
+
         return { success: true };
       } catch (error) {
         return {
@@ -105,7 +134,7 @@ export const useCharacters = () => {
         };
       }
     },
-    [updateCharacter]
+    [renameInitiativeSource, updateCharacter]
   );
 
   /**

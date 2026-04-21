@@ -3,14 +3,40 @@ import { supabase } from '../lib/supabase';
 import { useSessionStore } from '../stores/sessionStore';
 import { useChatStore } from '../stores/chatStore';
 import { dbChatMessageToChatMessage, dbDiceRollToDiceRoll, type DbChatMessage, type DbDiceRoll } from '../types';
-import { parseAndRoll, rollPlotDice } from '../lib/dice';
-import { broadcastChatMessage, broadcastDiceRoll } from '../lib/tokenBroadcast';
-import type { RollVisibility, PlotDieResult, RollResults } from '../types';
+import { createRollResults } from '../lib/dice';
+import {
+  broadcastChatMessage,
+  broadcastDiceRoll,
+  broadcastDiceRollHistoryCleared,
+} from '../lib/tokenBroadcast';
+import type { RollMode, RollVisibility, PlotDieResult, RollResults } from '../types';
+
+interface RollDiceOptions {
+  visibility?: RollVisibility;
+  plotDieEnabled?: boolean;
+  characterName?: string;
+  mode?: RollMode;
+}
+
+const swallowBroadcastError = (label: string) => (error: unknown) => {
+  console.warn(`${label} broadcast failed`, error);
+};
+
+const detachBroadcast = (label: string, operation: Promise<unknown> | unknown) => {
+  void Promise.resolve(operation).catch(swallowBroadcastError(label));
+};
 
 export const useChat = () => {
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
-  const { messages, diceRolls, addMessage, addDiceRoll, resetUnread } = useChatStore();
+  const {
+    messages,
+    diceRolls,
+    addMessage,
+    addDiceRoll,
+    clearDiceRolls,
+    resetUnread,
+  } = useChatStore();
 
   /**
    * Send a chat message
@@ -47,7 +73,7 @@ export const useChat = () => {
         if (data) {
           const chatMessage = dbChatMessageToChatMessage(data as DbChatMessage);
           addMessage(chatMessage);
-          await broadcastChatMessage({ sessionId: session.id, message: chatMessage });
+          detachBroadcast('chat', broadcastChatMessage({ sessionId: session.id, message: chatMessage }));
         }
 
         return { success: true };
@@ -67,23 +93,25 @@ export const useChat = () => {
   const rollDice = useCallback(
     async (
       expression: string,
-      visibility: RollVisibility = 'public',
-      plotDiceCount = 0,
-      characterName?: string
+      options: RollDiceOptions = {}
     ): Promise<{ success: boolean; results?: RollResults; error?: string }> => {
       if (!session || !currentUser) {
         return { success: false, error: 'Not in a session' };
       }
 
       try {
-        // Parse and roll the dice
-        const results = parseAndRoll(expression);
+        const {
+          visibility = 'public',
+          plotDieEnabled = false,
+          characterName,
+          mode = 'normal',
+        } = options;
 
-        // Roll plot dice if any
-        let plotDiceResults: PlotDieResult[] | null = null;
-        if (plotDiceCount > 0) {
-          plotDiceResults = rollPlotDice(plotDiceCount).map((face) => ({ face }));
-        }
+        const results = createRollResults(expression, {
+          mode,
+          plotDieEnabled,
+        });
+        const plotDiceResults: PlotDieResult[] | null = results.plotDie ? [results.plotDie] : null;
 
         // Save to database
         const { data, error } = await supabase
@@ -113,7 +141,7 @@ export const useChat = () => {
           } else if (roll.visibility === 'self' && roll.username === currentUser.username) {
             addDiceRoll(roll);
           }
-          await broadcastDiceRoll({ sessionId: session.id, roll });
+          detachBroadcast('dice', broadcastDiceRoll({ sessionId: session.id, roll }));
         }
 
         return { success: true, results };
@@ -132,10 +160,32 @@ export const useChat = () => {
    */
   const quickRoll = useCallback(
     async (expression: string) => {
-      return rollDice(expression, 'public', 0);
+      return rollDice(expression, { visibility: 'public' });
     },
     [rollDice]
   );
+
+  const clearDiceHistory = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    if (!session || !currentUser?.isGm) {
+      return { success: false, error: 'GM only' };
+    }
+
+    try {
+      const { error } = await supabase.from('dice_rolls').delete().eq('session_id', session.id);
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      clearDiceRolls();
+      detachBroadcast('dice-history', broadcastDiceRollHistoryCleared({ sessionId: session.id }));
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }, [session, currentUser, clearDiceRolls]);
 
   /**
    * Mark messages as read
@@ -149,6 +199,7 @@ export const useChat = () => {
     diceRolls,
     sendMessage,
     rollDice,
+    clearDiceHistory,
     quickRoll,
     markAsRead,
   };

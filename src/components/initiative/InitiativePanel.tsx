@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useInitiative } from '../../hooks/useInitiative';
 import { useNPCs } from '../../hooks/useNPCs';
+import { useCharacters } from '../../hooks/useCharacters';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useToast } from '../shared/Toast';
-import type { InitiativePhase, InitiativeVisibility } from '../../types';
+import type { InitiativeEntry, InitiativePhase, InitiativeVisibility } from '../../types';
 import { Button } from '../shared/Button';
 
 interface InitiativePanelProps {
@@ -30,6 +31,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = ({ gmView = false
     clearTracker,
   } = useInitiative();
   const { updateNPCInstanceDetails } = useNPCs();
+  const { myCharacter, updateCharacterDetails } = useCharacters();
 
   const myModifier = useMemo(() => {
     if (!currentUser) return 0;
@@ -42,6 +44,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = ({ gmView = false
   const [npcModifier, setNpcModifier] = useState('0');
   const [selectedNpcIds, setSelectedNpcIds] = useState<string[]>([]);
   const phaseEnabled = Boolean(session?.enableInitiativePhase);
+  const allowPlayersRenamePcs = session?.allowPlayersRenamePcs ?? true;
 
   const handleSaveModifier = async () => {
     const parsed = parseInt(modifierInput, 10);
@@ -82,6 +85,22 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = ({ gmView = false
     if (!result.success) {
       showToast(result.error || 'Failed to rename NPC', 'error');
     }
+  };
+
+  const handleRenameCharacter = async (characterId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const result = await updateCharacterDetails(characterId, { name: trimmed });
+    if (!result.success) {
+      showToast(result.error || 'Failed to rename character', 'error');
+    }
+  };
+
+  const canRenamePlayerEntry = (entry: InitiativeEntry) => {
+    if (entry.sourceType !== 'player' || !entry.sourceId) return false;
+    if (isGM) return true;
+    return allowPlayersRenamePcs && myCharacter?.id === entry.sourceId;
   };
 
   return (
@@ -230,7 +249,24 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = ({ gmView = false
               <div key={entry.id} className="rounded border border-slate-700 p-2 bg-slate-900/40">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm text-slate-100 font-medium">{entry.sourceName}</p>
+                    {canRenamePlayerEntry(entry) ? (
+                      <input
+                        type="text"
+                        defaultValue={entry.sourceName}
+                        aria-label={`Rename ${entry.sourceName}`}
+                        className="w-40 rounded bg-slate-900 border border-slate-700 px-2 py-1 text-sm text-slate-100"
+                        onBlur={(e) => {
+                          void handleRenameCharacter(entry.sourceId as string, e.target.value);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          }
+                        }}
+                      />
+                    ) : (
+                      <p className="text-sm text-slate-100 font-medium">{entry.sourceName}</p>
+                    )}
                     <p className="text-xs text-slate-400">
                       {phaseEnabled ? `${entry.phase.toUpperCase()} · ` : ''}
                       {entry.visibility === 'public' ? 'Public' : 'GM only'}

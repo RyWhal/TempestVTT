@@ -19,6 +19,7 @@ export const GMSettings: React.FC = () => {
   const handleToggle = async (
     field:
       | 'allowPlayersRenameNpcs'
+      | 'allowPlayersRenamePcs'
       | 'allowPlayersMoveNpcs'
       | 'enableInitiativePhase'
       | 'enablePlotDice'
@@ -55,6 +56,15 @@ export const GMSettings: React.FC = () => {
             type="checkbox"
             checked={session.allowPlayersRenameNpcs}
             onChange={(e) => handleToggle('allowPlayersRenameNpcs', e.target.checked)}
+          />
+        </label>
+
+        <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+          <span>Enable player PC renaming</span>
+          <input
+            type="checkbox"
+            checked={session.allowPlayersRenamePcs}
+            onChange={(e) => handleToggle('allowPlayersRenamePcs', e.target.checked)}
           />
         </label>
 
