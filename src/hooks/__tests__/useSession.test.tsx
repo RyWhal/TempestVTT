@@ -2,6 +2,7 @@ import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetSessionLoadQueueForTests, runDedupedSessionLoad, useSession } from '../useSession';
 import { useSessionStore } from '../../stores/sessionStore';
+import type { Session } from '../../types';
 
 const { fromMock } = vi.hoisted(() => ({
   fromMock: vi.fn(),
@@ -338,6 +339,87 @@ describe('useSession.createSession', () => {
     expect(requestedTables).not.toContain('initiative_entries');
     expect(requestedTables).not.toContain('initiative_roll_logs');
     expect(requestedTables).not.toContain('shared_assets');
+  });
+
+  it('hydrates full session settings during core data load', async () => {
+    useSessionStore.getState().setSession({
+      id: 'session_001',
+      code: 'ABCD12',
+      name: 'Persisted Session',
+    } as Partial<Session> as Session);
+
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'maps') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'sessions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'session_001',
+                  code: 'ABCD12',
+                  name: 'Hydrated Session',
+                  current_gm_username: 'Goober',
+                  allow_players_rename_npcs: false,
+                  allow_players_rename_pcs: false,
+                  allow_players_move_npcs: false,
+                  enable_initiative_phase: false,
+                  enable_plot_dice: true,
+                  allow_players_drawings: false,
+                  created_at: '2026-04-01T10:00:00.000Z',
+                  updated_at: '2026-04-01T10:00:00.000Z',
+                  active_map_id: null,
+                  notepad_content: '',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+
+      if (table === 'characters' || table === 'session_players') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    let loadSessionData: ((sessionId: string) => Promise<void>) | null = null;
+    const Harness = () => {
+      loadSessionData = useSession().loadSessionData;
+      return null;
+    };
+
+    renderToString(<Harness />);
+
+    if (!loadSessionData) {
+      throw new Error('Harness did not initialize useSession');
+    }
+
+    const loadSessionDataFn = loadSessionData as (sessionId: string) => Promise<void>;
+    await loadSessionDataFn('session_001');
+
+    expect(useSessionStore.getState().session).toMatchObject({
+      id: 'session_001',
+      name: 'Hydrated Session',
+      enablePlotDice: true,
+      enableInitiativePhase: false,
+      allowPlayersDrawings: false,
+    });
   });
 
   it('loads deferred chat, initiative, and npc library data only when requested', async () => {
