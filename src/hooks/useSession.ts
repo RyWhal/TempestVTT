@@ -259,10 +259,19 @@ export const useSession = () => {
 
           const { data: sessionData } = await supabase
             .from('sessions')
-            .select('active_map_id')
+            .select('*')
             .eq('id', sessionId)
             .single();
-          const uploadedActiveMapId = sessionData?.active_map_id ?? null;
+          const uploadedSession =
+            sessionData && 'id' in sessionData
+              ? dbSessionToSession(sessionData as DbSession)
+              : null;
+          if (uploadedSession) {
+            updateSession(uploadedSession);
+          }
+
+          const uploadedActiveMapId =
+            uploadedSession?.activeMapId ?? sessionData?.active_map_id ?? null;
           const uploadedActiveMap = uploadedActiveMapId
             ? uploadedMaps.find((map) => map.id === uploadedActiveMapId) ?? null
             : null;
@@ -304,7 +313,7 @@ export const useSession = () => {
         }
       });
     },
-    [setMaps, setActiveMap, setCharacters, setNPCInstances, setPlayers]
+    [setMaps, setActiveMap, setCharacters, setNPCInstances, setPlayers, updateSession]
   );
 
   const loadNpcTemplateData = useCallback(

@@ -4,6 +4,27 @@ import { useMapStore, getFogBrushPixelSize } from '../../stores/mapStore';
 import { useMap } from '../../hooks/useMap';
 import { Button } from '../shared/Button';
 import { useToast } from '../shared/Toast';
+import type { FogRegion, Map } from '../../types';
+
+const getRevealAllFogData = (map: Map): FogRegion[] => {
+  if (map.fogDefaultState !== 'fogged') {
+    return [];
+  }
+
+  return [
+    {
+      type: 'reveal',
+      points: [
+        { x: 0, y: 0 },
+        { x: map.width, y: 0 },
+        { x: map.width, y: map.height },
+        { x: 0, y: map.height },
+        { x: 0, y: 0 },
+      ],
+      brushSize: 1,
+    },
+  ];
+};
 
 export const FogTools: React.FC = () => {
   const { showToast } = useToast();
@@ -43,9 +64,7 @@ export const FogTools: React.FC = () => {
   const handleRevealAll = async () => {
     if (!confirm('Reveal entire map to players? This will clear all fog.')) return;
 
-    // If default is fogged, we clear fog data
-    // If default is revealed, we also clear fog data
-    await updateFogData(activeMap.id, []);
+    await updateFogData(activeMap.id, getRevealAllFogData(activeMap));
     showToast('Fog cleared', 'success');
   };
 
