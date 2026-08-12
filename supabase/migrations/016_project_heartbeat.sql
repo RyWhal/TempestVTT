@@ -11,7 +11,7 @@ ALTER TABLE public.project_heartbeat ENABLE ROW LEVEL SECURITY;
 INSERT INTO public.project_heartbeat (id)
 VALUES ('cloudflare-cron');
 
-CREATE OR REPLACE FUNCTION public.app_record_project_heartbeat()
+CREATE OR REPLACE FUNCTION public.app_record_project_heartbeat(p_token text)
 RETURNS TABLE(last_seen_at timestamptz, run_count bigint)
 LANGUAGE sql
 SECURITY DEFINER
@@ -22,10 +22,12 @@ AS $$
     last_seen_at = clock_timestamp(),
     run_count = project_heartbeat.run_count + 1
   WHERE id = 'cloudflare-cron'
+    AND encode(sha256(convert_to(p_token, 'UTF8')), 'hex') =
+      'REPLACE_WITH_SHA256_HEARTBEAT_TOKEN'
   RETURNING project_heartbeat.last_seen_at, project_heartbeat.run_count;
 $$;
 
-REVOKE ALL ON FUNCTION public.app_record_project_heartbeat() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.app_record_project_heartbeat() FROM anon;
-REVOKE ALL ON FUNCTION public.app_record_project_heartbeat() FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.app_record_project_heartbeat() TO anon;
+REVOKE ALL ON FUNCTION public.app_record_project_heartbeat(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.app_record_project_heartbeat(text) FROM anon;
+REVOKE ALL ON FUNCTION public.app_record_project_heartbeat(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.app_record_project_heartbeat(text) TO anon;

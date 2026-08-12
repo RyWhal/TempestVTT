@@ -341,7 +341,14 @@ The standalone Worker in `workers/supabase-heartbeat` records one harmless datab
 
 ### 12.1 Prepare Supabase
 
-Apply `supabase/migrations/016_project_heartbeat.sql` to the target project. The migration creates a singleton operational row and an anon-callable RPC. It does not grant direct table access or modify gameplay data.
+Generate a high-entropy token and its SHA-256 hash locally:
+
+```bash
+HEARTBEAT_TOKEN="$(openssl rand -hex 32)"
+printf '%s' "$HEARTBEAT_TOKEN" | shasum -a 256
+```
+
+Keep the token in your terminal until the Worker secret is configured. Replace `REPLACE_WITH_SHA256_HEARTBEAT_TOKEN` in `supabase/migrations/016_project_heartbeat.sql` with the printed hash, then apply the migration to the target project. Only the irreversible hash is stored in Supabase. The migration creates a singleton operational row and a token-gated RPC; it does not grant direct table access or modify gameplay data.
 
 Verify the initial row through Supabase SQL Editor:
 
@@ -353,19 +360,16 @@ WHERE id = 'cloudflare-cron';
 
 ### 12.2 Configure the Worker
 
-In `workers/supabase-heartbeat/wrangler.jsonc`, replace:
-
-```text
-https://REPLACE_WITH_PROJECT_REF.supabase.co
-```
-
-with the target Supabase Project URL. The URL is a non-secret Worker variable. Do not add the anon key to this file or commit it anywhere.
+Verify that `SUPABASE_URL` in `workers/supabase-heartbeat/wrangler.jsonc` names the intended Supabase project, changing it if necessary. The URL is a non-secret Worker variable. Do not add either secret to this file or commit them anywhere.
 
 Add the anon key as a Cloudflare Worker secret:
 
 ```bash
 npx wrangler secret put SUPABASE_ANON_KEY --config workers/supabase-heartbeat/wrangler.jsonc
+printf '%s' "$HEARTBEAT_TOKEN" | npx wrangler secret put HEARTBEAT_TOKEN --config workers/supabase-heartbeat/wrangler.jsonc
 ```
+
+The first command prompts for the Supabase anon key. The second securely pipes the generated heartbeat token to Wrangler. Clear the terminal variable after deployment with `unset HEARTBEAT_TOKEN`.
 
 ### 12.3 Test locally
 

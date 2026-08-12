@@ -9,7 +9,7 @@ describe('recordProjectHeartbeat', () => {
 
     await expect(
       recordProjectHeartbeat(
-        { SUPABASE_URL: '', SUPABASE_ANON_KEY: '' },
+        { SUPABASE_URL: '', SUPABASE_ANON_KEY: '', HEARTBEAT_TOKEN: '' },
         { fetch: fetchMock }
       )
     ).rejects.toThrow('Supabase heartbeat configuration is incomplete');
@@ -26,7 +26,11 @@ describe('recordProjectHeartbeat', () => {
 
     await expect(
       recordProjectHeartbeat(
-        { SUPABASE_URL: 'https://example.supabase.co/', SUPABASE_ANON_KEY: 'secret-anon-key' },
+        {
+          SUPABASE_URL: 'https://example.supabase.co/',
+          SUPABASE_ANON_KEY: 'secret-anon-key',
+          HEARTBEAT_TOKEN: 'heartbeat-token',
+        },
         { fetch: fetchMock }
       )
     ).resolves.toEqual({
@@ -38,6 +42,9 @@ describe('recordProjectHeartbeat', () => {
       'https://example.supabase.co/rest/v1/rpc/app_record_project_heartbeat',
       expect.objectContaining({ method: 'POST' })
     );
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      p_token: 'heartbeat-token',
+    });
   });
 
   it('reports a bounded remote error and redacts an echoed credential', async () => {
@@ -48,7 +55,11 @@ describe('recordProjectHeartbeat', () => {
       .mockResolvedValue(new Response(responseBody, { status: 401 }));
 
     const error = await recordProjectHeartbeat(
-      { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: secret },
+      {
+        SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_ANON_KEY: secret,
+        HEARTBEAT_TOKEN: 'heartbeat-token',
+      },
       { fetch: fetchMock }
     ).catch((caught: unknown) => caught);
 
@@ -75,7 +86,11 @@ describe('recordProjectHeartbeat', () => {
 
     await expect(
       recordProjectHeartbeat(
-        { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'secret' },
+        {
+          SUPABASE_URL: 'https://example.supabase.co',
+          SUPABASE_ANON_KEY: 'secret',
+          HEARTBEAT_TOKEN: 'heartbeat-token',
+        },
         { fetch: fetchMock }
       )
     ).rejects.toThrow('invalid response');
@@ -88,7 +103,11 @@ describe('recordProjectHeartbeat', () => {
 
     await expect(
       recordProjectHeartbeat(
-        { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'secret' },
+        {
+          SUPABASE_URL: 'https://example.supabase.co',
+          SUPABASE_ANON_KEY: 'secret',
+          HEARTBEAT_TOKEN: 'heartbeat-token',
+        },
         { fetch: fetchMock }
       )
     ).rejects.toThrow('malformed JSON');
@@ -99,7 +118,11 @@ describe('recordProjectHeartbeat', () => {
     const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error('request timed out'));
 
     const error = await recordProjectHeartbeat(
-      { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: secret },
+      {
+        SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_ANON_KEY: secret,
+        HEARTBEAT_TOKEN: 'heartbeat-token',
+      },
       { fetch: fetchMock, timeoutMs: 1 }
     ).catch((caught: unknown) => caught);
 
@@ -121,7 +144,11 @@ describe('scheduled heartbeat handler', () => {
 
     await worker.scheduled(
       {} as ScheduledController,
-      { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: secret },
+      {
+        SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_ANON_KEY: secret,
+        HEARTBEAT_TOKEN: 'heartbeat-token',
+      },
       {} as ExecutionContext
     );
 
@@ -139,7 +166,11 @@ describe('scheduled heartbeat handler', () => {
     await expect(
       worker.scheduled(
         {} as ScheduledController,
-        { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'secret' },
+        {
+          SUPABASE_URL: 'https://example.supabase.co',
+          SUPABASE_ANON_KEY: 'secret',
+          HEARTBEAT_TOKEN: 'heartbeat-token',
+        },
         {} as ExecutionContext
       )
     ).rejects.toThrow('offline');

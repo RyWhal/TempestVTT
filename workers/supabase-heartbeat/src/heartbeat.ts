@@ -1,6 +1,7 @@
 export interface HeartbeatEnv {
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
+  HEARTBEAT_TOKEN: string;
 }
 
 export interface HeartbeatResult {
@@ -54,7 +55,8 @@ export const recordProjectHeartbeat = async (
 ): Promise<HeartbeatResult> => {
   const supabaseUrl = env.SUPABASE_URL.trim().replace(/\/+$/, '');
   const anonKey = env.SUPABASE_ANON_KEY.trim();
-  if (!supabaseUrl || !anonKey) {
+  const heartbeatToken = env.HEARTBEAT_TOKEN.trim();
+  if (!supabaseUrl || !anonKey || !heartbeatToken) {
     throw new Error('Supabase heartbeat configuration is incomplete');
   }
 
@@ -69,7 +71,7 @@ export const recordProjectHeartbeat = async (
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: '{}',
+      body: JSON.stringify({ p_token: heartbeatToken }),
       signal: AbortSignal.timeout(dependencies.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     }
   );
