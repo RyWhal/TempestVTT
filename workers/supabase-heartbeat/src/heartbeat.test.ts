@@ -49,7 +49,8 @@ describe('recordProjectHeartbeat', () => {
 
   it('reports a bounded remote error and redacts an echoed credential', async () => {
     const secret = 'secret-anon-key';
-    const responseBody = `upstream echoed ${secret} ${'x'.repeat(600)}`;
+    const heartbeatToken = 'secret-heartbeat-token';
+    const responseBody = `upstream echoed ${secret} and ${heartbeatToken} ${'x'.repeat(600)}`;
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValue(new Response(responseBody, { status: 401 }));
@@ -58,7 +59,7 @@ describe('recordProjectHeartbeat', () => {
       {
         SUPABASE_URL: 'https://example.supabase.co',
         SUPABASE_ANON_KEY: secret,
-        HEARTBEAT_TOKEN: 'heartbeat-token',
+        HEARTBEAT_TOKEN: heartbeatToken,
       },
       { fetch: fetchMock }
     ).catch((caught: unknown) => caught);
@@ -67,6 +68,7 @@ describe('recordProjectHeartbeat', () => {
     expect((error as Error).message).toContain('HTTP 401');
     expect((error as Error).message).toContain('[REDACTED]');
     expect((error as Error).message).not.toContain(secret);
+    expect((error as Error).message).not.toContain(heartbeatToken);
     expect((error as Error).message.length).toBeLessThan(600);
   });
 

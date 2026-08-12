@@ -46,8 +46,11 @@ const parseHeartbeatResponse = (payload: unknown): HeartbeatResult => {
   };
 };
 
-const redact = (value: string, secret: string): string =>
-  value.split(secret).join('[REDACTED]');
+const redact = (value: string, secrets: string[]): string =>
+  secrets.reduce(
+    (safeValue, secret) => safeValue.split(secret).join('[REDACTED]'),
+    value
+  );
 
 export const recordProjectHeartbeat = async (
   env: HeartbeatEnv,
@@ -79,7 +82,7 @@ export const recordProjectHeartbeat = async (
   if (!response.ok) {
     const responseBody = (await response.text()).slice(0, MAX_ERROR_BODY_LENGTH);
     throw new Error(
-      `Supabase heartbeat failed with HTTP ${response.status}: ${redact(responseBody, anonKey)}`
+      `Supabase heartbeat failed with HTTP ${response.status}: ${redact(responseBody, [anonKey, heartbeatToken])}`
     );
   }
 
