@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { recordProjectHeartbeat } from './heartbeat';
+import { createHeartbeatWorker } from './index';
 
 describe('recordProjectHeartbeat', () => {
   it('rejects missing configuration before making a request', async () => {
@@ -105,5 +106,42 @@ describe('recordProjectHeartbeat', () => {
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain('timed out');
     expect((error as Error).message).not.toContain(secret);
+  });
+});
+
+describe('scheduled heartbeat handler', () => {
+  it('logs only the successful heartbeat result', async () => {
+    const secret = 'secret-anon-key';
+    const record = vi.fn().mockResolvedValue({
+      lastSeenAt: '2026-08-12T14:00:00.000Z',
+      runCount: 7,
+    });
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const worker = createHeartbeatWorker(record);
+
+    await worker.scheduled(
+      {} as ScheduledController,
+      { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: secret },
+      {} as ExecutionContext
+    );
+
+    expect(info).toHaveBeenCalledWith('Supabase heartbeat recorded', {
+      lastSeenAt: '2026-08-12T14:00:00.000Z',
+      runCount: 7,
+    });
+    expect(JSON.stringify(info.mock.calls)).not.toContain(secret);
+    info.mockRestore();
+  });
+
+  it('rejects when recording the heartbeat fails', async () => {
+    const worker = createHeartbeatWorker(vi.fn().mockRejectedValue(new Error('offline')));
+
+    await expect(
+      worker.scheduled(
+        {} as ScheduledController,
+        { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'secret' },
+        {} as ExecutionContext
+      )
+    ).rejects.toThrow('offline');
   });
 });
