@@ -192,6 +192,8 @@ Existing Stormlight databases that previously enabled the extracted campaign sch
 
 13. `013_remove_legacy_campaign_schema.sql`
 14. `014_map_medium_token_scale.sql`
+15. `015_allow_player_pc_renames.sql`
+16. `016_project_heartbeat.sql`
 
 ### 6.1 Notes about storage policies
 
