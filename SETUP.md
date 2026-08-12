@@ -332,3 +332,68 @@ Optional CLI workflow (`wrangler pages`) can also manage deployments, but dashbo
 - Keep migrations versioned and run them in order for each new environment.
 - For production stability, pin Node version in Cloudflare Pages.
 - Consider maintaining a small seed/testing session in staging to validate releases.
+
+---
+
+## 12) Supabase heartbeat Worker
+
+The standalone Worker in `workers/supabase-heartbeat` records one harmless database write each day. This provides a basic reachability signal and regular activity for a low-traffic Supabase project. Supabase Pro remains the supported option when guaranteed protection from inactivity pausing is required.
+
+### 12.1 Prepare Supabase
+
+Apply `supabase/migrations/016_project_heartbeat.sql` to the target project. The migration creates a singleton operational row and an anon-callable RPC. It does not grant direct table access or modify gameplay data.
+
+Verify the initial row through Supabase SQL Editor:
+
+```sql
+SELECT id, last_seen_at, run_count
+FROM public.project_heartbeat
+WHERE id = 'cloudflare-cron';
+```
+
+### 12.2 Configure the Worker
+
+In `workers/supabase-heartbeat/wrangler.jsonc`, replace:
+
+```text
+https://REPLACE_WITH_PROJECT_REF.supabase.co
+```
+
+with the target Supabase Project URL. The URL is a non-secret Worker variable. Do not add the anon key to this file or commit it anywhere.
+
+Add the anon key as a Cloudflare Worker secret:
+
+```bash
+npx wrangler secret put SUPABASE_ANON_KEY --config workers/supabase-heartbeat/wrangler.jsonc
+```
+
+### 12.3 Test locally
+
+Use a development Supabase project for local scheduled-handler testing:
+
+```bash
+npm run heartbeat:test
+npm run heartbeat:typecheck
+npm run heartbeat:check
+npm run heartbeat:dev
+```
+
+With Wrangler running, invoke the scheduled handler from another terminal:
+
+```bash
+curl "http://localhost:8787/cdn-cgi/handler/scheduled?format=json"
+```
+
+Confirm that `run_count` increased by one and `last_seen_at` advanced in the development database.
+
+### 12.4 Deploy and verify
+
+Deploy after the migration, URL, and secret are configured:
+
+```bash
+npm run heartbeat:deploy
+```
+
+The cron runs daily at 09:17 UTC. Cloudflare trigger changes can take several minutes to propagate. After the first invocation, confirm the new timestamp/count in Supabase and the successful invocation in Cloudflare Cron Events or Worker logs. Logs must never contain the anon key.
+
+If Supabase has already paused the project, restore it in Supabase first, then manually exercise the scheduled handler or wait for the next daily invocation.
