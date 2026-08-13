@@ -192,6 +192,8 @@ Existing Stormlight databases that previously enabled the extracted campaign sch
 
 13. `013_remove_legacy_campaign_schema.sql`
 14. `014_map_medium_token_scale.sql`
+15. `015_allow_player_pc_renames.sql`
+16. `016_project_heartbeat.sql`
 
 ### 6.1 Notes about storage policies
 
@@ -330,3 +332,72 @@ Optional CLI workflow (`wrangler pages`) can also manage deployments, but dashbo
 - Keep migrations versioned and run them in order for each new environment.
 - For production stability, pin Node version in Cloudflare Pages.
 - Consider maintaining a small seed/testing session in staging to validate releases.
+
+---
+
+## 12) Supabase heartbeat Worker
+
+The standalone Worker in `workers/supabase-heartbeat` records one harmless database write each day. This provides a basic reachability signal and regular activity for a low-traffic Supabase project. Supabase Pro remains the supported option when guaranteed protection from inactivity pausing is required.
+
+### 12.1 Prepare Supabase
+
+Generate a high-entropy token and its SHA-256 hash locally:
+
+```bash
+HEARTBEAT_TOKEN="$(openssl rand -hex 32)"
+printf '%s' "$HEARTBEAT_TOKEN" | shasum -a 256
+```
+
+Keep the token in your terminal until the Worker secret is configured. Replace `REPLACE_WITH_SHA256_HEARTBEAT_TOKEN` in `supabase/migrations/016_project_heartbeat.sql` with the printed hash, then apply the migration to the target project. Only the irreversible hash is stored in Supabase. The migration creates a singleton operational row and a token-gated RPC; it does not grant direct table access or modify gameplay data.
+
+Verify the initial row through Supabase SQL Editor:
+
+```sql
+SELECT id, last_seen_at, run_count
+FROM public.project_heartbeat
+WHERE id = 'cloudflare-cron';
+```
+
+### 12.2 Configure the Worker
+
+Verify that `SUPABASE_URL` in `workers/supabase-heartbeat/wrangler.jsonc` names the intended Supabase project, changing it if necessary. The URL is a non-secret Worker variable. Do not add either secret to this file or commit them anywhere.
+
+Add the anon key as a Cloudflare Worker secret:
+
+```bash
+npx wrangler secret put SUPABASE_ANON_KEY --config workers/supabase-heartbeat/wrangler.jsonc
+printf '%s' "$HEARTBEAT_TOKEN" | npx wrangler secret put HEARTBEAT_TOKEN --config workers/supabase-heartbeat/wrangler.jsonc
+```
+
+The first command prompts for the Supabase anon key. The second securely pipes the generated heartbeat token to Wrangler. Clear the terminal variable after deployment with `unset HEARTBEAT_TOKEN`.
+
+### 12.3 Test locally
+
+Use a development Supabase project for local scheduled-handler testing:
+
+```bash
+npm run heartbeat:test
+npm run heartbeat:typecheck
+npm run heartbeat:check
+npm run heartbeat:dev
+```
+
+With Wrangler running, invoke the scheduled handler from another terminal:
+
+```bash
+curl "http://localhost:8787/cdn-cgi/handler/scheduled?format=json"
+```
+
+Confirm that `run_count` increased by one and `last_seen_at` advanced in the development database.
+
+### 12.4 Deploy and verify
+
+Deploy after the migration, URL, and secret are configured:
+
+```bash
+npm run heartbeat:deploy
+```
+
+The cron runs daily at 09:17 UTC. Cloudflare trigger changes can take several minutes to propagate. After the first invocation, confirm the new timestamp/count in Supabase and the successful invocation in Cloudflare Cron Events or Worker logs. Logs must never contain the anon key.
+
+If Supabase has already paused the project, restore it in Supabase first, then manually exercise the scheduled handler or wait for the next daily invocation.
