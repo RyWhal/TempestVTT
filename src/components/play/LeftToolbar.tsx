@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   MousePointer,
-  Hand,
   Ruler,
   Pencil,
   Eye,
@@ -34,8 +33,6 @@ export type ActivePanelTab =
 interface LeftToolbarProps {
   activePanel: ActivePanelTab;
   onSelectPanel: (panel: ActivePanelTab) => void;
-  isPanMode: boolean;
-  onTogglePanMode: (enabled: boolean) => void;
   isMeasureMode?: boolean;
   onToggleMeasureMode?: (enabled: boolean) => void;
   isPingMode?: boolean;
@@ -47,8 +44,6 @@ const QUICK_EMOJIS = ['🔥', '💥', '⚔️', '🛡️', '💀', '🎯', '⭐'
 export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   activePanel,
   onSelectPanel,
-  isPanMode,
-  onTogglePanMode,
   isMeasureMode = false,
   onToggleMeasureMode,
   isPingMode = false,
@@ -70,12 +65,11 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   const [showDrawMenu, setShowDrawMenu] = useState(false);
   const [showFullEmojiGrid, setShowFullEmojiGrid] = useState(false);
 
-  const isSelectActive = !isPanMode && !drawingTool && !fogToolMode && !isMeasureMode && !isPingMode;
+  const isSelectActive = !drawingTool && !fogToolMode && !isMeasureMode && !isPingMode;
   const isDrawActive = Boolean(drawingTool);
   const isFogActive = Boolean(fogToolMode);
 
   const handleSelectPointer = () => {
-    onTogglePanMode(false);
     onToggleMeasureMode?.(false);
     onTogglePingMode?.(false);
     setDrawingTool(null);
@@ -83,23 +77,10 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
     setShowDrawMenu(false);
   };
 
-  const handleTogglePan = () => {
-    const nextPan = !isPanMode;
-    onTogglePanMode(nextPan);
-    if (nextPan) {
-      onToggleMeasureMode?.(false);
-      onTogglePingMode?.(false);
-      setDrawingTool(null);
-      setFogToolMode(null);
-      setShowDrawMenu(false);
-    }
-  };
-
   const handleToggleMeasure = () => {
     const nextMeasure = !isMeasureMode;
     onToggleMeasureMode?.(nextMeasure);
     if (nextMeasure) {
-      onTogglePanMode(false);
       onTogglePingMode?.(false);
       setDrawingTool(null);
       setFogToolMode(null);
@@ -111,7 +92,6 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
     const nextPing = !isPingMode;
     onTogglePingMode?.(nextPing);
     if (nextPing) {
-      onTogglePanMode(false);
       onToggleMeasureMode?.(false);
       setDrawingTool(null);
       setFogToolMode(null);
@@ -124,7 +104,6 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       setShowDrawMenu(false);
       setDrawingTool(null);
     } else {
-      onTogglePanMode(false);
       onToggleMeasureMode?.(false);
       onTogglePingMode?.(false);
       setFogToolMode(null);
@@ -138,7 +117,6 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
     if (isFogActive) {
       setFogToolMode(null);
     } else {
-      onTogglePanMode(false);
       onToggleMeasureMode?.(false);
       onTogglePingMode?.(false);
       setDrawingTool(null);
@@ -169,18 +147,6 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
           }`}
         >
           <MousePointer className="h-4 w-4" />
-        </button>
-
-        <button
-          onClick={handleTogglePan}
-          title="Pan Tabletop Canvas"
-          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-            isPanMode
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-              : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-          }`}
-        >
-          <Hand className="h-4 w-4" />
         </button>
 
         <button

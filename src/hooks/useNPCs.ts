@@ -12,6 +12,7 @@ import {
   type NPCInstance,
   type TokenSize,
 } from '../types';
+import { parseNPCHp, formatNPCHp } from '../lib/npcHp';
 import { nanoid } from 'nanoid';
 import { broadcastTokenMove } from '../lib/tokenBroadcast';
 
@@ -40,7 +41,8 @@ export const useNPCs = () => {
       defaultSize: TokenSize,
       tokenFile?: File,
       notes?: string,
-      existingTokenUrl?: string // For using global asset URLs
+      existingTokenUrl?: string, // For using global asset URLs
+      defaultHp?: number
     ): Promise<{ success: boolean; template?: NPCTemplate; error?: string }> => {
       if (!session) {
         return { success: false, error: 'Not in a session' };
@@ -70,7 +72,7 @@ export const useNPCs = () => {
             name,
             default_size: defaultSize,
             token_url: tokenUrl,
-            notes: notes || '',
+            notes: defaultHp !== undefined ? formatNPCHp(defaultHp, defaultHp, notes || '') : (notes || ''),
           })
           .select()
           .single();
@@ -196,6 +198,9 @@ export const useNPCs = () => {
 
         const displayName = customName || `${template.name}-${existingCount + 1}`;
 
+        const hpState = parseNPCHp(template.notes, 30);
+        const instanceNotes = formatNPCHp(hpState.hp, hpState.maxHp, hpState.notes);
+
         const { data, error } = await supabase
           .from('npc_instances')
           .insert({
@@ -208,6 +213,7 @@ export const useNPCs = () => {
             position_x: position?.x ?? activeMap.width / 2,
             position_y: position?.y ?? activeMap.height / 2,
             is_visible: false,
+            notes: instanceNotes,
           })
           .select()
           .single();

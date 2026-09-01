@@ -5,11 +5,6 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
-  ChevronUp,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Move,
 } from 'lucide-react';
 import { useMapStore, getFogBrushPixelSize } from '../../stores/mapStore';
 import { useSessionStore, useIsGM } from '../../stores/sessionStore';
@@ -81,7 +76,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
     setTokenLock,
     clearTokenLock,
     fitMapToView,
-    panBy,
     zoomTo,
   } = useMapStore();
 
@@ -154,6 +148,14 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
       setIsDrawing(false);
     }
   }, [drawingTool, canDrawOnMap]);
+
+  useEffect(() => {
+    if (!isMeasureMode) {
+      setRulerStart(null);
+      setRulerEnd(null);
+      setIsMeasuring(false);
+    }
+  }, [isMeasureMode]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setEffectPulse((prev) => (prev + 1) % 100000), 40);
@@ -745,12 +747,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
     requestAnimationFrame(() => fitMapToView());
   };
 
-  // Pan controls
-  const panStep = 100;
-  const handlePanUp = () => panBy(0, panStep);
-  const handlePanDown = () => panBy(0, -panStep);
-  const handlePanLeft = () => panBy(panStep, 0);
-  const handlePanRight = () => panBy(-panStep, 0);
+
 
   const gridCellSize = activeMap?.gridCellSize ?? 0;
   const tokenSizeOverrideEnabled = activeMap?.tokenSizeOverrideEnabled ?? false;
@@ -1104,47 +1101,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
               >
                 <Maximize className="w-4 h-4" />
               </button>
-            </div>
-          </div>
-
-          {/* Pan controls */}
-          <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg border border-slate-700 p-2">
-            <div className="grid grid-cols-3 gap-0.5 w-fit">
-              <div />
-              <button
-                onClick={handlePanUp}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
-                title="Pan Up"
-              >
-                <ChevronUp className="w-4 h-4" />
-              </button>
-              <div />
-              <button
-                onClick={handlePanLeft}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
-                title="Pan Left"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <div className="p-1.5 flex items-center justify-center text-slate-500">
-                <Move className="w-3 h-3" />
-              </div>
-              <button
-                onClick={handlePanRight}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
-                title="Pan Right"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <div />
-              <button
-                onClick={handlePanDown}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
-                title="Pan Down"
-              >
-                <ChevronDown className="w-4 h-4" />
-              </button>
-              <div />
             </div>
           </div>
           {selectedNpc && canResizeNpc && selectedNpcSizeIndex >= 0 && (

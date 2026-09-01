@@ -156,8 +156,6 @@ describe('PlaySession modern layout', () => {
     );
 
     expect(screen.getByText('Players & Tokens')).not.toBeNull();
-    expect(screen.getByText('Shared Table')).not.toBeNull();
-    expect(screen.getByText('STORMLIGHT RPG')).not.toBeNull();
   });
 
   it('allows switching to Chat and Dice panels via the left toolbar', async () => {

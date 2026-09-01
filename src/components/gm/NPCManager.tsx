@@ -55,6 +55,7 @@ export const NPCManager: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSize, setNewSize] = useState<TokenSize>('medium');
+  const [newHp, setNewHp] = useState<number>(30);
   const [newTokenFile, setNewTokenFile] = useState<File | null>(null);
   const [selectedGlobalAsset, setSelectedGlobalAsset] = useState<GlobalAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,7 +94,8 @@ export const NPCManager: React.FC = () => {
       newSize,
       newTokenFile || undefined,
       undefined,
-      selectedGlobalAsset?.imageUrl
+      selectedGlobalAsset?.imageUrl,
+      newHp
     );
     setIsSubmitting(false);
 
@@ -206,20 +208,31 @@ export const NPCManager: React.FC = () => {
                 autoFocus
               />
 
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Size</label>
-                <select
-                  value={newSize}
-                  onChange={(e) => setNewSize(e.target.value as TokenSize)}
-                  className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-sm text-slate-200"
-                >
-                  {SIZE_OPTIONS.map((size) => (
-                    <option key={size} value={size}>
-                      {size.charAt(0).toUpperCase() + size.slice(1)} (
-                      {TOKEN_SIZE_MULTIPLIERS[size]}x)
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Default HP</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={newHp}
+                    onChange={(e) => setNewHp(parseInt(e.target.value, 10) || 1)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Size</label>
+                  <select
+                    value={newSize}
+                    onChange={(e) => setNewSize(e.target.value as TokenSize)}
+                    className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-sm text-slate-200"
+                  >
+                    {SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size.charAt(0).toUpperCase() + size.slice(1)} (
+                        {TOKEN_SIZE_MULTIPLIERS[size]}x)
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="space-y-2">

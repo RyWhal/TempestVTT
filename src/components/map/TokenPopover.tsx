@@ -14,6 +14,8 @@ import { useCharacters } from '../../hooks/useCharacters';
 import { useNPCs } from '../../hooks/useNPCs';
 import type { TokenSize } from '../../types';
 
+import { parseNPCHp, formatNPCHp } from '../../lib/npcHp';
+
 const SIZE_OPTIONS: TokenSize[] = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
 
 const STATUS_RING_OPTIONS = [
@@ -44,9 +46,7 @@ export const TokenPopover: React.FC = () => {
   const { updateCharacterDetails, deleteCharacter } = useCharacters();
   const { updateNPCInstanceDetails, removeNPCFromMap } = useNPCs();
 
-  // Local state for HP tracking & custom status tags
-  const [hpValue, setHpValue] = useState<number>(36);
-  const [maxHp] = useState<number>(36);
+  // Local state for phase & status tags
   const [phase, setPhase] = useState<'fast' | 'slow'>('fast');
   const [customTagInput, setCustomTagInput] = useState('');
   const [statusTags, setStatusTags] = useState<string[]>([]);
@@ -61,6 +61,7 @@ export const TokenPopover: React.FC = () => {
   let isVisible = true;
   let posX = 0;
   let posY = 0;
+  let rawNotes = '';
 
   if (selectedTokenType === 'character') {
     const char = characters.find((c) => c.id === selectedTokenId);
@@ -69,6 +70,7 @@ export const TokenPopover: React.FC = () => {
     tokenSize = char.size;
     posX = char.positionX;
     posY = char.positionY;
+    rawNotes = char.notes || '';
   } else {
     const npc = npcInstances.find((n) => n.id === selectedTokenId);
     if (!npc) return null;
@@ -77,14 +79,23 @@ export const TokenPopover: React.FC = () => {
     isVisible = npc.isVisible;
     posX = npc.positionX;
     posY = npc.positionY;
+    rawNotes = npc.notes || '';
   }
+
+  const hpState = parseNPCHp(rawNotes, 30);
 
   // Position popover centered above token on map
   const screenX = viewportX + posX * viewportScale;
   const screenY = viewportY + posY * viewportScale;
 
-  const handleAdjustHp = (delta: number) => {
-    setHpValue((prev) => Math.max(0, prev + delta));
+  const handleAdjustHp = async (delta: number) => {
+    const nextHp = Math.max(0, hpState.hp + delta);
+    const updatedNotes = formatNPCHp(nextHp, hpState.maxHp, hpState.notes);
+    if (selectedTokenType === 'character') {
+      await updateCharacterDetails(selectedTokenId, { notes: updatedNotes });
+    } else {
+      await updateNPCInstanceDetails(selectedTokenId, { notes: updatedNotes });
+    }
   };
 
   const handleRename = async (newName: string) => {
@@ -193,7 +204,7 @@ export const TokenPopover: React.FC = () => {
               ❤️ Hit Points
             </span>
             <span className="font-mono font-bold text-slate-200">
-              {hpValue} / {maxHp}
+              {hpState.hp} / {hpState.maxHp}
             </span>
           </div>
           <div className="mt-2 grid grid-cols-6 gap-1">

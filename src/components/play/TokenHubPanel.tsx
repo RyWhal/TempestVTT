@@ -35,6 +35,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
   const [newPcName, setNewPcName] = useState('');
   const [newNpcName, setNewNpcName] = useState('');
   const [newNpcSize, setNewNpcSize] = useState<TokenSize>('medium');
+  const [newNpcHp, setNewNpcHp] = useState<number>(30);
   const [tokenFile, setTokenFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,12 +82,20 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
     if (!newNpcName.trim()) return;
 
     setIsSubmitting(true);
-    const result = await createNPCTemplate(newNpcName.trim(), newNpcSize, tokenFile || undefined);
+    const result = await createNPCTemplate(
+      newNpcName.trim(),
+      newNpcSize,
+      tokenFile || undefined,
+      undefined,
+      undefined,
+      newNpcHp
+    );
     setIsSubmitting(false);
 
     if (result.success) {
       showToast('NPC Template created', 'success');
       setNewNpcName('');
+      setNewNpcHp(30);
       setTokenFile(null);
       setIsCreatingNPC(false);
     } else {
@@ -281,6 +290,17 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
             />
 
             <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-slate-400 font-semibold">HP:</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={newNpcHp}
+                  onChange={(e) => setNewNpcHp(parseInt(e.target.value, 10) || 1)}
+                  className="w-14 rounded-lg border border-slate-800 bg-slate-900 px-1.5 py-1 text-xs text-slate-200 focus:outline-none"
+                />
+              </div>
+
               <select
                 value={newNpcSize}
                 onChange={(e) => setNewNpcSize(e.target.value as TokenSize)}

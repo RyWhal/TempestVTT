@@ -7,7 +7,6 @@ import {
   Wifi,
   WifiOff,
   LogOut,
-  ChevronDown,
   Settings,
   X,
 } from 'lucide-react';
@@ -20,7 +19,6 @@ import { InitiativePanel } from '../initiative/InitiativePanel';
 import { LeftToolbar, type ActivePanelTab } from './LeftToolbar';
 import { TokenHubPanel } from './TokenHubPanel';
 import { useSessionStore, useIsGM } from '../../stores/sessionStore';
-import { useMapStore } from '../../stores/mapStore';
 import { useSession } from '../../hooks/useSession';
 import { useToast } from '../shared/Toast';
 
@@ -33,18 +31,13 @@ export const PlaySession: React.FC = () => {
   const currentUser = useSessionStore((state) => state.currentUser);
   const connectionStatus = useSessionStore((state) => state.connectionStatus);
   const players = useSessionStore((state) => state.players);
-  const maps = useMapStore((state) => state.maps);
-  const activeMap = useMapStore((state) => state.activeMap);
-  const setActiveMap = useMapStore((state) => state.setActiveMap);
   const isGM = useIsGM();
   const { leaveSession, claimGM, releaseGM, loadChatData, loadInitiativeData } = useSession();
 
   // Panel state driven by left toolbar dock
   const [activePanel, setActivePanel] = useState<ActivePanelTab>('tokens');
-  const [isPanMode, setIsPanMode] = useState(false);
   const [isMeasureMode, setIsMeasureMode] = useState(false);
   const [isPingMode, setIsPingMode] = useState(false);
-  const [showMapDropdown, setShowMapDropdown] = useState(false);
 
   useEffect(() => {
     if (connectionStatus === 'disconnected' || connectionStatus === 'reconnecting') {
@@ -79,71 +72,10 @@ export const PlaySession: React.FC = () => {
     <div className="tempest-shell flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       {/* Top Floating Glassmorphic Pill Header */}
       <header
-        className={`absolute top-3 left-3 z-30 flex h-12 items-center justify-between pointer-events-none transition-all ${
+        className={`absolute top-3 right-3 z-30 flex h-12 items-center justify-end pointer-events-none transition-all ${
           activePanel !== null ? 'right-[336px] 2xl:right-[400px]' : 'right-3'
         }`}
       >
-        {/* Left Title & Map Selector */}
-        <div className="flex items-center gap-2 pointer-events-auto">
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-3 py-1.5 backdrop-blur-md shadow-xl">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-600 font-bold text-white text-xs shadow-md shadow-blue-500/30">
-              ⚡
-            </span>
-            <span className="text-xs font-bold text-slate-100">{session.name}</span>
-            <span className="rounded-full bg-blue-950/80 px-2 py-0.5 font-mono text-[10px] font-semibold text-blue-300 border border-blue-800/40">
-              STORMLIGHT RPG
-            </span>
-          </div>
-
-          {/* Active Map Pill (Dropdown for GM only) */}
-          <div className="relative">
-            {isGM ? (
-              <button
-                onClick={() => setShowMapDropdown((prev) => !prev)}
-                className="flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-md shadow-xl hover:bg-slate-900"
-              >
-                <MapIcon className="h-3.5 w-3.5 text-blue-400" />
-                <span className="font-medium truncate max-w-[120px]">
-                  {activeMap ? activeMap.name : 'Select Map'}
-                </span>
-                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-md shadow-xl">
-                <MapIcon className="h-3.5 w-3.5 text-blue-400" />
-                <span className="font-medium truncate max-w-[120px]">
-                  {activeMap ? activeMap.name : 'No Map Active'}
-                </span>
-              </div>
-            )}
-
-            {isGM && showMapDropdown && (
-              <div className="absolute top-10 left-0 z-40 w-48 rounded-xl border border-slate-800 bg-slate-950/95 p-1.5 shadow-2xl backdrop-blur-xl">
-                <div className="px-2 py-1 text-[10px] font-semibold uppercase text-slate-500">
-                  Battlemaps
-                </div>
-                {maps.map((map) => (
-                  <button
-                    key={map.id}
-                    onClick={() => {
-                      setActiveMap(map);
-                      setShowMapDropdown(false);
-                    }}
-                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
-                      activeMap?.id === map.id
-                        ? 'bg-blue-600/20 text-blue-300 font-semibold'
-                        : 'text-slate-300 hover:bg-slate-900'
-                    }`}
-                  >
-                    <span className="truncate">{map.name}</span>
-                    {activeMap?.id === map.id && <span className="text-blue-400">✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Right Status Controls */}
         <div className="flex items-center gap-2 pointer-events-auto">
           <div className="flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-3 py-1.5 backdrop-blur-md shadow-xl">
@@ -204,8 +136,6 @@ export const PlaySession: React.FC = () => {
         <LeftToolbar
           activePanel={activePanel}
           onSelectPanel={setActivePanel}
-          isPanMode={isPanMode}
-          onTogglePanMode={setIsPanMode}
           isMeasureMode={isMeasureMode}
           onToggleMeasureMode={setIsMeasureMode}
           isPingMode={isPingMode}
