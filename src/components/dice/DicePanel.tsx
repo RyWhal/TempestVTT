@@ -1,12 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Dices, Eye, EyeOff, Lock, Star, AlertTriangle, Circle } from 'lucide-react';
+import { Dices } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useSessionStore } from '../../stores/sessionStore';
-import { Button } from '../shared/Button';
 import { buildDiceExpression, getPlotDieFaceName, normalizePlotDieResult } from '../../lib/dice';
 import { useToast } from '../shared/Toast';
-import type { DiceRoll, PlotDieFace, PlotDieResult, RollAttempt, RollMode, RollVisibility } from '../../types';
+import type { DiceRoll, RollAttempt, RollMode, RollVisibility } from '../../types';
 
 const DICE_TYPES = [4, 6, 8, 10, 12, 20] as const;
 const ROLL_MODE_OPTIONS: Array<{ value: RollMode; label: string }> = [
@@ -88,158 +87,156 @@ export const DicePanel: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Dice selector */}
-      <div className="p-4 border-b border-slate-700">
-        <div className="mb-3">
-          <label className="text-sm text-slate-400 mb-2 block">Standard Dice</label>
-          <div className="grid grid-cols-6 gap-2">
-            {DICE_TYPES.map((sides) => (
-              <button
-                key={sides}
-                onClick={() => addDie(sides)}
-                className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-center transition-colors"
-              >
-                <div className="text-sm font-medium text-slate-200">d{sides}</div>
-                {dice[sides] > 0 && (
-                  <div className="text-xs text-slate-400">x{dice[sides]}</div>
-                )}
-              </button>
-            ))}
-          </div>
+    <div className="h-full flex flex-col bg-slate-900/95 text-slate-100">
+      {/* Slimmed-down dice controls header */}
+      <div className="p-3 border-b border-slate-800 space-y-2">
+        {/* Dice Type Row */}
+        <div className="grid grid-cols-6 gap-1.5">
+          {DICE_TYPES.map((sides) => (
+            <button
+              key={sides}
+              onClick={() => addDie(sides)}
+              className={`relative py-1.5 px-1 rounded-xl text-center border transition-all ${
+                (dice[sides] || 0) > 0
+                  ? 'bg-blue-600/20 border-blue-500/40 text-blue-200'
+                  : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <div className="text-xs font-bold font-mono">d{sides}</div>
+              {dice[sides] > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 font-mono text-[9px] font-bold text-white shadow-sm">
+                  {dice[sides]}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
-        {/* Current roll display */}
-        <div className="bg-slate-800 rounded-lg p-3 mb-3">
-          <div className="flex flex-wrap gap-2 min-h-[2rem]">
+        {/* Selected Dice Formula & Clear Bar */}
+        <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 px-2.5 py-1 text-xs">
+          <div className="flex flex-wrap items-center gap-1 min-h-[1.25rem]">
             {DICE_TYPES.map(
               (sides) =>
                 dice[sides] > 0 && (
                   <button
                     key={sides}
                     onClick={() => removeDie(sides)}
-                    className="px-2 py-1 bg-slate-700 hover:bg-red-900/50 rounded text-sm text-slate-200 transition-colors"
+                    className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] text-blue-300 hover:bg-rose-950 hover:text-rose-300"
                   >
                     {dice[sides]}d{sides} ×
                   </button>
                 )
             )}
             {modifier !== 0 && (
-              <span className="px-2 py-1 text-sm text-slate-300">
+              <span className="font-mono text-xs font-semibold text-slate-300">
                 {modifier > 0 ? `+${modifier}` : modifier}
               </span>
             )}
             {plotDiceFeatureEnabled && plotDieEnabled && (
-              <span className="px-2 py-1 rounded bg-amber-500/10 text-sm text-amber-300">
+              <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 border border-amber-500/30">
                 Plot Die
               </span>
             )}
             {totalDice === 0 && modifier === 0 && !plotDieEnabled && (
-              <span className="text-slate-500 text-sm">
-                Click dice above to add
-              </span>
+              <span className="text-[11px] text-slate-500">Tap dice above to build roll</span>
             )}
+          </div>
+          {(totalDice > 0 || modifier !== 0 || plotDieEnabled) && (
+            <button
+              onClick={clearDice}
+              className="text-[11px] text-slate-400 hover:text-slate-200"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Modifiers & Roll Options Row */}
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          {/* Left: Modifier & Mode */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center rounded-xl border border-slate-800 bg-slate-950 p-0.5">
+              <button
+                onClick={() => setModifier((m) => m - 1)}
+                className="w-5 h-5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold"
+              >
+                -
+              </button>
+              <input
+                type="number"
+                aria-label="Modifier"
+                value={modifier}
+                onChange={(e) => setModifier(parseInt(e.target.value, 10) || 0)}
+                className="w-8 bg-transparent text-center font-mono font-bold text-xs text-slate-200 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <button
+                onClick={() => setModifier((m) => m + 1)}
+                className="w-5 h-5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold"
+              >
+                +
+              </button>
+            </div>
+
+            <select
+              value={rollMode}
+              onChange={(e) => setRollMode(e.target.value as RollMode)}
+              className="flex-1 rounded-xl border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+            >
+              {ROLL_MODE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Right: Visibility & Roll Button */}
+          <div className="flex items-center gap-1.5">
+            <select
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as RollVisibility)}
+              className="flex-1 rounded-xl border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+            >
+              <option value="public">Public</option>
+              <option value="gm_only">GM Only</option>
+              <option value="self">Self Only</option>
+            </select>
+
+            <button
+              onClick={handleRoll}
+              disabled={!canRoll}
+              className="flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-500 disabled:opacity-40"
+            >
+              <Dices className="h-3.5 w-3.5" /> Roll!
+            </button>
           </div>
         </div>
 
-        {/* Modifier */}
-        <div className="flex items-center gap-2 mb-3">
-          <label className="text-sm text-slate-400">Modifier:</label>
-          <button
-            onClick={() => setModifier((m) => m - 1)}
-            className="w-8 h-8 bg-slate-800 hover:bg-slate-700 rounded text-slate-200"
-          >
-            -
-          </button>
-          <input
-            type="number"
-            value={modifier}
-            onChange={(e) => setModifier(parseInt(e.target.value) || 0)}
-            className="w-16 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-center text-slate-200"
-          />
-          <button
-            onClick={() => setModifier((m) => m + 1)}
-            className="w-8 h-8 bg-slate-800 hover:bg-slate-700 rounded text-slate-200"
-          >
-            +
-          </button>
-        </div>
-
-        {/* Roll mode */}
-        <div className="flex items-center gap-2 mb-3">
-          <label className="text-sm text-slate-400">Mode:</label>
-          <select
-            value={rollMode}
-            onChange={(e) => setRollMode(e.target.value as RollMode)}
-            className="flex-1 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-slate-200"
-          >
-            {ROLL_MODE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Plot die (Stormlight system) */}
+        {/* Plot Die Checkbox if enabled */}
         {plotDiceFeatureEnabled && (
-          <div className="mb-3 rounded-lg border border-slate-700 bg-slate-900/40 p-3">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+          <div className="flex items-center justify-between text-xs px-1">
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
               <input
                 type="checkbox"
                 checked={plotDieEnabled}
                 onChange={(e) => setPlotDieEnabled(e.target.checked)}
-                aria-label="Use plot die"
+                className="rounded accent-blue-600"
               />
               Use plot die
             </label>
-            <p className="mt-1 text-xs text-slate-500">
-              Adds a single Stormlight plot die to the roll when a d20 is present.
-            </p>
             {hasInvalidPlotDieSelection && (
-              <p className="mt-2 text-xs text-amber-300">
-                Plot die requires a d20 in the selected roll.
-              </p>
+              <span className="text-[10px] text-amber-300">Plot die requires a d20</span>
             )}
           </div>
         )}
-
-        {/* Visibility */}
-        <div className="flex items-center gap-2 mb-4">
-          <label className="text-sm text-slate-400">Visibility:</label>
-          <select
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value as RollVisibility)}
-            className="flex-1 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-slate-200"
-          >
-            <option value="public">Public</option>
-            <option value="gm_only">GM Only</option>
-            <option value="self">Self Only</option>
-          </select>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={clearDice} className="flex-1">
-            Clear
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleRoll}
-            disabled={!canRoll}
-            isLoading={isRolling}
-            className="flex-1"
-          >
-            <Dices className="w-4 h-4 mr-2" />
-            Roll!
-          </Button>
-        </div>
       </div>
 
-      {/* Roll history */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium text-slate-400">Roll History</h3>
+      {/* Expanded Roll history */}
+      <div className="flex-1 overflow-y-auto p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Roll History
+          </h3>
           {isGM && (
             <button
               type="button"
@@ -252,17 +249,11 @@ export const DicePanel: React.FC = () => {
         </div>
 
         {diceRolls.length === 0 ? (
-          <p className="text-slate-500 text-sm text-center py-4">
-            No rolls yet
-          </p>
+          <div className="p-4 text-center text-xs text-slate-500">No dice rolls yet</div>
         ) : (
-          <div className="space-y-3">
-            {[...diceRolls].reverse().map((roll, idx) => (
-              <DiceRollEntry
-                key={roll.id}
-                roll={roll}
-                isNew={idx === 0}
-              />
+          <div className="space-y-2">
+            {diceRolls.map((roll) => (
+              <DiceRollItem key={roll.id} roll={roll} />
             ))}
           </div>
         )}
@@ -271,190 +262,96 @@ export const DicePanel: React.FC = () => {
   );
 };
 
-interface DiceRollEntryProps {
+interface DiceRollItemProps {
   roll: DiceRoll;
-  isNew: boolean;
 }
 
-const getSelectedAttemptPresentation = (rollMode: RollMode, isSelected: boolean) => {
-  if (!isSelected || rollMode === 'normal') {
-    return {
-      attemptClassName: 'border-slate-700 bg-slate-900/40',
-      badgeLabel: null,
-      badgeClassName: '',
-    };
-  }
+const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
+  const attempts = useMemo(() => {
+    const rawAttempts = (roll.rollResults as { attempts?: RollAttempt[] })?.attempts;
+    if (Array.isArray(rawAttempts) && rawAttempts.length > 0) {
+      return rawAttempts;
+    }
 
-  if (rollMode === 'advantage') {
-    return {
-      attemptClassName: 'border-green-500/40 bg-green-500/10',
-      badgeLabel: 'Advantage',
-      badgeClassName: 'rounded bg-green-500/20 px-2 py-0.5 text-green-200',
-    };
-  }
+    const rawRolls = (roll.rollResults as { rolls?: number[] })?.rolls;
+    if (Array.isArray(rawRolls)) {
+      return [
+        {
+          dice: [{ type: 'custom', count: rawRolls.length, results: rawRolls }],
+          modifier: (roll.rollResults as { modifier?: number })?.modifier ?? 0,
+          subtotal: (roll.rollResults as { total?: number })?.total ?? 0,
+          total: (roll.rollResults as { total?: number })?.total ?? 0,
+          plotDie: null,
+        },
+      ];
+    }
 
-  return {
-    attemptClassName: 'border-red-500/40 bg-red-500/10',
-    badgeLabel: 'Disadvantage',
-    badgeClassName: 'rounded bg-red-500/20 px-2 py-0.5 text-red-200',
-  };
-};
+    return [];
+  }, [roll.rollResults]);
 
-const DiceRollEntry: React.FC<DiceRollEntryProps> = ({ roll, isNew }) => {
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  const visibilityIcon = {
-    public: <Eye className="w-3 h-3" />,
-    gm_only: <Lock className="w-3 h-3" />,
-    self: <EyeOff className="w-3 h-3" />,
-  };
-
-  const rollMode = roll.rollResults.mode ?? 'normal';
-  const legacyPlotDie = roll.plotDiceResults?.[0] ?? roll.rollResults.plotDie ?? null;
-  const attempts: RollAttempt[] =
-    roll.rollResults.attempts && roll.rollResults.attempts.length > 0
-      ? roll.rollResults.attempts
-      : [
-          {
-            dice: roll.rollResults.dice,
-            modifier: roll.rollResults.modifier,
-            subtotal:
-              roll.rollResults.total -
-              (legacyPlotDie ? normalizePlotDieResult(legacyPlotDie as PlotDieResult).bonus : 0),
-            total: roll.rollResults.total,
-            plotDie: legacyPlotDie as PlotDieResult | null,
-          },
-        ];
-  const keptAttemptIndex = roll.rollResults.keptAttemptIndex ?? 0;
+  const mode = (roll.rollResults as { mode?: RollMode })?.mode || 'normal';
+  const keptAttemptIndex =
+    (roll.rollResults as { keptAttemptIndex?: number })?.keptAttemptIndex ??
+    (attempts.length > 1 ? 0 : 0);
 
   return (
-    <div
-      className={`
-        bg-slate-800/50 rounded-lg p-3 border border-slate-700
-        ${isNew ? 'animate-roll-appear' : ''}
-      `}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-slate-200">{roll.username}</span>
-          {roll.characterName && (
-            <span className="text-slate-400 text-sm">
-              ({roll.characterName})
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-slate-500">
-          {visibilityIcon[roll.visibility]}
-          <span className="text-xs">{formatTime(roll.createdAt)}</span>
-        </div>
+    <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-2.5 text-xs space-y-1.5">
+      <div className="flex items-center justify-between text-slate-400">
+        <span className="font-semibold text-slate-200">
+          {roll.characterName || roll.username}
+        </span>
+        <span className="font-mono text-[10px] text-slate-500">{roll.rollExpression}</span>
       </div>
 
-      {/* Roll results */}
-      <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
-        <span>{rollMode}</span>
-        <span>{roll.rollExpression}</span>
-      </div>
-
-      <div className="space-y-2">
-        {attempts.map((attempt, index) => {
-          const plotDie = attempt.plotDie
-            ? normalizePlotDieResult(attempt.plotDie as PlotDieResult)
-            : null;
-          const selectedAttemptPresentation = getSelectedAttemptPresentation(
-            rollMode,
-            index === keptAttemptIndex
-          );
+      <div className="space-y-1">
+        {attempts.map((att, idx) => {
+          const isKept = attempts.length === 1 || keptAttemptIndex === idx;
+          const flatRolls = att.dice.flatMap((d) => d.results);
+          const plotResult = att.plotDie ? normalizePlotDieResult(att.plotDie) : null;
 
           return (
             <div
-              key={`${roll.id}-attempt-${index}`}
-              className={`rounded border px-2 py-2 text-sm ${selectedAttemptPresentation.attemptClassName}`}
+              key={idx}
+              className={`rounded-lg border p-2 text-xs transition-colors ${
+                isKept
+                  ? mode === 'advantage'
+                    ? 'border-green-500/40 bg-green-500/10 text-green-200'
+                    : mode === 'disadvantage'
+                    ? 'border-red-500/40 bg-red-500/10 text-red-200'
+                    : 'border-slate-700 bg-slate-900/40 text-slate-200'
+                  : 'border-slate-800/80 bg-slate-900/40 text-slate-400 opacity-60'
+              }`}
             >
-              <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
-                <span>{attempts.length > 1 ? `Attempt ${index + 1}` : 'Result'}</span>
-                {selectedAttemptPresentation.badgeLabel && (
-                  <span className={selectedAttemptPresentation.badgeClassName}>
-                    {selectedAttemptPresentation.badgeLabel}
+              <div className="flex items-center justify-between">
+                <span>Result</span>
+                {isKept && mode !== 'normal' && (
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] uppercase font-bold ${
+                      mode === 'advantage'
+                        ? 'bg-green-500/20 text-green-200'
+                        : 'bg-red-500/20 text-red-200'
+                    }`}
+                  >
+                    {mode}
                   </span>
                 )}
               </div>
-              <div className="text-slate-300">
-                {attempt.dice.map((die, dieIndex) => (
-                  <span key={dieIndex}>
-                    {dieIndex > 0 && ' + '}
-                    <span className="text-slate-100">[{die.results.join(', ')}]</span>
-                  </span>
-                ))}
-                {attempt.modifier !== 0 && (
-                  <span>
-                    {attempt.modifier > 0 ? ' + ' : ' - '}
-                    {Math.abs(attempt.modifier)}
-                  </span>
-                )}
+              <div className="mt-1 font-mono text-[11px] text-slate-300">
+                [{flatRolls.join(', ')}]
+                {att.modifier !== 0 && (att.modifier > 0 ? ` + ${att.modifier}` : ` ${att.modifier}`)}
               </div>
-              {plotDie && (
-                <div className="mt-2 flex items-center gap-2">
-                  <PlotDieDisplay face={plotDie.face} />
-                  {plotDie.bonus > 0 && (
-                    <span className="text-xs text-amber-300">Bonus +{plotDie.bonus}</span>
-                  )}
+              {plotResult && (
+                <div className="mt-1 text-[10px] font-semibold text-amber-300">
+                  Plot Die: {getPlotDieFaceName(plotResult.face)}
                 </div>
               )}
-              <div className="mt-2 text-lg font-semibold text-slate-100">
-                = {attempt.total}
+              <div className="mt-1 text-right font-mono font-bold text-sm text-slate-100">
+                = {att.total}
               </div>
             </div>
           );
         })}
       </div>
-    </div>
-  );
-};
-
-const PlotDieDisplay: React.FC<{ face: PlotDieFace }> = ({ face }) => {
-  const plotDie = normalizePlotDieResult({ face });
-  const config =
-    plotDie.kind === 'opportunity'
-      ? {
-          icon: <Star className="w-4 h-4" />,
-          bg: 'bg-green-900/50',
-          border: 'border-green-600',
-          text: 'text-green-400',
-        }
-      : plotDie.kind === 'complication'
-        ? {
-            icon: <AlertTriangle className="w-4 h-4" />,
-            bg: 'bg-red-900/50',
-            border: 'border-red-600',
-            text: 'text-red-400',
-          }
-        : {
-            icon: <Circle className="w-4 h-4" />,
-            bg: 'bg-slate-700/50',
-            border: 'border-slate-600',
-            text: 'text-slate-400',
-          };
-
-  const { icon, bg, border, text } = config;
-
-  return (
-    <div
-      className={`flex items-center gap-1 px-2 py-1 rounded border ${bg} ${border} ${text}`}
-      title={getPlotDieFaceName(face)}
-    >
-      {icon}
-      <span className="text-xs">{getPlotDieFaceName(face)}</span>
     </div>
   );
 };

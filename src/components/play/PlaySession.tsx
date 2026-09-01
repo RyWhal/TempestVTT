@@ -8,11 +8,14 @@ import {
   WifiOff,
   LogOut,
   ChevronDown,
+  Settings,
+  X,
 } from 'lucide-react';
 import { MapCanvas } from '../map/MapCanvas';
 import { ChatPanel } from '../chat/ChatPanel';
 import { DicePanel } from '../dice/DicePanel';
-import { GMPanel } from '../gm/GMPanel';
+import { MapManager } from '../gm/MapManager';
+import { GMSettings } from '../gm/GMSettings';
 import { InitiativePanel } from '../initiative/InitiativePanel';
 import { LeftToolbar, type ActivePanelTab } from './LeftToolbar';
 import { TokenHubPanel } from './TokenHubPanel';
@@ -213,8 +216,21 @@ export const PlaySession: React.FC = () => {
                 </div>
               )}
               {activePanel === 'maps' && isGM && (
-                <div className="h-full overflow-y-auto">
-                  <GMPanel onClose={() => setActivePanel(null)} />
+                <div className="flex h-full flex-col">
+                  <div className="flex items-center justify-between border-b border-slate-800 p-3">
+                    <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                      <MapIcon className="h-4 w-4 text-blue-400" /> Map Manager
+                    </h2>
+                    <button
+                      onClick={() => setActivePanel(null)}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                    <MapManager />
+                  </div>
                 </div>
               )}
               {activePanel === 'chat' && (
@@ -228,8 +244,21 @@ export const PlaySession: React.FC = () => {
                 </div>
               )}
               {activePanel === 'settings' && isGM && (
-                <div className="h-full overflow-y-auto">
-                  <GMPanel onClose={() => setActivePanel(null)} />
+                <div className="flex h-full flex-col">
+                  <div className="flex items-center justify-between border-b border-slate-800 p-3">
+                    <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-blue-400" /> GM Settings
+                    </h2>
+                    <button
+                      onClick={() => setActivePanel(null)}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                    <GMSettings />
+                  </div>
                 </div>
               )}
             </div>
