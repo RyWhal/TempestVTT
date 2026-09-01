@@ -8,7 +8,6 @@ import {
   WifiOff,
   LogOut,
   ChevronDown,
-  Sparkles,
 } from 'lucide-react';
 import { MapCanvas } from '../map/MapCanvas';
 import { ChatPanel } from '../chat/ChatPanel';
@@ -53,7 +52,7 @@ export const PlaySession: React.FC = () => {
       return;
     }
 
-    if (activePanel === 'chat') {
+    if (activePanel === 'chat' || activePanel === 'dice') {
       void loadChatData(session.id);
     } else if (activePanel === 'initiative') {
       void loadInitiativeData(session.id);
@@ -219,35 +218,13 @@ export const PlaySession: React.FC = () => {
                 </div>
               )}
               {activePanel === 'chat' && (
-                <div className="flex h-full flex-col">
-                  <div className="flex-1 overflow-hidden">
-                    <ChatPanel />
-                  </div>
-                  <div className="h-64 border-t border-slate-800">
-                    <DicePanel />
-                  </div>
+                <div className="h-full overflow-hidden">
+                  <ChatPanel />
                 </div>
               )}
-              {activePanel === 'fx' && (
-                <div className="p-4 text-slate-200">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-purple-400" /> Map Weather & Visual FX
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Toggle atmospheric visual overlays on the battlemap.
-                  </p>
-                  <div className="mt-4 space-y-2">
-                    {['Rain Storm', 'Falling Snow', 'Ember & Ash', 'Fog Mist'].map((fx) => (
-                      <button
-                        key={fx}
-                        onClick={() => showToast(`${fx} overlay toggled`, 'info')}
-                        className="w-full flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800"
-                      >
-                        <span>{fx}</span>
-                        <span className="text-[10px] text-slate-500">Toggle</span>
-                      </button>
-                    ))}
-                  </div>
+              {activePanel === 'dice' && (
+                <div className="h-full overflow-hidden p-2">
+                  <DicePanel />
                 </div>
               )}
               {activePanel === 'settings' && isGM && (

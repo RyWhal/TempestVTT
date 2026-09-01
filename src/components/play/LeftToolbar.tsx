@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   MousePointer,
   Hand,
@@ -10,19 +10,23 @@ import {
   Users,
   Map,
   MessageSquare,
-  Sparkles,
+  Dices,
   Settings,
+  Square,
+  Circle,
+  Slash,
+  Flame,
 } from 'lucide-react';
 import { useMapStore } from '../../stores/mapStore';
 import { useIsGM } from '../../stores/sessionStore';
+import { DRAWING_COLOR_OPTIONS } from '../../types';
 
 export type ActivePanelTab =
   | 'initiative'
   | 'tokens'
   | 'maps'
   | 'chat'
-  | 'fx'
-  | 'sound'
+  | 'dice'
   | 'settings'
   | null;
 
@@ -50,8 +54,14 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   const isGM = useIsGM();
   const drawingTool = useMapStore((state) => state.drawingTool);
   const setDrawingTool = useMapStore((state) => state.setDrawingTool);
+  const drawingColor = useMapStore((state) => state.drawingColor);
+  const setDrawingColor = useMapStore((state) => state.setDrawingColor);
+  const drawingStrokeWidth = useMapStore((state) => state.drawingStrokeWidth);
+  const setDrawingStrokeWidth = useMapStore((state) => state.setDrawingStrokeWidth);
   const fogToolMode = useMapStore((state) => state.fogToolMode);
   const setFogToolMode = useMapStore((state) => state.setFogToolMode);
+
+  const [showDrawMenu, setShowDrawMenu] = useState(false);
 
   const isSelectActive = !isPanMode && !drawingTool && !fogToolMode && !isMeasureMode && !isPingMode;
   const isDrawActive = Boolean(drawingTool);
@@ -63,6 +73,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
     onTogglePingMode?.(false);
     setDrawingTool(null);
     setFogToolMode(null);
+    setShowDrawMenu(false);
   };
 
   const handleTogglePan = () => {
@@ -73,6 +84,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       onTogglePingMode?.(false);
       setDrawingTool(null);
       setFogToolMode(null);
+      setShowDrawMenu(false);
     }
   };
 
@@ -84,6 +96,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       onTogglePingMode?.(false);
       setDrawingTool(null);
       setFogToolMode(null);
+      setShowDrawMenu(false);
     }
   };
 
@@ -95,11 +108,13 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       onToggleMeasureMode?.(false);
       setDrawingTool(null);
       setFogToolMode(null);
+      setShowDrawMenu(false);
     }
   };
 
   const handleToggleDraw = () => {
-    if (isDrawActive) {
+    if (isDrawActive && showDrawMenu) {
+      setShowDrawMenu(false);
       setDrawingTool(null);
     } else {
       onTogglePanMode(false);
@@ -107,7 +122,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       onTogglePingMode?.(false);
       setFogToolMode(null);
       setDrawingTool('free');
-      onSelectPanel('chat'); // Keep drawer or drawing context available
+      setShowDrawMenu(true);
     }
   };
 
@@ -120,6 +135,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       onToggleMeasureMode?.(false);
       onTogglePingMode?.(false);
       setDrawingTool(null);
+      setShowDrawMenu(false);
       setFogToolMode('reveal');
     }
   };
@@ -172,17 +188,131 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
           <Ruler className="h-4 w-4" />
         </button>
 
-        <button
-          onClick={handleToggleDraw}
-          title="Pencil / Freehand Draw"
-          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-            isDrawActive
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-              : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-          }`}
-        >
-          <Pencil className="h-4 w-4" />
-        </button>
+        {/* Pencil Button & Drawing Popover Menu */}
+        <div className="relative">
+          <button
+            onClick={handleToggleDraw}
+            title="Drawing Tools & Options"
+            className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
+              isDrawActive
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+            }`}
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+
+          {/* Floating Drawing Options Popover */}
+          {showDrawMenu && (
+            <div className="absolute left-12 top-0 z-50 w-72 rounded-2xl border border-slate-800/90 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur-xl text-slate-100 animate-in fade-in slide-in-from-left-2">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
+                  Drawing Tool
+                </span>
+                <button
+                  onClick={() => setShowDrawMenu(false)}
+                  className="text-[11px] text-slate-500 hover:text-slate-300"
+                >
+                  Close
+                </button>
+              </div>
+
+              {/* Shape Selectors */}
+              <div className="mt-2.5 flex items-center justify-between gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 p-1">
+                <button
+                  onClick={() => setDrawingTool('free')}
+                  title="Freehand Pencil"
+                  className={`flex flex-1 items-center justify-center rounded-lg py-1.5 text-xs transition-all ${
+                    drawingTool === 'free'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+
+                <button
+                  onClick={() => setDrawingTool('line')}
+                  title="Straight Line"
+                  className={`flex flex-1 items-center justify-center rounded-lg py-1.5 text-xs transition-all ${
+                    drawingTool === 'line'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <Slash className="h-3.5 w-3.5" />
+                </button>
+
+                <button
+                  onClick={() => setDrawingTool('square')}
+                  title="Rectangle / Square"
+                  className={`flex flex-1 items-center justify-center rounded-lg py-1.5 text-xs transition-all ${
+                    drawingTool === 'square'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <Square className="h-3.5 w-3.5" />
+                </button>
+
+                <button
+                  onClick={() => setDrawingTool('circle')}
+                  title="Circle"
+                  className={`flex flex-1 items-center justify-center rounded-lg py-1.5 text-xs transition-all ${
+                    drawingTool === 'circle'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <Circle className="h-3.5 w-3.5" />
+                </button>
+
+                <button
+                  onClick={() => setDrawingTool('eraser')}
+                  title="Eraser"
+                  className={`flex flex-1 items-center justify-center rounded-lg py-1.5 text-xs transition-all ${
+                    drawingTool === 'eraser'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <Flame className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Color Palette Dots */}
+              <div className="mt-3 flex items-center justify-between px-1">
+                {DRAWING_COLOR_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setDrawingColor(opt.value)}
+                    title={opt.label}
+                    className={`h-5 w-5 rounded-full transition-transform ${
+                      drawingColor === opt.value
+                        ? 'scale-125 ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950'
+                        : 'hover:scale-110 opacity-80 hover:opacity-100'
+                    }`}
+                    style={{ backgroundColor: opt.value }}
+                  />
+                ))}
+              </div>
+
+              {/* Weight Slider */}
+              <div className="mt-3.5 flex items-center justify-between px-1 text-xs text-slate-300">
+                <span className="text-[11px] font-medium text-slate-400">Weight</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={drawingStrokeWidth}
+                  onChange={(e) => setDrawingStrokeWidth(parseInt(e.target.value, 10))}
+                  className="mx-3 flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <span className="font-mono text-xs text-slate-200">{drawingStrokeWidth}</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {isGM && (
           <button
@@ -253,7 +383,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
 
         <button
           onClick={() => togglePanel('chat')}
-          title="Chat & Dice Logs"
+          title="Chat Log"
           className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
             activePanel === 'chat'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
@@ -264,15 +394,15 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
         </button>
 
         <button
-          onClick={() => togglePanel('fx')}
-          title="Map Effects & Weather"
+          onClick={() => togglePanel('dice')}
+          title="Dice Roller"
           className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-            activePanel === 'fx'
+            activePanel === 'dice'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
               : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
           }`}
         >
-          <Sparkles className="h-4 w-4" />
+          <Dices className="h-4 w-4" />
         </button>
 
         {isGM && (

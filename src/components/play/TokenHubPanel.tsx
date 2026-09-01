@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { Search, Plus, Sparkles, User, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Search, Plus, User, Upload, X } from 'lucide-react';
 import { useMapStore } from '../../stores/mapStore';
 import { useNPCs } from '../../hooks/useNPCs';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useToast } from '../shared/Toast';
+import { validateTokenUpload } from '../../lib/validation';
+import type { TokenSize } from '../../types';
+
+const SIZE_OPTIONS: TokenSize[] = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
 
 interface TokenHubPanelProps {
   onClose?: () => void;
@@ -16,12 +20,22 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
   const npcTemplates = useMapStore((state) => state.npcTemplates);
   const npcInstances = useMapStore((state) => state.npcInstances);
 
-  const { addNPCToMap } = useNPCs();
-  const { claimCharacter } = useCharacters();
+  const { addNPCToMap, createNPCTemplate } = useNPCs();
+  const { claimCharacter, createCharacter } = useCharacters();
 
   const [activeTab, setActiveTab] = useState<'pcs' | 'library' | 'active'>('library');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('All');
+
+  // Creation form states
+  const [isCreatingPC, setIsCreatingPC] = useState(false);
+  const [isCreatingNPC, setIsCreatingNPC] = useState(false);
+  const [newPcName, setNewPcName] = useState('');
+  const [newNpcName, setNewNpcName] = useState('');
+  const [newNpcSize, setNewNpcSize] = useState<TokenSize>('medium');
+  const [tokenFile, setTokenFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const tags = ['All', 'Monsters', 'Beasts', 'Singers', 'NPCs', 'Bosses'];
 
@@ -30,6 +44,53 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
     const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateTokenUpload(file);
+    if (!validation.valid) {
+      showToast(validation.error || 'Invalid file', 'error');
+      return;
+    }
+
+    setTokenFile(file);
+  };
+
+  const handleCreatePC = async () => {
+    if (!newPcName.trim()) return;
+
+    setIsSubmitting(true);
+    const result = await createCharacter(newPcName.trim(), tokenFile || undefined);
+    setIsSubmitting(false);
+
+    if (result.success) {
+      showToast('Character PC created', 'success');
+      setNewPcName('');
+      setTokenFile(null);
+      setIsCreatingPC(false);
+    } else {
+      showToast(result.error || 'Failed to create character', 'error');
+    }
+  };
+
+  const handleCreateNPC = async () => {
+    if (!newNpcName.trim()) return;
+
+    setIsSubmitting(true);
+    const result = await createNPCTemplate(newNpcName.trim(), newNpcSize, tokenFile || undefined);
+    setIsSubmitting(false);
+
+    if (result.success) {
+      showToast('NPC Template created', 'success');
+      setNewNpcName('');
+      setTokenFile(null);
+      setIsCreatingNPC(false);
+    } else {
+      showToast(result.error || 'Failed to create NPC template', 'error');
+    }
+  };
 
   const handleSpawnNPC = async (templateId: string, name: string) => {
     if (!activeMap) {
@@ -115,7 +176,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
         </button>
       </div>
 
-      {/* Search & AI Gen Bar */}
+      {/* Search & Action Bar */}
       <div className="p-3">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
@@ -128,13 +189,132 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
               className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
-          <button
-            onClick={() => showToast('AI Token Generation coming soon', 'info')}
-            className="flex items-center gap-1 rounded-xl bg-purple-600/20 px-2.5 py-1.5 text-xs font-semibold text-purple-300 border border-purple-500/30 hover:bg-purple-600/30 transition-all"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> AI Gen
-          </button>
+
+          {activeTab === 'pcs' && (
+            <button
+              onClick={() => setIsCreatingPC((prev) => !prev)}
+              className="flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-500 transition-all"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add PC
+            </button>
+          )}
+
+          {activeTab === 'library' && (
+            <button
+              onClick={() => setIsCreatingNPC((prev) => !prev)}
+              className="flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-500 transition-all"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add NPC
+            </button>
+          )}
         </div>
+
+        {/* Inline Create PC Form */}
+        {isCreatingPC && activeTab === 'pcs' && (
+          <div className="mt-3 rounded-xl border border-blue-500/30 bg-slate-950 p-3 text-xs shadow-xl animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span className="font-semibold text-blue-300">Create New PC</span>
+              <button
+                onClick={() => setIsCreatingPC(false)}
+                className="text-slate-500 hover:text-slate-300"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={newPcName}
+              onChange={(e) => setNewPcName(e.target.value)}
+              placeholder="Character Name"
+              className="mt-2.5 w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+            />
+
+            <div className="mt-2 flex items-center justify-between">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-slate-800"
+              >
+                <Upload className="h-3 w-3" />
+                {tokenFile ? tokenFile.name : 'Token Image (Optional)'}
+              </button>
+
+              <button
+                onClick={handleCreatePC}
+                disabled={isSubmitting || !newPcName.trim()}
+                className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Creating...' : 'Save PC'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Inline Create NPC Form */}
+        {isCreatingNPC && activeTab === 'library' && (
+          <div className="mt-3 rounded-xl border border-blue-500/30 bg-slate-950 p-3 text-xs shadow-xl animate-in fade-in">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span className="font-semibold text-blue-300">Create New NPC Template</span>
+              <button
+                onClick={() => setIsCreatingNPC(false)}
+                className="text-slate-500 hover:text-slate-300"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <input
+              type="text"
+              value={newNpcName}
+              onChange={(e) => setNewNpcName(e.target.value)}
+              placeholder="NPC Name (e.g. Chasm Fiend)"
+              className="mt-2.5 w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+            />
+
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <select
+                value={newNpcSize}
+                onChange={(e) => setNewNpcSize(e.target.value as TokenSize)}
+                className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs uppercase text-slate-300 focus:outline-none"
+              >
+                {SIZE_OPTIONS.map((sz) => (
+                  <option key={sz} value={sz}>
+                    {sz}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-slate-800"
+              >
+                <Upload className="h-3 w-3" />
+                {tokenFile ? tokenFile.name : 'Image'}
+              </button>
+
+              <button
+                onClick={handleCreateNPC}
+                disabled={isSubmitting || !newNpcName.trim()}
+                className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Creating...' : 'Save Template'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Category Filter Chips */}
         <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
@@ -164,9 +344,17 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
                 className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-slate-700"
               >
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-xs font-bold text-blue-300 border border-blue-500/30">
-                    {pc.name.charAt(0).toUpperCase()}
-                  </div>
+                  {pc.tokenUrl ? (
+                    <img
+                      src={pc.tokenUrl}
+                      alt={pc.name}
+                      className="h-8 w-8 flex-shrink-0 rounded-full object-cover border border-blue-500/30"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-xs font-bold text-blue-300 border border-blue-500/30">
+                      {pc.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-slate-200">{pc.name}</p>
                     <span className="uppercase text-[10px] text-slate-500 font-mono">
@@ -200,9 +388,17 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
                 className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-slate-700"
               >
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-rose-600/20 text-xs font-bold text-rose-300 border border-rose-500/30">
-                    {npc.name.charAt(0).toUpperCase()}
-                  </div>
+                  {npc.tokenUrl ? (
+                    <img
+                      src={npc.tokenUrl}
+                      alt={npc.name}
+                      className="h-8 w-8 flex-shrink-0 rounded-full object-cover border border-rose-500/30"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-rose-600/20 text-xs font-bold text-rose-300 border border-rose-500/30">
+                      {npc.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-slate-200">{npc.name}</p>
                     <span className="uppercase text-[10px] text-slate-500 font-mono">
@@ -232,9 +428,17 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
                 className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-slate-700"
               >
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-600/20 text-xs font-bold text-amber-300 border border-amber-500/30">
-                    {(npc.displayName || 'NPC').charAt(0).toUpperCase()}
-                  </div>
+                  {npc.tokenUrl ? (
+                    <img
+                      src={npc.tokenUrl}
+                      alt={npc.displayName || 'NPC'}
+                      className="h-8 w-8 flex-shrink-0 rounded-full object-cover border border-amber-500/30"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-600/20 text-xs font-bold text-amber-300 border border-amber-500/30">
+                      {(npc.displayName || 'NPC').charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-slate-200">
                       {npc.displayName || 'NPC'}

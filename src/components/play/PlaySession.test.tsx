@@ -160,7 +160,7 @@ describe('PlaySession modern layout', () => {
     expect(screen.getByText('STORMLIGHT RPG')).not.toBeNull();
   });
 
-  it('allows switching to Chat and Initiative panels via the left toolbar', async () => {
+  it('allows switching to Chat and Dice panels via the left toolbar', async () => {
     const user = userEvent.setup();
 
     render(
@@ -169,10 +169,12 @@ describe('PlaySession modern layout', () => {
       </MemoryRouter>
     );
 
-    const chatButton = screen.getByTitle('Chat & Dice Logs');
+    const chatButton = screen.getByTitle('Chat Log');
     await user.click(chatButton);
-
     expect(screen.getByText('Chat Panel')).not.toBeNull();
+
+    const diceButton = screen.getByTitle('Dice Roller');
+    await user.click(diceButton);
     expect(screen.getByText('Dice Panel')).not.toBeNull();
   });
 });
