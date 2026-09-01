@@ -43,6 +43,7 @@ vi.mock('../../hooks/useSession', () => ({
     releaseGM: vi.fn().mockResolvedValue({ success: true }),
     loadChatData: vi.fn().mockResolvedValue(undefined),
     loadInitiativeData: vi.fn().mockResolvedValue(undefined),
+    loadNpcTemplateData: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 

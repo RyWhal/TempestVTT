@@ -86,6 +86,9 @@ export const DicePanel: React.FC = () => {
     }
   };
 
+  // Sort newest rolls first (at top)
+  const sortedRolls = useMemo(() => [...diceRolls].reverse(), [diceRolls]);
+
   return (
     <div className="h-full flex flex-col bg-slate-900/95 text-slate-100">
       {/* Slimmed-down dice controls header */}
@@ -98,13 +101,13 @@ export const DicePanel: React.FC = () => {
               onClick={() => addDie(sides)}
               className={`relative py-1.5 px-1 rounded-xl text-center border transition-all ${
                 (dice[sides] || 0) > 0
-                  ? 'bg-blue-600/20 border-blue-500/40 text-blue-200'
-                  : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800'
+                  ? 'border-blue-500/80 bg-blue-600/20 text-blue-300 font-bold'
+                  : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:bg-slate-800'
               }`}
             >
-              <div className="text-xs font-bold font-mono">d{sides}</div>
-              {dice[sides] > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 font-mono text-[9px] font-bold text-white shadow-sm">
+              d{sides}
+              {(dice[sides] || 0) > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 font-mono text-[9px] font-extrabold text-white shadow-sm">
                   {dice[sides]}
                 </span>
               )}
@@ -112,90 +115,69 @@ export const DicePanel: React.FC = () => {
           ))}
         </div>
 
-        {/* Selected Dice Formula & Clear Bar */}
-        <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 px-2.5 py-1 text-xs">
-          <div className="flex flex-wrap items-center gap-1 min-h-[1.25rem]">
-            {DICE_TYPES.map(
-              (sides) =>
-                dice[sides] > 0 && (
-                  <button
-                    key={sides}
-                    onClick={() => removeDie(sides)}
-                    className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] text-blue-300 hover:bg-rose-950 hover:text-rose-300"
-                  >
-                    {dice[sides]}d{sides} ×
-                  </button>
-                )
-            )}
-            {modifier !== 0 && (
-              <span className="font-mono text-xs font-semibold text-slate-300">
-                {modifier > 0 ? `+${modifier}` : modifier}
-              </span>
-            )}
-            {plotDiceFeatureEnabled && plotDieEnabled && (
-              <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 border border-amber-500/30">
-                Plot Die
-              </span>
-            )}
-            {totalDice === 0 && modifier === 0 && !plotDieEnabled && (
-              <span className="text-[11px] text-slate-500">Tap dice above to build roll</span>
-            )}
-          </div>
-          {(totalDice > 0 || modifier !== 0 || plotDieEnabled) && (
+        {/* Selected Dice Pills & Clear Button */}
+        {totalDice > 0 && (
+          <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
+            <div className="flex flex-wrap items-center gap-1">
+              {Object.entries(dice).map(
+                ([sidesStr, count]) =>
+                  count > 0 && (
+                    <span
+                      key={sidesStr}
+                      onClick={() => removeDie(parseInt(sidesStr, 10))}
+                      className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-2 py-0.5 font-mono text-[11px] text-blue-300 border border-slate-700 cursor-pointer hover:bg-slate-700"
+                    >
+                      {count}d{sidesStr} <span className="text-slate-500">×</span>
+                    </span>
+                  )
+              )}
+            </div>
             <button
               onClick={clearDice}
-              className="text-[11px] text-slate-400 hover:text-slate-200"
+              className="text-[11px] text-slate-400 hover:text-slate-200 underline"
             >
               Clear
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Modifiers & Roll Options Row */}
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          {/* Left: Modifier & Mode */}
-          <div className="flex items-center gap-1.5">
-            <div className="flex items-center rounded-xl border border-slate-800 bg-slate-950 p-0.5">
-              <button
-                onClick={() => setModifier((m) => m - 1)}
-                className="w-5 h-5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold"
-              >
-                -
-              </button>
-              <input
-                type="number"
-                aria-label="Modifier"
-                value={modifier}
-                onChange={(e) => setModifier(parseInt(e.target.value, 10) || 0)}
-                className="w-8 bg-transparent text-center font-mono font-bold text-xs text-slate-200 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <button
-                onClick={() => setModifier((m) => m + 1)}
-                className="w-5 h-5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold"
-              >
-                +
-              </button>
-            </div>
-
-            <select
-              value={rollMode}
-              onChange={(e) => setRollMode(e.target.value as RollMode)}
-              className="flex-1 rounded-xl border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+        {/* Modifier, Mode, Visibility & Roll Action Bar */}
+        <div className="grid grid-cols-12 gap-1.5 items-center text-xs">
+          <div className="col-span-3 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 px-2 py-1">
+            <button
+              onClick={() => setModifier((prev) => prev - 1)}
+              className="text-slate-400 hover:text-slate-200 font-bold px-1"
             >
-              {ROLL_MODE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              -
+            </button>
+            <span className="font-mono text-xs font-semibold text-slate-200">
+              {modifier >= 0 ? `+${modifier}` : modifier}
+            </span>
+            <button
+              onClick={() => setModifier((prev) => prev + 1)}
+              className="text-slate-400 hover:text-slate-200 font-bold px-1"
+            >
+              +
+            </button>
           </div>
 
-          {/* Right: Visibility & Roll Button */}
-          <div className="flex items-center gap-1.5">
+          <select
+            value={rollMode}
+            onChange={(e) => setRollMode(e.target.value as RollMode)}
+            className="col-span-4 rounded-xl border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+          >
+            {ROLL_MODE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <div className="col-span-5 flex items-center gap-1">
             <select
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as RollVisibility)}
-              className="flex-1 rounded-xl border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+              className="flex-1 rounded-xl border border-slate-800 bg-slate-950 px-1.5 py-1 text-[11px] text-slate-300 focus:outline-none"
             >
               <option value="public">Public</option>
               <option value="gm_only">GM Only</option>
@@ -248,11 +230,11 @@ export const DicePanel: React.FC = () => {
           )}
         </div>
 
-        {diceRolls.length === 0 ? (
+        {sortedRolls.length === 0 ? (
           <div className="p-4 text-center text-xs text-slate-500">No dice rolls yet</div>
         ) : (
           <div className="space-y-2">
-            {diceRolls.map((roll) => (
+            {sortedRolls.map((roll) => (
               <DiceRollItem key={roll.id} roll={roll} />
             ))}
           </div>
@@ -294,13 +276,27 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
     (roll.rollResults as { keptAttemptIndex?: number })?.keptAttemptIndex ??
     (attempts.length > 1 ? 0 : 0);
 
+  const formattedTime = useMemo(() => {
+    if (!roll.createdAt) return '';
+    try {
+      const d = new Date(roll.createdAt);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  }, [roll.createdAt]);
+
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-2.5 text-xs space-y-1.5">
       <div className="flex items-center justify-between text-slate-400">
         <span className="font-semibold text-slate-200">
           {roll.characterName || roll.username}
         </span>
-        <span className="font-mono text-[10px] text-slate-500">{roll.rollExpression}</span>
+        <span className="font-mono text-[10px] text-slate-500 flex items-center gap-1.5">
+          {formattedTime && <span>{formattedTime}</span>}
+          {formattedTime && <span>•</span>}
+          <span>{roll.rollExpression}</span>
+        </span>
       </div>
 
       <div className="space-y-1">

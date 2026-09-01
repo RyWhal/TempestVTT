@@ -94,6 +94,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
   const [rectEnd, setRectEnd] = useState<{ x: number; y: number } | null>(null);
   const [currentDrawing, setCurrentDrawing] = useState<DrawingRegion | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isErasing, setIsErasing] = useState(false);
   const [selectedTokenKeys, setSelectedTokenKeys] = useState<string[]>([]);
   const [groupDragStartPositions, setGroupDragStartPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [effectPulse, setEffectPulse] = useState(0);
@@ -488,20 +489,53 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
     return { minX, maxX, minY, maxY };
   }, []);
 
-  const handleDrawingMouseDown = useCallback((_e?: unknown) => {
-    if (!drawingTool || !activeMap || !canDrawOnMap) return;
+  const eraseAtPoint = useCallback(
+    (mapPos: { x: number; y: number }) => {
+      if (!activeMap || !canDrawOnMap) return;
 
-    const stage = stageRef.current;
-    if (!stage) return;
+      const pointToSegmentDist = (
+        p: { x: number; y: number },
+        v: { x: number; y: number },
+        w: { x: number; y: number }
+      ) => {
+        const l2 = (w.x - v.x) ** 2 + (w.y - v.y) ** 2;
+        if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+      };
 
-    const pointer = stage.getPointerPosition();
-    const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
-
-    if (drawingTool === 'eraser') {
       const reversed = [...drawingData].reverse();
       const erased = reversed.find((region) => {
+        const hitRadius = Math.max(24, (region.strokeWidth || 3) * 4);
         const { minX, maxX, minY, maxY } = getDrawingBounds(region);
-        return mapPos.x >= minX && mapPos.x <= maxX && mapPos.y >= minY && mapPos.y <= maxY;
+
+        if (
+          mapPos.x < minX - hitRadius ||
+          mapPos.x > maxX + hitRadius ||
+          mapPos.y < minY - hitRadius ||
+          mapPos.y > maxY + hitRadius
+        ) {
+          return false;
+        }
+
+        if (region.shape === 'emoji') {
+          return true;
+        }
+
+        const points = region.points;
+        if (!points || points.length === 0) return false;
+        if (points.length === 1) {
+          return Math.hypot(mapPos.x - points[0].x, mapPos.y - points[0].y) <= hitRadius;
+        }
+
+        for (let i = 0; i < points.length - 1; i++) {
+          const dist = pointToSegmentDist(mapPos, points[i], points[i + 1]);
+          if (dist <= hitRadius) {
+            return true;
+          }
+        }
+        return false;
       });
 
       if (erased) {
@@ -509,54 +543,88 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
         removeDrawingRegion(activeMap.id, erased.id);
         void updateDrawingData(activeMap.id, newDrawingData);
       }
-      return;
-    }
+    },
+    [activeMap, canDrawOnMap, drawingData, getDrawingBounds, removeDrawingRegion, updateDrawingData]
+  );
 
-    const newRegion = createDrawingRegion(drawingTool, mapPos);
-    if (!newRegion) return;
+  const handleDrawingMouseDown = useCallback(
+    (_e?: unknown) => {
+      if (!drawingTool || !activeMap || !canDrawOnMap) return;
 
-    setIsDrawing(true);
-    setCurrentDrawing(newRegion);
-  }, [
-    drawingTool,
-    activeMap,
-    canDrawOnMap,
-    drawingData,
-    clampToMapBounds,
-    screenToMap,
-    createDrawingRegion,
-    getDrawingBounds,
-    removeDrawingRegion,
-    updateDrawingData,
-  ]);
+      const stage = stageRef.current;
+      if (!stage) return;
 
-  const handleDrawingMouseMove = useCallback((_e?: unknown) => {
-    if (!isDrawing || !currentDrawing || !canDrawOnMap) return;
+      const pointer = stage.getPointerPosition();
+      const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
 
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const pointer = stage.getPointerPosition();
-    const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
-
-    setCurrentDrawing((prev) => {
-      if (!prev) return prev;
-      if (prev.shape === 'free') {
-        const lastPoint = prev.points[prev.points.length - 1];
-        if (lastPoint && lastPoint.x === mapPos.x && lastPoint.y === mapPos.y) {
-          return prev;
-        }
-        return { ...prev, points: [...prev.points, mapPos] };
+      if (drawingTool === 'eraser') {
+        setIsErasing(true);
+        eraseAtPoint(mapPos);
+        return;
       }
 
-      const nextPoints = [...prev.points];
-      nextPoints[nextPoints.length - 1] = mapPos;
-      return { ...prev, points: nextPoints };
-    });
-  }, [isDrawing, currentDrawing, canDrawOnMap, clampToMapBounds, screenToMap]);
+      const newRegion = createDrawingRegion(drawingTool, mapPos);
+      if (!newRegion) return;
 
-  const handleDrawingMouseUp = useCallback((_e?: unknown) => {
-    if (!isDrawing || !currentDrawing || !activeMap || !canDrawOnMap) return;
+      setIsDrawing(true);
+      setCurrentDrawing(newRegion);
+    },
+    [
+      drawingTool,
+      activeMap,
+      canDrawOnMap,
+      clampToMapBounds,
+      screenToMap,
+      createDrawingRegion,
+      eraseAtPoint,
+    ]
+  );
+
+  const handleDrawingMouseMove = useCallback(
+    (_e?: unknown) => {
+      if (!drawingTool || !canDrawOnMap) return;
+
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const pointer = stage.getPointerPosition();
+      const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
+
+      if (drawingTool === 'eraser') {
+        if (isErasing) {
+          eraseAtPoint(mapPos);
+        }
+        return;
+      }
+
+      if (!isDrawing || !currentDrawing) return;
+
+      setCurrentDrawing((prev) => {
+        if (!prev) return prev;
+        if (prev.shape === 'free') {
+          const lastPoint = prev.points[prev.points.length - 1];
+          if (lastPoint && lastPoint.x === mapPos.x && lastPoint.y === mapPos.y) {
+            return prev;
+          }
+          return { ...prev, points: [...prev.points, mapPos] };
+        }
+
+        const nextPoints = [...prev.points];
+        nextPoints[nextPoints.length - 1] = mapPos;
+        return { ...prev, points: nextPoints };
+      });
+    },
+    [drawingTool, canDrawOnMap, isErasing, eraseAtPoint, isDrawing, currentDrawing, clampToMapBounds, screenToMap]
+  );
+
+  const handleDrawingMouseUp = useCallback(
+    (_e?: unknown) => {
+      if (drawingTool === 'eraser') {
+        setIsErasing(false);
+        return;
+      }
+
+      if (!isDrawing || !currentDrawing || !activeMap || !canDrawOnMap) return;
 
     const start = currentDrawing.points[0];
     const end = currentDrawing.points[currentDrawing.points.length - 1];

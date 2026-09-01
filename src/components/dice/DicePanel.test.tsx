@@ -122,7 +122,7 @@ describe('DicePanel', () => {
   it('keeps rolling disabled for modifier-only selections', () => {
     render(<DicePanel />);
 
-    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: '+' }));
 
     expect(screen.getByRole('button', { name: /roll!/i }).hasAttribute('disabled')).toBe(true);
   });

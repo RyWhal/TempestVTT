@@ -32,7 +32,7 @@ export const PlaySession: React.FC = () => {
   const connectionStatus = useSessionStore((state) => state.connectionStatus);
   const players = useSessionStore((state) => state.players);
   const isGM = useIsGM();
-  const { leaveSession, claimGM, releaseGM, loadChatData, loadInitiativeData } = useSession();
+  const { leaveSession, claimGM, releaseGM, loadChatData, loadInitiativeData, loadNpcTemplateData } = useSession();
 
   // Panel state driven by left toolbar dock
   const [activePanel, setActivePanel] = useState<ActivePanelTab>('tokens');
@@ -48,12 +48,15 @@ export const PlaySession: React.FC = () => {
       return;
     }
 
+    // Load NPC templates by default or when token panel is open
+    void loadNpcTemplateData?.(session.id);
+
     if (activePanel === 'chat' || activePanel === 'dice') {
       void loadChatData(session.id);
     } else if (activePanel === 'initiative') {
       void loadInitiativeData(session.id);
     }
-  }, [session?.id, activePanel, connectionStatus, loadChatData, loadInitiativeData]);
+  }, [session?.id, activePanel, connectionStatus, loadChatData, loadInitiativeData, loadNpcTemplateData]);
 
   if (!session || !currentUser) return null;
 
