@@ -15,6 +15,7 @@ import {
   Square,
   Circle,
   Slash,
+  Eraser,
 } from 'lucide-react';
 import { useMapStore } from '../../stores/mapStore';
 import { useIsGM } from '../../stores/sessionStore';
@@ -271,6 +272,18 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
                   }`}
                 >
                   <Circle className="h-3.5 w-3.5" />
+                </button>
+
+                <button
+                  onClick={() => setDrawingTool('eraser')}
+                  title="Eraser"
+                  className={`flex flex-1 items-center justify-center rounded-lg py-1.5 text-xs transition-all ${
+                    drawingTool === 'eraser'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <Eraser className="h-3.5 w-3.5" />
                 </button>
 
                 <button

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle, Text, Group } from 'react-konva';
 import useImage from 'use-image';
 import {
   ZoomIn,
@@ -37,9 +37,17 @@ const TOKEN_SIZE_ORDER: TokenSize[] = [
 ];
 
 
-export const MapCanvas: React.FC = () => {
+interface MapCanvasProps {
+  isMeasureMode?: boolean;
+}
+
+export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
+
+  const [rulerStart, setRulerStart] = useState<{ x: number; y: number } | null>(null);
+  const [rulerEnd, setRulerEnd] = useState<{ x: number; y: number } | null>(null);
+  const [isMeasuring, setIsMeasuring] = useState(false);
 
   const activeMap = useMapStore((state) => state.activeMap);
   const {
@@ -478,7 +486,7 @@ export const MapCanvas: React.FC = () => {
     return { minX, maxX, minY, maxY };
   }, []);
 
-  const handleDrawingMouseDown = useCallback(() => {
+  const handleDrawingMouseDown = useCallback((_e?: unknown) => {
     if (!drawingTool || !activeMap || !canDrawOnMap) return;
 
     const stage = stageRef.current;
@@ -520,7 +528,7 @@ export const MapCanvas: React.FC = () => {
     updateDrawingData,
   ]);
 
-  const handleDrawingMouseMove = useCallback(() => {
+  const handleDrawingMouseMove = useCallback((_e?: unknown) => {
     if (!isDrawing || !currentDrawing || !canDrawOnMap) return;
 
     const stage = stageRef.current;
@@ -545,7 +553,7 @@ export const MapCanvas: React.FC = () => {
     });
   }, [isDrawing, currentDrawing, canDrawOnMap, clampToMapBounds, screenToMap]);
 
-  const handleDrawingMouseUp = useCallback(() => {
+  const handleDrawingMouseUp = useCallback((_e?: unknown) => {
     if (!isDrawing || !currentDrawing || !activeMap || !canDrawOnMap) return;
 
     const start = currentDrawing.points[0];
@@ -576,7 +584,7 @@ export const MapCanvas: React.FC = () => {
   ]);
 
 
-  const handleEffectPaint = useCallback(() => {
+  const handleEffectPaint = useCallback((_e?: unknown) => {
     if (!effectPaintMode || !isGM || !activeMap?.effectsEnabled || !activeMap.gridEnabled) return;
 
     const stage = stageRef.current;
@@ -662,7 +670,7 @@ export const MapCanvas: React.FC = () => {
     [fogToolMode, fogToolShape, isGM, isPainting, rectStart, screenToMap, clampToMapBounds]
   );
 
-  const handleFogMouseUp = useCallback(async () => {
+  const handleFogMouseUp = useCallback(async (_e?: unknown) => {
     if (!fogToolMode || !isGM || !activeMap) return;
 
     const isWithinMap = (point: { x: number; y: number }) =>
@@ -772,28 +780,51 @@ export const MapCanvas: React.FC = () => {
             scaleY={viewportScale}
             x={viewportX}
             y={viewportY}
-            draggable={!effectPaintMode && !fogToolMode && !(canDrawOnMap && drawingTool)}
+            draggable={!isMeasureMode && !effectPaintMode && !fogToolMode && !(canDrawOnMap && drawingTool)}
             onWheel={handleWheel}
             onDragEnd={handleDragEnd}
             onClick={handleStageClick}
-            onMouseDown={
-              effectPaintMode
-                ? handleEffectPaint
-                : fogToolMode
-                  ? handleFogMouseDown
-                  : canDrawOnMap && drawingTool
-                    ? handleDrawingMouseDown
-                    : undefined
-            }
-            onMouseMove={
-              fogToolMode ? handleFogMouseMove : canDrawOnMap && drawingTool ? handleDrawingMouseMove : undefined
-            }
-            onMouseUp={
-              fogToolMode ? handleFogMouseUp : canDrawOnMap && drawingTool ? handleDrawingMouseUp : undefined
-            }
-            onMouseLeave={
-              fogToolMode ? handleFogMouseUp : canDrawOnMap && drawingTool ? handleDrawingMouseUp : undefined
-            }
+            onMouseDown={(e) => {
+              if (isMeasureMode) {
+                const stage = stageRef.current;
+                if (stage) {
+                  const pointer = stage.getPointerPosition();
+                  const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
+                  setRulerStart(mapPos);
+                  setRulerEnd(mapPos);
+                  setIsMeasuring(true);
+                }
+                return;
+              }
+              if (effectPaintMode) handleEffectPaint(e);
+              else if (fogToolMode) handleFogMouseDown(e);
+              else if (canDrawOnMap && drawingTool) handleDrawingMouseDown(e);
+            }}
+            onMouseMove={(e) => {
+              if (isMeasureMode && isMeasuring) {
+                const stage = stageRef.current;
+                if (stage) {
+                  const pointer = stage.getPointerPosition();
+                  const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
+                  setRulerEnd(mapPos);
+                }
+                return;
+              }
+              if (fogToolMode) handleFogMouseMove(e);
+              else if (canDrawOnMap && drawingTool) handleDrawingMouseMove(e);
+            }}
+            onMouseUp={(e) => {
+              if (isMeasureMode && isMeasuring) {
+                setIsMeasuring(false);
+                return;
+              }
+              if (fogToolMode) handleFogMouseUp(e);
+              else if (canDrawOnMap && drawingTool) handleDrawingMouseUp(e);
+            }}
+            onMouseLeave={(e) => {
+              if (fogToolMode) handleFogMouseUp(e);
+              else if (canDrawOnMap && drawingTool) handleDrawingMouseUp(e);
+            }}
           >
             {/* Map image layer */}
             <Layer key={`map-surface-${activeMap.id}`}>
@@ -925,6 +956,66 @@ export const MapCanvas: React.FC = () => {
                   dash={[10 / viewportScale, 5 / viewportScale]}
                   fill={fogToolMode === 'reveal' ? 'rgba(0,255,0,0.2)' : 'rgba(255,0,0,0.2)'}
                 />
+              </Layer>
+            )}
+
+            {/* Distance Measurement Ruler Layer */}
+            {rulerStart && rulerEnd && (
+              <Layer listening={false} hitGraphEnabled={false}>
+                <Line
+                  points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
+                  stroke="#38bdf8"
+                  strokeWidth={4 / viewportScale}
+                  dash={[8 / viewportScale, 4 / viewportScale]}
+                />
+                <Circle
+                  x={rulerStart.x}
+                  y={rulerStart.y}
+                  radius={5 / viewportScale}
+                  fill="#38bdf8"
+                />
+                <Circle
+                  x={rulerEnd.x}
+                  y={rulerEnd.y}
+                  radius={5 / viewportScale}
+                  fill="#38bdf8"
+                />
+                {(() => {
+                  const dx = rulerEnd.x - rulerStart.x;
+                  const dy = rulerEnd.y - rulerStart.y;
+                  const distancePx = Math.hypot(dx, dy);
+                  const cellSize = activeMap?.gridCellSize || 50;
+                  const squares = (distancePx / cellSize).toFixed(1);
+                  const feet = Math.round((distancePx / cellSize) * 5);
+                  const midX = (rulerStart.x + rulerEnd.x) / 2;
+                  const midY = (rulerStart.y + rulerEnd.y) / 2;
+                  const labelText = `${feet} ft (${squares} sq)`;
+
+                  return (
+                    <Group x={midX} y={midY - 18 / viewportScale}>
+                      <Rect
+                        x={-55 / viewportScale}
+                        y={-12 / viewportScale}
+                        width={110 / viewportScale}
+                        height={24 / viewportScale}
+                        fill="rgba(15, 23, 42, 0.9)"
+                        stroke="#38bdf8"
+                        strokeWidth={1 / viewportScale}
+                        cornerRadius={6 / viewportScale}
+                      />
+                      <Text
+                        x={-55 / viewportScale}
+                        y={-6 / viewportScale}
+                        width={110 / viewportScale}
+                        align="center"
+                        text={labelText}
+                        fontSize={11 / viewportScale}
+                        fontStyle="bold"
+                        fill="#38bdf8"
+                      />
+                    </Group>
+                  );
+                })()}
               </Layer>
             )}
           </Stage>

@@ -213,7 +213,7 @@ export const PlaySession: React.FC = () => {
         />
 
         <section className="relative flex-1 overflow-hidden">
-          <MapCanvas />
+          <MapCanvas isMeasureMode={isMeasureMode} />
         </section>
 
         {/* Collapsible Right Tool Context Panel */}
