@@ -18,6 +18,7 @@ import { useNPCs } from '../../hooks/useNPCs';
 import { useMap } from '../../hooks/useMap';
 import { broadcastTokenLock, broadcastTokenUnlock } from '../../lib/tokenBroadcast';
 import { Token } from './Token';
+import { TokenPopover } from './TokenPopover';
 import { GridOverlay } from './GridOverlay';
 import { FogLayer } from './FogLayer';
 import { DrawingLayer } from './DrawingLayer';
@@ -1091,6 +1092,8 @@ export const MapCanvas: React.FC = () => {
           </span>
         </div>
       )}
+      {/* Floating Token Popover */}
+      <TokenPopover />
     </div>
   );
 };
