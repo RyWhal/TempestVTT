@@ -155,7 +155,7 @@ describe('PlaySession modern layout', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Token Hub')).not.toBeNull();
+    expect(screen.getByText('Players & Tokens')).not.toBeNull();
     expect(screen.getByText('Shared Table')).not.toBeNull();
     expect(screen.getByText('STORMLIGHT RPG')).not.toBeNull();
   });

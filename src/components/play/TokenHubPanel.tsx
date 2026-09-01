@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Search, Plus, User, Upload, X } from 'lucide-react';
 import { useMapStore } from '../../stores/mapStore';
+import { useIsGM } from '../../stores/sessionStore';
 import { useNPCs } from '../../hooks/useNPCs';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useToast } from '../shared/Toast';
@@ -14,6 +15,7 @@ interface TokenHubPanelProps {
 }
 
 export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
+  const isGM = useIsGM();
   const { showToast } = useToast();
   const activeMap = useMapStore((state) => state.activeMap);
   const characters = useMapStore((state) => state.characters);
@@ -93,6 +95,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
   };
 
   const handleSpawnNPC = async (templateId: string, name: string) => {
+    if (!isGM) return;
     if (!activeMap) {
       showToast('No active map to spawn tokens onto', 'error');
       return;
@@ -128,7 +131,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
         <div>
           <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
             <User className="h-4 w-4 text-blue-400" />
-            Token Hub
+            Players & Tokens
           </h2>
           <p className="text-xs text-slate-400">Characters & Monsters</p>
         </div>
@@ -190,7 +193,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
             />
           </div>
 
-          {activeTab === 'pcs' && (
+          {isGM && activeTab === 'pcs' && (
             <button
               onClick={() => setIsCreatingPC((prev) => !prev)}
               className="flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-500 transition-all"
@@ -199,7 +202,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
             </button>
           )}
 
-          {activeTab === 'library' && (
+          {isGM && activeTab === 'library' && (
             <button
               onClick={() => setIsCreatingNPC((prev) => !prev)}
               className="flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-500 transition-all"
@@ -209,8 +212,8 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
           )}
         </div>
 
-        {/* Inline Create PC Form */}
-        {isCreatingPC && activeTab === 'pcs' && (
+        {/* Inline Create PC Form (GM only) */}
+        {isGM && isCreatingPC && activeTab === 'pcs' && (
           <div className="mt-3 rounded-xl border border-blue-500/30 bg-slate-950 p-3 text-xs shadow-xl animate-in fade-in">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <span className="font-semibold text-blue-300">Create New PC</span>
@@ -256,8 +259,8 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
           </div>
         )}
 
-        {/* Inline Create NPC Form */}
-        {isCreatingNPC && activeTab === 'library' && (
+        {/* Inline Create NPC Form (GM only) */}
+        {isGM && isCreatingNPC && activeTab === 'library' && (
           <div className="mt-3 rounded-xl border border-blue-500/30 bg-slate-950 p-3 text-xs shadow-xl animate-in fade-in">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <span className="font-semibold text-blue-300">Create New NPC Template</span>
@@ -408,12 +411,14 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
                 </div>
                 <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-800/60">
                   <span className="text-[10px] text-slate-400">Template</span>
-                  <button
-                    onClick={() => void handleSpawnNPC(npc.id, npc.name)}
-                    className="flex items-center gap-0.5 rounded-md bg-blue-600/20 px-2 py-0.5 text-[10px] font-medium text-blue-300 hover:bg-blue-600/40"
-                  >
-                    <Plus className="h-3 w-3" /> Spawn
-                  </button>
+                  {isGM && (
+                    <button
+                      onClick={() => void handleSpawnNPC(npc.id, npc.name)}
+                      className="flex items-center gap-0.5 rounded-md bg-blue-600/20 px-2 py-0.5 text-[10px] font-medium text-blue-300 hover:bg-blue-600/40"
+                    >
+                      <Plus className="h-3 w-3" /> Spawn
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

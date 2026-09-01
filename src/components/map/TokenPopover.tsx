@@ -2,21 +2,19 @@ import React, { useState } from 'react';
 import {
   X,
   Zap,
-  Swords,
-  RotateCw,
-  ArrowUp,
-  Sparkles,
   Eye,
   EyeOff,
   Trash2,
   Plus,
-  Minus,
+  Tag,
 } from 'lucide-react';
 import { useMapStore } from '../../stores/mapStore';
-import { useIsGM } from '../../stores/sessionStore';
+import { useIsGM, useSessionStore } from '../../stores/sessionStore';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useNPCs } from '../../hooks/useNPCs';
 import type { TokenSize } from '../../types';
+
+const SIZE_OPTIONS: TokenSize[] = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
 
 const STATUS_RING_OPTIONS = [
   { label: 'None', color: null },
@@ -29,6 +27,9 @@ const STATUS_RING_OPTIONS = [
 
 export const TokenPopover: React.FC = () => {
   const isGM = useIsGM();
+  const session = useSessionStore((state) => state.session);
+  const enableInitiativePhase = Boolean(session?.enableInitiativePhase);
+
   const selectedTokenId = useMapStore((state) => state.selectedTokenId);
   const selectedTokenType = useMapStore((state) => state.selectedTokenType);
   const clearSelection = useMapStore((state) => state.clearSelection);
@@ -43,11 +44,12 @@ export const TokenPopover: React.FC = () => {
   const { updateCharacterDetails, deleteCharacter } = useCharacters();
   const { updateNPCInstanceDetails, removeNPCFromMap } = useNPCs();
 
-  // Component state for hp, rotation & elevation preview
+  // Local state for HP tracking & custom status tags
   const [hpValue, setHpValue] = useState<number>(36);
   const [maxHp] = useState<number>(36);
-  const [rotation, setRotation] = useState<number>(0);
-  const [elevation, setElevation] = useState<number>(0);
+  const [phase, setPhase] = useState<'fast' | 'slow'>('fast');
+  const [customTagInput, setCustomTagInput] = useState('');
+  const [statusTags, setStatusTags] = useState<string[]>([]);
   const [showConditionsMenu, setShowConditionsMenu] = useState(false);
 
   if (!selectedTokenId || !selectedTokenType) {
@@ -77,7 +79,7 @@ export const TokenPopover: React.FC = () => {
     posY = npc.positionY;
   }
 
-  // Calculate screen position centered above the token
+  // Position popover centered above token on map
   const screenX = viewportX + posX * viewportScale;
   const screenY = viewportY + posY * viewportScale;
 
@@ -85,12 +87,22 @@ export const TokenPopover: React.FC = () => {
     setHpValue((prev) => Math.max(0, prev + delta));
   };
 
-  const handleRotate = () => {
-    setRotation((prev) => (prev + 45) % 360);
+  const handleRename = async (newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    if (selectedTokenType === 'character') {
+      await updateCharacterDetails(selectedTokenId, { name: trimmed });
+    } else {
+      await updateNPCInstanceDetails(selectedTokenId, { displayName: trimmed });
+    }
   };
 
-  const handleAdjustElevation = (delta: number) => {
-    setElevation((prev) => Math.max(0, prev + delta));
+  const handleChangeSize = async (newSize: TokenSize) => {
+    if (selectedTokenType === 'character') {
+      await updateCharacterDetails(selectedTokenId, { size: newSize });
+    } else {
+      await updateNPCInstanceDetails(selectedTokenId, { size: newSize });
+    }
   };
 
   const handleToggleVisibility = async () => {
@@ -105,6 +117,17 @@ export const TokenPopover: React.FC = () => {
     } else {
       await updateNPCInstanceDetails(selectedTokenId, { statusRingColor: color });
     }
+  };
+
+  const handleAddCustomTag = () => {
+    const trimmed = customTagInput.trim();
+    if (!trimmed || statusTags.includes(trimmed)) return;
+    setStatusTags((prev) => [...prev, trimmed]);
+    setCustomTagInput('');
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setStatusTags((prev) => prev.filter((t) => t !== tag));
   };
 
   const handleDelete = async () => {
@@ -125,17 +148,35 @@ export const TokenPopover: React.FC = () => {
         transform: 'translate(-50%, -100%)',
       }}
     >
-      {/* Popover Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-        <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-amber-500 shadow-sm" />
-          <h3 className="text-xs font-bold text-slate-100 truncate max-w-[140px]">
-            {tokenName}
-          </h3>
-          <span className="rounded border border-slate-700 bg-slate-800/80 px-1.5 py-0.5 font-mono text-[10px] uppercase text-slate-300">
-            {tokenSize}
-          </span>
+      {/* 1. Header: Name (Editable) & Size (Editable) */}
+      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 gap-2">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <input
+            type="text"
+            defaultValue={tokenName}
+            onBlur={(e) => handleRename(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleRename(e.currentTarget.value);
+                e.currentTarget.blur();
+              }
+            }}
+            className="w-full truncate rounded bg-transparent px-1 font-bold text-xs text-slate-100 focus:bg-slate-900 focus:outline-none border border-transparent focus:border-slate-700"
+          />
         </div>
+
+        <select
+          value={tokenSize}
+          onChange={(e) => handleChangeSize(e.target.value as TokenSize)}
+          className="rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] uppercase text-slate-200 focus:outline-none"
+        >
+          {SIZE_OPTIONS.map((sz) => (
+            <option key={sz} value={sz}>
+              {sz}
+            </option>
+          ))}
+        </select>
+
         <button
           onClick={clearSelection}
           className="rounded-md p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -144,140 +185,156 @@ export const TokenPopover: React.FC = () => {
         </button>
       </div>
 
-      {/* Hit Points Quick Adjuster */}
-      <div className="mt-2.5 rounded-xl border border-slate-800/80 bg-slate-900/60 p-2.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="flex items-center gap-1 font-medium text-rose-400">
-            ❤️ Hit Points
-          </span>
-          <span className="font-mono font-bold text-slate-200">
-            {hpValue} / {maxHp}
-          </span>
-        </div>
-        <div className="mt-2 grid grid-cols-6 gap-1">
-          {[-10, -5, -1, 1, 5, 10].map((delta) => (
-            <button
-              key={delta}
-              onClick={() => handleAdjustHp(delta)}
-              className={`rounded-lg py-1 font-mono text-[10px] font-semibold transition-all ${
-                delta < 0
-                  ? 'bg-rose-950/80 text-rose-300 hover:bg-rose-900 border border-rose-800/50'
-                  : 'bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900 border border-emerald-800/50'
-              }`}
-            >
-              {delta > 0 ? `+${delta}` : delta}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Phase & Initiative Action Toggles */}
-      <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-        <button className="flex items-center justify-center gap-1 rounded-xl border border-amber-500/40 bg-amber-500/10 py-1.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/20">
-          <Zap className="h-3.5 w-3.5" /> FAST Phase
-        </button>
-        <button className="flex items-center justify-center gap-1 rounded-xl border border-blue-500/40 bg-blue-500/10 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-500/20">
-          <Swords className="h-3.5 w-3.5" /> Initiative
-        </button>
-      </div>
-
-      {/* Rotation & Elevation Adjusters */}
-      <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-        <button
-          onClick={handleRotate}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-        >
-          <RotateCw className="h-3.5 w-3.5 text-slate-400" />
-          <span>Rotate ({rotation}°)</span>
-        </button>
-
-        <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-300">
-          <span className="flex items-center gap-1">
-            <ArrowUp className="h-3 w-3 text-slate-400" />
-            {elevation}ft
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => handleAdjustElevation(-5)}
-              className="rounded bg-slate-800 px-1 py-0.5 hover:bg-slate-700"
-            >
-              <Minus className="h-3 w-3" />
-            </button>
-            <button
-              onClick={() => handleAdjustElevation(5)}
-              className="rounded bg-slate-800 px-1 py-0.5 hover:bg-slate-700"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
+      {/* 2. Hit Points Tracking (GM Only) */}
+      {isGM && (
+        <div className="mt-2.5 rounded-xl border border-slate-800/80 bg-slate-900/60 p-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1 font-medium text-rose-400">
+              ❤️ Hit Points
+            </span>
+            <span className="font-mono font-bold text-slate-200">
+              {hpValue} / {maxHp}
+            </span>
+          </div>
+          <div className="mt-2 grid grid-cols-6 gap-1">
+            {[-10, -5, -1, 1, 5, 10].map((delta) => (
+              <button
+                key={delta}
+                onClick={() => handleAdjustHp(delta)}
+                className={`rounded-lg py-1 font-mono text-[10px] font-semibold transition-all ${
+                  delta < 0
+                    ? 'bg-rose-950/80 text-rose-300 hover:bg-rose-900 border border-rose-800/50'
+                    : 'bg-emerald-950/80 text-emerald-300 hover:bg-emerald-900 border border-emerald-800/50'
+                }`}
+              >
+                {delta > 0 ? `+${delta}` : delta}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Conditions Section */}
+      {/* 3. Fast / Slow Phase Toggle (If Stormlight Initiative Phase turned on) */}
+      {enableInitiativePhase && (
+        <div className="mt-2.5 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-1">
+          <button
+            onClick={() => setPhase('fast')}
+            className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1 text-xs font-semibold transition-all ${
+              phase === 'fast'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Zap className="h-3 w-3" /> FAST Phase
+          </button>
+          <button
+            onClick={() => setPhase('slow')}
+            className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1 text-xs font-semibold transition-all ${
+              phase === 'slow'
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            SLOW Phase
+          </button>
+        </div>
+      )}
+
+      {/* 4. Status Conditions & Color Rings (Editable Custom Tags) */}
       <div className="mt-2.5 border-t border-slate-800 pt-2">
         <button
           onClick={() => setShowConditionsMenu((prev) => !prev)}
           className="flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-800/80"
         >
-          <span className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            Conditions & Ring
+          <span className="flex items-center gap-1.5 font-medium">
+            <Tag className="h-3.5 w-3.5 text-amber-400" />
+            Status Conditions & Ring
           </span>
-          <span className="text-[10px] font-semibold text-blue-400">Manage</span>
+          <span className="text-[10px] font-semibold text-blue-400">
+            {showConditionsMenu ? 'Hide' : 'Manage'}
+          </span>
         </button>
 
         {showConditionsMenu && (
-          <div className="mt-2 flex flex-wrap gap-1 rounded-xl border border-slate-800 bg-slate-950 p-2">
-            {STATUS_RING_OPTIONS.map((opt) => (
-              <button
-                key={opt.label}
-                onClick={() => void handleSetStatusColor(opt.color)}
-                className="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-300 hover:bg-slate-800"
-              >
-                {opt.color && (
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: opt.color }}
+          <div className="mt-2 space-y-2 rounded-xl border border-slate-800 bg-slate-950 p-2.5">
+            {/* Color Rings */}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase">Ring Color</span>
+              <div className="flex items-center gap-1.5">
+                {STATUS_RING_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.label}
+                    onClick={() => void handleSetStatusColor(opt.color)}
+                    title={opt.label}
+                    className="h-4 w-4 rounded-full border border-slate-700 hover:scale-110 transition-transform"
+                    style={{ backgroundColor: opt.color || '#334155' }}
                   />
-                )}
-                {opt.label}
-              </button>
-            ))}
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Status Tags */}
+            <div className="pt-2 border-t border-slate-800">
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={customTagInput}
+                  onChange={(e) => setCustomTagInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCustomTag()}
+                  placeholder="Add custom status (e.g. Stunned)..."
+                  className="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  onClick={handleAddCustomTag}
+                  className="rounded-lg bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-500"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              </div>
+
+              {statusTags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {statusTags.map((tag) => (
+                    <span
+                      key={tag}
+                      onClick={() => handleRemoveTag(tag)}
+                      className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-200 cursor-pointer hover:bg-rose-950 hover:text-rose-300"
+                      title="Click to remove"
+                    >
+                      {tag} ×
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Footer Controls: Visibility, Delete */}
-      <div className="mt-3 flex items-center justify-between border-t border-slate-800 pt-2.5 text-xs">
-        {selectedTokenType === 'npc' && isGM ? (
+      {/* 5. Visibility (GM Only) & Delete */}
+      {isGM && (
+        <div className="mt-2.5 flex items-center justify-between border-t border-slate-800 pt-2.5">
           <button
-            onClick={() => void handleToggleVisibility()}
-            className="flex items-center gap-1 text-slate-400 hover:text-slate-200"
+            onClick={handleToggleVisibility}
+            className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium transition-all ${
+              isVisible
+                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+                : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+            }`}
           >
-            {isVisible ? (
-              <>
-                <Eye className="h-3.5 w-3.5 text-emerald-400" /> Visible
-              </>
-            ) : (
-              <>
-                <EyeOff className="h-3.5 w-3.5 text-slate-500" /> Hidden
-              </>
-            )}
+            {isVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            {isVisible ? 'Visible to Players' : 'Hidden from Players'}
           </button>
-        ) : (
-          <span className="text-[11px] text-slate-500">Token Controls</span>
-        )}
 
-        <div className="flex items-center gap-2">
           <button
             onClick={handleDelete}
             title="Delete Token"
-            className="rounded p-1 text-rose-400 hover:bg-rose-950/60 hover:text-rose-300"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-950 hover:text-rose-300 transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -15,11 +15,11 @@ import {
   Square,
   Circle,
   Slash,
-  Flame,
 } from 'lucide-react';
 import { useMapStore } from '../../stores/mapStore';
 import { useIsGM } from '../../stores/sessionStore';
 import { DRAWING_COLOR_OPTIONS } from '../../types';
+import { STAMP_EMOJIS } from '../../lib/mapDecor';
 
 export type ActivePanelTab =
   | 'initiative'
@@ -41,6 +41,8 @@ interface LeftToolbarProps {
   onTogglePingMode?: (enabled: boolean) => void;
 }
 
+const QUICK_EMOJIS = ['🔥', '💥', '⚔️', '🛡️', '💀', '🎯', '⭐', '🌲', '🏰', '💧', '⚡', '👑', '🎒', '🩸', '✨', '🐺', '🐉', '❤️'];
+
 export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   activePanel,
   onSelectPanel,
@@ -58,10 +60,14 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   const setDrawingColor = useMapStore((state) => state.setDrawingColor);
   const drawingStrokeWidth = useMapStore((state) => state.drawingStrokeWidth);
   const setDrawingStrokeWidth = useMapStore((state) => state.setDrawingStrokeWidth);
+  const drawingEmoji = useMapStore((state) => state.drawingEmoji);
+  const setDrawingEmoji = useMapStore((state) => state.setDrawingEmoji);
+
   const fogToolMode = useMapStore((state) => state.fogToolMode);
   const setFogToolMode = useMapStore((state) => state.setFogToolMode);
 
   const [showDrawMenu, setShowDrawMenu] = useState(false);
+  const [showFullEmojiGrid, setShowFullEmojiGrid] = useState(false);
 
   const isSelectActive = !isPanMode && !drawingTool && !fogToolMode && !isMeasureMode && !isPingMode;
   const isDrawActive = Boolean(drawingTool);
@@ -217,7 +223,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
                 </button>
               </div>
 
-              {/* Shape Selectors */}
+              {/* Shape & Emoji Tool Selectors */}
               <div className="mt-2.5 flex items-center justify-between gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 p-1">
                 <button
                   onClick={() => setDrawingTool('free')}
@@ -268,48 +274,86 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
                 </button>
 
                 <button
-                  onClick={() => setDrawingTool('eraser')}
-                  title="Eraser"
+                  onClick={() => setDrawingTool('emoji')}
+                  title="Emoji Stamp Tool"
                   className={`flex flex-1 items-center justify-center rounded-lg py-1.5 text-xs transition-all ${
-                    drawingTool === 'eraser'
-                      ? 'bg-rose-600 text-white shadow-md'
+                    drawingTool === 'emoji'
+                      ? 'bg-amber-600 text-white shadow-md'
                       : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                   }`}
                 >
-                  <Flame className="h-3.5 w-3.5" />
+                  <span className="text-sm leading-none">{drawingEmoji || '🔥'}</span>
                 </button>
               </div>
 
-              {/* Color Palette Dots */}
-              <div className="mt-3 flex items-center justify-between px-1">
-                {DRAWING_COLOR_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setDrawingColor(opt.value)}
-                    title={opt.label}
-                    className={`h-5 w-5 rounded-full transition-transform ${
-                      drawingColor === opt.value
-                        ? 'scale-125 ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950'
-                        : 'hover:scale-110 opacity-80 hover:opacity-100'
-                    }`}
-                    style={{ backgroundColor: opt.value }}
-                  />
-                ))}
-              </div>
+              {/* Emoji Picker Grid when Emoji Stamp tool active */}
+              {drawingTool === 'emoji' ? (
+                <div className="mt-3 rounded-xl border border-amber-500/30 bg-slate-900/90 p-2 text-xs">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                    <span className="text-[10px] font-bold text-amber-300 uppercase">
+                      Select Emoji Stamp
+                    </span>
+                    <button
+                      onClick={() => setShowFullEmojiGrid((prev) => !prev)}
+                      className="text-[10px] text-blue-400 hover:text-blue-300"
+                    >
+                      {showFullEmojiGrid ? 'Quick View' : 'More...'}
+                    </button>
+                  </div>
 
-              {/* Weight Slider */}
-              <div className="mt-3.5 flex items-center justify-between px-1 text-xs text-slate-300">
-                <span className="text-[11px] font-medium text-slate-400">Weight</span>
-                <input
-                  type="range"
-                  min="1"
-                  max="20"
-                  value={drawingStrokeWidth}
-                  onChange={(e) => setDrawingStrokeWidth(parseInt(e.target.value, 10))}
-                  className="mx-3 flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-                <span className="font-mono text-xs text-slate-200">{drawingStrokeWidth}</span>
-              </div>
+                  <div className="mt-2 max-h-36 overflow-y-auto grid grid-cols-6 gap-1.5 text-center">
+                    {(showFullEmojiGrid ? STAMP_EMOJIS : QUICK_EMOJIS).map((emoji, idx) => (
+                      <button
+                        key={`${emoji}-${idx}`}
+                        onClick={() => {
+                          setDrawingEmoji(emoji);
+                          setDrawingTool('emoji');
+                        }}
+                        className={`rounded-lg py-1 text-base transition-transform hover:scale-125 ${
+                          drawingEmoji === emoji
+                            ? 'bg-amber-500/30 ring-2 ring-amber-400'
+                            : 'hover:bg-slate-800'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Color Palette Dots */}
+                  <div className="mt-3 flex items-center justify-between px-1">
+                    {DRAWING_COLOR_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setDrawingColor(opt.value)}
+                        title={opt.label}
+                        className={`h-5 w-5 rounded-full transition-transform ${
+                          drawingColor === opt.value
+                            ? 'scale-125 ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950'
+                            : 'hover:scale-110 opacity-80 hover:opacity-100'
+                        }`}
+                        style={{ backgroundColor: opt.value }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Weight Slider */}
+                  <div className="mt-3.5 flex items-center justify-between px-1 text-xs text-slate-300">
+                    <span className="text-[11px] font-medium text-slate-400">Weight</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      value={drawingStrokeWidth}
+                      onChange={(e) => setDrawingStrokeWidth(parseInt(e.target.value, 10))}
+                      className="mx-3 flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                    <span className="font-mono text-xs text-slate-200">{drawingStrokeWidth}</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -357,7 +401,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
 
         <button
           onClick={() => togglePanel('tokens')}
-          title="Token Hub & Character Library"
+          title="Players & Token Hub"
           className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
             activePanel === 'tokens'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'

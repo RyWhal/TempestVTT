@@ -78,7 +78,11 @@ export const PlaySession: React.FC = () => {
   return (
     <div className="tempest-shell flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       {/* Top Floating Glassmorphic Pill Header */}
-      <header className="absolute top-3 left-3 right-3 z-30 flex h-12 items-center justify-between pointer-events-none">
+      <header
+        className={`absolute top-3 left-3 z-30 flex h-12 items-center justify-between pointer-events-none transition-all ${
+          activePanel !== null ? 'right-[336px] 2xl:right-[400px]' : 'right-3'
+        }`}
+      >
         {/* Left Title & Map Selector */}
         <div className="flex items-center gap-2 pointer-events-auto">
           <div className="flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-3 py-1.5 backdrop-blur-md shadow-xl">
@@ -91,20 +95,29 @@ export const PlaySession: React.FC = () => {
             </span>
           </div>
 
-          {/* Active Map Dropdown Pill */}
+          {/* Active Map Pill (Dropdown for GM only) */}
           <div className="relative">
-            <button
-              onClick={() => setShowMapDropdown((prev) => !prev)}
-              className="flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-md shadow-xl hover:bg-slate-900"
-            >
-              <MapIcon className="h-3.5 w-3.5 text-blue-400" />
-              <span className="font-medium truncate max-w-[120px]">
-                {activeMap ? activeMap.name : 'Select Map'}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-            </button>
+            {isGM ? (
+              <button
+                onClick={() => setShowMapDropdown((prev) => !prev)}
+                className="flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-md shadow-xl hover:bg-slate-900"
+              >
+                <MapIcon className="h-3.5 w-3.5 text-blue-400" />
+                <span className="font-medium truncate max-w-[120px]">
+                  {activeMap ? activeMap.name : 'Select Map'}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/90 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-md shadow-xl">
+                <MapIcon className="h-3.5 w-3.5 text-blue-400" />
+                <span className="font-medium truncate max-w-[120px]">
+                  {activeMap ? activeMap.name : 'No Map Active'}
+                </span>
+              </div>
+            )}
 
-            {showMapDropdown && (
+            {isGM && showMapDropdown && (
               <div className="absolute top-10 left-0 z-40 w-48 rounded-xl border border-slate-800 bg-slate-950/95 p-1.5 shadow-2xl backdrop-blur-xl">
                 <div className="px-2 py-1 text-[10px] font-semibold uppercase text-slate-500">
                   Battlemaps
