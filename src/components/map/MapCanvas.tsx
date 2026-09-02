@@ -1111,22 +1111,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
                   currentStroke={isPainting ? currentFogStroke : []}
                   currentBrushSize={getFogBrushPixelSize(fogBrushSize)}
                   currentMode={fogToolMode}
-                />
-              </Layer>
-            )}
-
-            {/* Rectangle selection preview for fog */}
-            {fogToolMode && fogToolShape === 'rectangle' && rectStart && rectEnd && (
-              <Layer listening={false} hitGraphEnabled={false}>
-                <Rect
-                  x={Math.min(rectStart.x, rectEnd.x)}
-                  y={Math.min(rectStart.y, rectEnd.y)}
-                  width={Math.abs(rectEnd.x - rectStart.x)}
-                  height={Math.abs(rectEnd.y - rectStart.y)}
-                  stroke={fogToolMode === 'reveal' ? '#00ff00' : '#ff0000'}
-                  strokeWidth={2 / viewportScale}
-                  dash={[10 / viewportScale, 5 / viewportScale]}
-                  fill={fogToolMode === 'reveal' ? 'rgba(0,255,0,0.2)' : 'rgba(255,0,0,0.2)'}
+                  rectStart={rectStart}
+                  rectEnd={rectEnd}
+                  fogToolShape={fogToolShape}
                 />
               </Layer>
             )}

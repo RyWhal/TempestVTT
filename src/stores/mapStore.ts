@@ -54,7 +54,7 @@ interface MapState {
 
   // Fog tool state (GM only)
   fogToolMode: 'reveal' | 'hide' | null;
-  fogBrushSize: 'small' | 'medium' | 'large';
+  fogBrushSize: number | 'small' | 'medium' | 'large';
   fogToolShape: 'brush' | 'rectangle';
 
   // Drawing state
@@ -120,7 +120,7 @@ interface MapState {
 
   // Actions - Fog tools
   setFogToolMode: (mode: 'reveal' | 'hide' | null) => void;
-  setFogBrushSize: (size: 'small' | 'medium' | 'large') => void;
+  setFogBrushSize: (size: number | 'small' | 'medium' | 'large') => void;
   setFogToolShape: (shape: 'brush' | 'rectangle') => void;
   addFogRegion: (mapId: string, region: FogRegion) => void;
   clearFog: (mapId: string) => void;
@@ -718,6 +718,7 @@ export const useSelectedToken = () =>
   }));
 
 // Get fog brush size in pixels
-export const getFogBrushPixelSize = (size: 'small' | 'medium' | 'large'): number => {
-  return FOG_BRUSH_SIZES[size];
+export const getFogBrushPixelSize = (size: number | 'small' | 'medium' | 'large'): number => {
+  if (typeof size === 'number') return size;
+  return FOG_BRUSH_SIZES[size] || 60;
 };

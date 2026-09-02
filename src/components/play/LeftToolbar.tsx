@@ -61,8 +61,13 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
 
   const fogToolMode = useMapStore((state) => state.fogToolMode);
   const setFogToolMode = useMapStore((state) => state.setFogToolMode);
+  const fogBrushSize = useMapStore((state) => state.fogBrushSize);
+  const setFogBrushSize = useMapStore((state) => state.setFogBrushSize);
+  const fogToolShape = useMapStore((state) => state.fogToolShape);
+  const setFogToolShape = useMapStore((state) => state.setFogToolShape);
 
   const [showDrawMenu, setShowDrawMenu] = useState(false);
+  const [showFogMenu, setShowFogMenu] = useState(false);
   const [showFullEmojiGrid, setShowFullEmojiGrid] = useState(false);
 
   const isSelectActive = !drawingTool && !fogToolMode && !isMeasureMode && !isPingMode;
@@ -75,6 +80,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
     setDrawingTool(null);
     setFogToolMode(null);
     setShowDrawMenu(false);
+    setShowFogMenu(false);
   };
 
   const handleToggleMeasure = () => {
@@ -85,6 +91,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       setDrawingTool(null);
       setFogToolMode(null);
       setShowDrawMenu(false);
+      setShowFogMenu(false);
     }
   };
 
@@ -96,6 +103,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       setDrawingTool(null);
       setFogToolMode(null);
       setShowDrawMenu(false);
+      setShowFogMenu(false);
     }
   };
 
@@ -107,6 +115,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       onToggleMeasureMode?.(false);
       onTogglePingMode?.(false);
       setFogToolMode(null);
+      setShowFogMenu(false);
       setDrawingTool('free');
       setShowDrawMenu(true);
     }
@@ -114,7 +123,8 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
 
   const handleToggleFog = () => {
     if (!isGM) return;
-    if (isFogActive) {
+    if (isFogActive && showFogMenu) {
+      setShowFogMenu(false);
       setFogToolMode(null);
     } else {
       onToggleMeasureMode?.(false);
@@ -122,6 +132,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       setDrawingTool(null);
       setShowDrawMenu(false);
       setFogToolMode('reveal');
+      setShowFogMenu(true);
     }
   };
 
@@ -338,17 +349,119 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
         </div>
 
         {isGM && (
-          <button
-            onClick={handleToggleFog}
-            title="Fog of War Tools"
-            className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-              isFogActive
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-            }`}
-          >
-            <Eye className="h-4 w-4" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={handleToggleFog}
+              title="Fog of War Tools & Options"
+              className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
+                isFogActive
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+              }`}
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+
+            {/* Floating Fog Options Popover */}
+            {showFogMenu && (
+              <div className="absolute left-12 top-0 z-50 w-72 rounded-2xl border border-slate-800/90 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur-xl text-slate-100 animate-in fade-in slide-in-from-left-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
+                    Fog of War Options
+                  </span>
+                  <button
+                    onClick={() => setShowFogMenu(false)}
+                    className="text-[11px] text-slate-500 hover:text-slate-300"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {/* Requirement 1: Add vs Remove Toggle */}
+                <div className="mt-2.5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-1">
+                    Action Mode
+                  </span>
+                  <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 p-1">
+                    <button
+                      onClick={() => setFogToolMode('reveal')}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                        fogToolMode === 'reveal'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <Eye className="h-3.5 w-3.5" /> Reveal (Remove)
+                    </button>
+                    <button
+                      onClick={() => setFogToolMode('hide')}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                        fogToolMode === 'hide'
+                          ? 'bg-rose-600 text-white shadow-md'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <Eraser className="h-3.5 w-3.5" /> Hide (Add Fog)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Requirement 2 & 3: Tool Shape Selector */}
+                <div className="mt-3">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-1">
+                    Tool Shape
+                  </span>
+                  <div className="flex items-center justify-between gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 p-1">
+                    <button
+                      onClick={() => setFogToolShape('brush')}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                        fogToolShape === 'brush'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Freehand Brush
+                    </button>
+                    <button
+                      onClick={() => setFogToolShape('rectangle')}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+                        fogToolShape === 'rectangle'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <Square className="h-3.5 w-3.5" /> Drag Rectangle
+                    </button>
+                  </div>
+                </div>
+
+                {/* Requirement 2: Adjustable Brush Size Slider */}
+                {fogToolShape === 'brush' && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase">
+                        Brush Size
+                      </span>
+                      <span className="font-mono text-xs text-slate-200">
+                        {typeof fogBrushSize === 'number' ? fogBrushSize : fogBrushSize === 'small' ? 30 : fogBrushSize === 'medium' ? 60 : 120}px
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center">
+                      <input
+                        type="range"
+                        min={10}
+                        max={200}
+                        step={5}
+                        value={typeof fogBrushSize === 'number' ? fogBrushSize : fogBrushSize === 'small' ? 30 : fogBrushSize === 'medium' ? 60 : 120}
+                        onChange={(e) => setFogBrushSize(parseInt(e.target.value, 10))}
+                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         <button
