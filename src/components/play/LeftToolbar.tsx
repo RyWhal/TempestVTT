@@ -4,6 +4,7 @@ import {
   Ruler,
   Pencil,
   Eye,
+  EyeOff,
   Radio,
   Swords,
   Users,
@@ -59,12 +60,15 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   const drawingEmoji = useMapStore((state) => state.drawingEmoji);
   const setDrawingEmoji = useMapStore((state) => state.setDrawingEmoji);
 
+  const activeMap = useMapStore((state) => state.activeMap);
   const fogToolMode = useMapStore((state) => state.fogToolMode);
   const setFogToolMode = useMapStore((state) => state.setFogToolMode);
   const fogBrushSize = useMapStore((state) => state.fogBrushSize);
   const setFogBrushSize = useMapStore((state) => state.setFogBrushSize);
   const fogToolShape = useMapStore((state) => state.fogToolShape);
   const setFogToolShape = useMapStore((state) => state.setFogToolShape);
+
+  const isFogDisabledOnMap = Boolean(activeMap && !activeMap.fogEnabled);
 
   const [showDrawMenu, setShowDrawMenu] = useState(false);
   const [showFogMenu, setShowFogMenu] = useState(false);
@@ -122,7 +126,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   };
 
   const handleToggleFog = () => {
-    if (!isGM) return;
+    if (!isGM || isFogDisabledOnMap) return;
     if (isFogActive && showFogMenu) {
       setShowFogMenu(false);
       setFogToolMode(null);
@@ -352,18 +356,25 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
           <div className="relative">
             <button
               onClick={handleToggleFog}
-              title="Fog of War Tools & Options"
+              disabled={isFogDisabledOnMap}
+              title={
+                isFogDisabledOnMap
+                  ? 'Fog of war is disabled in map settings'
+                  : 'Fog of War Tools & Options'
+              }
               className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-                isFogActive
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                  : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                isFogDisabledOnMap
+                  ? 'opacity-40 cursor-not-allowed text-slate-600 bg-slate-900/40 border border-slate-800/40'
+                  : isFogActive
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
               }`}
             >
               <Eye className="h-4 w-4" />
             </button>
 
             {/* Floating Fog Options Popover */}
-            {showFogMenu && (
+            {showFogMenu && !isFogDisabledOnMap && (
               <div className="absolute left-12 top-0 z-50 w-72 rounded-2xl border border-slate-800/90 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur-xl text-slate-100 animate-in fade-in slide-in-from-left-2">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
@@ -391,7 +402,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
                           : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                       }`}
                     >
-                      <Eye className="h-3.5 w-3.5" /> Reveal (Remove)
+                      <Eye className="h-3.5 w-3.5" /> Remove Fog
                     </button>
                     <button
                       onClick={() => setFogToolMode('hide')}
@@ -401,7 +412,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
                           : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                       }`}
                     >
-                      <Eraser className="h-3.5 w-3.5" /> Hide (Add Fog)
+                      <EyeOff className="h-3.5 w-3.5" /> Add Fog
                     </button>
                   </div>
                 </div>
