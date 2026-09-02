@@ -142,9 +142,9 @@ export const DicePanel: React.FC = () => {
   const sortedRolls = useMemo(() => [...diceRolls].reverse(), [diceRolls]);
 
   return (
-    <div className="h-full flex flex-col bg-slate-950/80 backdrop-blur-2xl text-slate-100">
+    <div className="h-full flex flex-col bg-transparent text-slate-100">
       {/* Iconographic dice controls header */}
-      <div className="p-3 border-b border-slate-800/80 space-y-2.5">
+      <div className="p-3 border-b border-white/10 space-y-2.5">
         {/* Dice Shape Selector Row */}
         <div className="grid grid-cols-6 gap-1.5">
           {DICE_TYPES.map((sides) => {
@@ -155,16 +155,16 @@ export const DicePanel: React.FC = () => {
                 key={sides}
                 onClick={() => addDie(sides)}
                 title={`Add d${sides}`}
-                className={`relative flex flex-col items-center justify-center py-2 px-1 rounded-2xl border transition-all ${
+                aria-label={`d${sides}`}
+                className={`relative flex items-center justify-center p-2 rounded-2xl border transition-all ${
                   isActive
-                    ? 'border-blue-500/80 bg-blue-600/25 text-blue-300 shadow-md shadow-blue-500/10'
-                    : 'border-slate-800/80 bg-slate-900/60 text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                    ? 'border-blue-500/80 bg-blue-600/30 text-blue-300 shadow-lg shadow-blue-500/20'
+                    : 'border-white/10 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60 hover:text-white'
                 }`}
               >
-                <DiceIcon sides={sides} className="h-6 w-6 mb-0.5" />
-                <span className="text-[10px] font-mono font-bold leading-none">d{sides}</span>
+                <DiceIcon sides={sides} className="h-8 w-8" />
                 {isActive && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 font-mono text-[9px] font-extrabold text-white shadow-md">
+                  <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-blue-600 font-mono text-[10px] font-extrabold text-white shadow-md">
                     {count}
                   </span>
                 )}

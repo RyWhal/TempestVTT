@@ -134,7 +134,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="flex h-full w-full flex-col bg-slate-900/95 text-slate-100 backdrop-blur-lg">
+    <div className="flex h-full w-full flex-col bg-transparent text-slate-100">
       {/* Panel Header */}
       <div className="flex items-center justify-between border-b border-slate-800 p-4">
         <div>

@@ -74,14 +74,10 @@ export const PlaySession: React.FC = () => {
   return (
     <div className="tempest-shell flex h-screen w-screen flex-col overflow-hidden bg-slate-950 font-sans">
       {/* Top Floating Glassmorphic Pill Header */}
-      <header
-        className={`absolute top-3 right-3 z-30 flex h-12 items-center justify-end pointer-events-none transition-all ${
-          activePanel !== null ? 'right-[336px] 2xl:right-[400px]' : 'right-3'
-        }`}
-      >
+      <header className="absolute top-3 right-3 z-30 flex h-10 items-center justify-end pointer-events-none">
         {/* Right Status Controls */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          <div className="flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-950/80 px-3.5 py-1.5 backdrop-blur-2xl shadow-2xl">
+          <div className="flex items-center gap-2.5 rounded-full border border-white/15 bg-slate-950/50 px-3.5 py-1.5 backdrop-blur-2xl shadow-2xl">
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${
                 connectionStatus === 'connected'
@@ -134,8 +130,14 @@ export const PlaySession: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Tabletop Canvas View & Floating Left Toolbar */}
-      <div className="relative flex flex-1 overflow-hidden">
+      {/* Main Full-Screen Tabletop Canvas View & Floating Overlays */}
+      <div className="relative flex-1 overflow-hidden">
+        {/* Map Canvas - Full Edge-to-Edge Coverage */}
+        <div className="absolute inset-0 z-0">
+          <MapCanvas isMeasureMode={isMeasureMode} isPingMode={isPingMode} />
+        </div>
+
+        {/* Floating Left Toolbar */}
         <LeftToolbar
           activePanel={activePanel}
           onSelectPanel={setActivePanel}
@@ -145,13 +147,9 @@ export const PlaySession: React.FC = () => {
           onTogglePingMode={setIsPingMode}
         />
 
-        <section className="relative flex-1 overflow-hidden">
-          <MapCanvas isMeasureMode={isMeasureMode} isPingMode={isPingMode} />
-        </section>
-
-        {/* Collapsible Right Tool Context Panel */}
+        {/* Collapsible Floating Right Liquid Glass Drawer */}
         {activePanel !== null && (
-          <aside className={`flex ${DRAWER_WIDTH_CLASS} flex-shrink-0 flex-col border-l border-slate-700/60 bg-slate-950/80 backdrop-blur-2xl shadow-2xl z-20`}>
+          <aside className={`absolute right-3 top-14 bottom-3 z-20 ${DRAWER_WIDTH_CLASS} flex flex-col rounded-3xl border border-white/15 bg-slate-950/50 backdrop-blur-2xl shadow-2xl overflow-hidden text-slate-100`}>
             <div className="flex-1 overflow-hidden">
               {activePanel === 'tokens' && (
                 <TokenHubPanel onClose={() => setActivePanel(null)} />
@@ -163,7 +161,7 @@ export const PlaySession: React.FC = () => {
               )}
               {activePanel === 'maps' && isGM && (
                 <div className="flex h-full flex-col">
-                  <div className="flex items-center justify-between border-b border-slate-800 p-3">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 p-3">
                     <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                       <MapIcon className="h-4 w-4 text-blue-400" /> Map Manager
                     </h2>
@@ -191,7 +189,7 @@ export const PlaySession: React.FC = () => {
               )}
               {activePanel === 'settings' && isGM && (
                 <div className="flex h-full flex-col">
-                  <div className="flex items-center justify-between border-b border-slate-800 p-3">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 p-3">
                     <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                       <Settings className="h-4 w-4 text-blue-400" /> GM Settings
                     </h2>

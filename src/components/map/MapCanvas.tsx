@@ -1223,22 +1223,22 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
 
       {/* Drawing tool indicator */}
       {drawingTool && canDrawOnMap && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-sm rounded-lg px-4 py-2 border border-slate-600">
-          <span className="text-slate-100">
-            Drawing Tool: <span className="font-semibold capitalize">{drawingTool}</span>
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 rounded-full border border-white/15 bg-slate-950/50 px-4 py-1.5 backdrop-blur-2xl shadow-2xl text-slate-100 text-xs font-semibold">
+          <span>
+            Drawing Tool: <span className="font-semibold capitalize text-blue-400">{drawingTool}</span>
           </span>
         </div>
       )}
 
       {/* Map controls overlay - Bottom left */}
       {activeMap && (
-        <div className="absolute bottom-4 left-4 flex flex-col gap-2">
+        <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-30">
           {/* Zoom controls */}
-          <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg border border-slate-700 p-2">
+          <div className="bg-slate-950/50 backdrop-blur-2xl rounded-2xl border border-white/15 p-2.5 shadow-2xl">
             <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={handleZoomOut}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
+                className="p-1.5 hover:bg-slate-700/60 rounded-xl transition-colors text-slate-300 hover:text-slate-100"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-4 h-4" />
@@ -1251,12 +1251,12 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
                 max="500"
                 value={zoomPercent}
                 onChange={(e) => zoomTo(parseInt(e.target.value) / 100)}
-                className="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-tempest-400"
+                className="w-24 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
               />
 
               <button
                 onClick={handleZoomIn}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
+                className="p-1.5 hover:bg-slate-700/60 rounded-xl transition-colors text-slate-300 hover:text-slate-100"
                 title="Zoom In"
               >
                 <ZoomIn className="w-4 h-4" />
@@ -1267,7 +1267,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
               <span className="text-xs text-slate-400 font-mono">{zoomPercent}%</span>
               <button
                 onClick={handleFitToView}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
+                className="p-1.5 hover:bg-slate-700/60 rounded-xl transition-colors text-slate-300 hover:text-slate-100"
                 title="Fit to View"
               >
                 <Maximize className="w-4 h-4" />
@@ -1275,7 +1275,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
             </div>
           </div>
           {selectedNpc && canResizeNpc && selectedNpcSizeIndex >= 0 && (
-            <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg border border-slate-700 p-2">
+            <div className="bg-slate-950/50 backdrop-blur-2xl rounded-2xl border border-white/15 p-2.5 shadow-2xl">
               <div className="text-xs text-slate-400 mb-2">
                 NPC Size:{' '}
                 <span className="text-slate-200">{selectedNpc.displayName || 'NPC'}</span>

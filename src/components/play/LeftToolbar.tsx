@@ -149,7 +149,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   };
 
   return (
-    <div className="absolute left-3 top-16 z-30 flex flex-col items-center gap-3 py-2 px-1.5 rounded-2xl border border-slate-700/60 bg-slate-950/80 backdrop-blur-2xl shadow-2xl">
+    <div className="absolute left-3 top-14 z-30 flex flex-col items-center gap-3 py-2 px-1.5 rounded-3xl border border-white/15 bg-slate-950/50 backdrop-blur-2xl shadow-2xl">
       {/* Top Group: Canvas Interaction Tools */}
       <div className="flex flex-col items-center gap-1.5 border-b border-slate-800/80 pb-2.5">
         <button
@@ -192,7 +192,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
 
           {/* Floating Drawing Options Popover */}
           {showDrawMenu && (
-            <div className="absolute left-12 top-0 z-50 w-72 rounded-2xl border border-slate-800/90 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur-xl text-slate-100 animate-in fade-in slide-in-from-left-2">
+            <div className="absolute left-14 top-0 z-50 w-72 rounded-3xl border border-white/15 bg-slate-950/60 p-4 shadow-2xl backdrop-blur-2xl text-slate-100 animate-in fade-in slide-in-from-left-2">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
                   Drawing Tool
@@ -375,7 +375,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
 
             {/* Floating Fog Options Popover */}
             {showFogMenu && !isFogDisabledOnMap && (
-              <div className="absolute left-12 top-0 z-50 w-72 rounded-2xl border border-slate-800/90 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur-xl text-slate-100 animate-in fade-in slide-in-from-left-2">
+              <div className="absolute left-14 top-0 z-50 w-72 rounded-3xl border border-white/15 bg-slate-950/60 p-4 shadow-2xl backdrop-blur-2xl text-slate-100 animate-in fade-in slide-in-from-left-2">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                   <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
                     Fog of War Options
