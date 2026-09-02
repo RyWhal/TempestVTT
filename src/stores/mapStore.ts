@@ -11,7 +11,11 @@ import type {
   DrawingShape,
   MapEffectTile,
   MapEffectType,
+  MapPing,
+  TokenSize,
 } from '../types';
+import { playPingSound } from '../lib/audio';
+import { getTokenPixelSize } from '../lib/tokenSizing';
 
 interface MapState {
   // Maps
@@ -53,7 +57,7 @@ interface MapState {
 
   // Fog tool state (GM only)
   fogToolMode: 'reveal' | 'hide' | null;
-  fogBrushSize: 'small' | 'medium' | 'large';
+  fogBrushSize: number | 'small' | 'medium' | 'large';
   fogToolShape: 'brush' | 'rectangle';
 
   // Drawing state
@@ -68,6 +72,11 @@ interface MapState {
   effectPaintMode: boolean;
   effectType: MapEffectType;
 
+  // Map pings state
+  pings: MapPing[];
+  addPing: (ping: MapPing) => void;
+  removePing: (pingId: string) => void;
+
   // Actions - Maps
   setMaps: (maps: Map[]) => void;
   addMap: (map: Map) => void;
@@ -81,6 +90,7 @@ interface MapState {
   updateCharacter: (characterId: string, updates: Partial<Character>) => void;
   removeCharacter: (characterId: string) => void;
   moveCharacter: (characterId: string, x: number, y: number, mapId?: string) => void;
+  removeCharacterFromMap: (characterId: string, mapId?: string) => void;
 
   // Actions - NPC Templates
   setNPCTemplates: (templates: NPCTemplate[]) => void;
@@ -98,6 +108,8 @@ interface MapState {
   // Actions - Viewport
   setViewportScale: (scale: number) => void;
   setViewportPosition: (x: number, y: number) => void;
+  centerViewportOnToken: (id: string, type: 'character' | 'npc') => void;
+  getMapViewportCenter: () => { x: number; y: number };
   setStageSize: (width: number, height: number) => void;
   resetViewport: () => void;
   fitMapToView: () => void;
@@ -114,7 +126,7 @@ interface MapState {
 
   // Actions - Fog tools
   setFogToolMode: (mode: 'reveal' | 'hide' | null) => void;
-  setFogBrushSize: (size: 'small' | 'medium' | 'large') => void;
+  setFogBrushSize: (size: number | 'small' | 'medium' | 'large') => void;
   setFogToolShape: (shape: 'brush' | 'rectangle') => void;
   addFogRegion: (mapId: string, region: FogRegion) => void;
   clearFog: (mapId: string) => void;
@@ -141,6 +153,10 @@ interface MapState {
   addHandout: (handout: Handout) => void;
   updateHandout: (handoutId: string, updates: Partial<Handout>) => void;
   removeHandout: (handoutId: string) => void;
+
+  // Measuring tools
+  measureShape: 'line' | 'radius' | 'cone';
+  setMeasureShape: (shape: 'line' | 'radius' | 'cone') => void;
 
   // Clear all state
   clearMapState: () => void;
@@ -180,6 +196,22 @@ export const useMapStore = create<MapState>()((set, get) => ({
   drawingEmojiScale: 1,
   effectPaintMode: false,
   effectType: 'fire',
+  pings: [],
+  measureShape: 'line',
+
+  setMeasureShape: (shape) => set({ measureShape: shape }),
+
+  addPing: (ping) => {
+    playPingSound();
+    set((state) => ({
+      pings: [...state.pings.filter((p) => p.id !== ping.id).slice(-10), ping],
+    }));
+  },
+
+  removePing: (pingId) =>
+    set((state) => ({
+      pings: state.pings.filter((p) => p.id !== pingId),
+    })),
 
   // Map actions
   setMaps: (maps) => set({ maps }),
@@ -243,6 +275,9 @@ export const useMapStore = create<MapState>()((set, get) => ({
         drawingData: map.drawingData ?? [],
         characters,
         npcInstances,
+        selectedTokenId: null,
+        selectedTokenType: null,
+        selectedTokenKeys: [],
       };
     });
     // Auto-fit map to view when a new map is activated
@@ -321,6 +356,27 @@ export const useMapStore = create<MapState>()((set, get) => ({
                 },
               }
             : state.tokenPositionsByMap,
+      };
+    }),
+
+  removeCharacterFromMap: (characterId, mapId) =>
+    set((state) => {
+      const targetMapId = mapId ?? state.activeMap?.id;
+      if (!targetMapId) return {};
+      const currentPositions = state.tokenPositionsByMap[targetMapId];
+      if (!currentPositions) return {};
+
+      const nextChars = { ...currentPositions.characters };
+      delete nextChars[characterId];
+
+      return {
+        tokenPositionsByMap: {
+          ...state.tokenPositionsByMap,
+          [targetMapId]: {
+            ...currentPositions,
+            characters: nextChars,
+          },
+        },
       };
     }),
 
@@ -424,6 +480,86 @@ export const useMapStore = create<MapState>()((set, get) => ({
     set({ viewportScale: Math.max(0.1, Math.min(5, scale)) }),
 
   setViewportPosition: (x, y) => set({ viewportX: x, viewportY: y }),
+
+  centerViewportOnToken: (id, type) => {
+    const {
+      stageWidth,
+      stageHeight,
+      viewportScale,
+      activeMap,
+      tokenPositionsByMap,
+      characters,
+      npcInstances,
+    } = get();
+    if (!activeMap) return;
+
+    const width = stageWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+    const height = stageHeight || (typeof window !== 'undefined' ? window.innerHeight : 800);
+    const scale = viewportScale || 1;
+
+    let posX: number | null = null;
+    let posY: number | null = null;
+    let tokenSize: TokenSize = 'medium';
+
+    const mapPos = tokenPositionsByMap[activeMap.id];
+    if (type === 'character') {
+      const char = characters.find((c) => c.id === id);
+      if (char) {
+        posX = mapPos?.characters[id]?.x ?? char.positionX;
+        posY = mapPos?.characters[id]?.y ?? char.positionY;
+        tokenSize = char.size || 'medium';
+      }
+    } else {
+      const inst = npcInstances.find((i) => i.id === id);
+      if (inst) {
+        posX = mapPos?.npcs[id]?.x ?? inst.positionX;
+        posY = mapPos?.npcs[id]?.y ?? inst.positionY;
+        tokenSize = inst.size || 'medium';
+      }
+    }
+
+    if (posX === null || posY === null || !Number.isFinite(posX) || !Number.isFinite(posY)) {
+      return;
+    }
+
+    // Calculate token center based on grid cell size and token scale
+    const gridCellSize = activeMap.gridCellSize || 50;
+    const pixelSize = getTokenPixelSize({
+      gridCellSize,
+      tokenSizeOverrideEnabled: activeMap.tokenSizeOverrideEnabled ?? false,
+      mediumTokenSizePx: activeMap.mediumTokenSizePx ?? null,
+      size: tokenSize,
+    });
+    const tokenRadius = pixelSize / 2;
+
+    const tokenCenterX = posX + tokenRadius;
+    const tokenCenterY = posY + tokenRadius;
+
+    const targetX = width / 2 - tokenCenterX * scale;
+    const targetY = height / 2 - tokenCenterY * scale;
+    set({ viewportX: targetX, viewportY: targetY });
+  },
+
+  getMapViewportCenter: () => {
+    const { stageWidth, stageHeight, viewportScale, viewportX, viewportY, activeMap } = get();
+    const width = stageWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+    const height = stageHeight || (typeof window !== 'undefined' ? window.innerHeight : 800);
+    const scale = viewportScale || 1;
+
+    let mapX = (width / 2 - viewportX) / scale;
+    let mapY = (height / 2 - viewportY) / scale;
+
+    if (activeMap) {
+      const buffer = 60;
+      const mapW = activeMap.width || 2000;
+      const mapH = activeMap.height || 2000;
+
+      mapX = Math.max(buffer, Math.min(mapW - buffer, mapX));
+      mapY = Math.max(buffer, Math.min(mapH - buffer, mapY));
+    }
+
+    return { x: Math.round(mapX), y: Math.round(mapY) };
+  },
 
   setStageSize: (width, height) => set({ stageWidth: width, stageHeight: height }),
 
@@ -701,6 +837,7 @@ export const useSelectedToken = () =>
   }));
 
 // Get fog brush size in pixels
-export const getFogBrushPixelSize = (size: 'small' | 'medium' | 'large'): number => {
-  return FOG_BRUSH_SIZES[size];
+export const getFogBrushPixelSize = (size: number | 'small' | 'medium' | 'large'): number => {
+  if (typeof size === 'number') return size;
+  return FOG_BRUSH_SIZES[size] || 60;
 };

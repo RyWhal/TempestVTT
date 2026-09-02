@@ -1,28 +1,24 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle, Text, Group, Wedge } from 'react-konva';
 import useImage from 'use-image';
 import {
   ZoomIn,
   ZoomOut,
   Maximize,
-  ChevronUp,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Move,
 } from 'lucide-react';
 import { useMapStore, getFogBrushPixelSize } from '../../stores/mapStore';
 import { useSessionStore, useIsGM } from '../../stores/sessionStore';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useNPCs } from '../../hooks/useNPCs';
 import { useMap } from '../../hooks/useMap';
-import { broadcastTokenLock, broadcastTokenUnlock } from '../../lib/tokenBroadcast';
+import { broadcastTokenLock, broadcastTokenUnlock, broadcastMapPing } from '../../lib/tokenBroadcast';
 import { Token } from './Token';
+import { TokenPopover } from './TokenPopover';
 import { GridOverlay } from './GridOverlay';
 import { FogLayer } from './FogLayer';
 import { DrawingLayer } from './DrawingLayer';
 import { MapEffectsLayer } from './MapEffectsLayer';
-import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile } from '../../types';
+import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile, MapPing } from '../../types';
 import { isDrawingColor } from '../../types';
 import { nanoid } from 'nanoid';
 
@@ -35,10 +31,96 @@ const TOKEN_SIZE_ORDER: TokenSize[] = [
   'gargantuan',
 ];
 
+interface PingMarkerProps {
+  ping: MapPing;
+  onComplete: (id: string) => void;
+}
 
-export const MapCanvas: React.FC = () => {
+const PingMarker: React.FC<PingMarkerProps> = ({ ping, onComplete }) => {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const startTime = Date.now();
+    const duration = 3500;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= duration) {
+        clearInterval(interval);
+        onComplete(ping.id);
+      } else {
+        setFrame(elapsed);
+      }
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, [ping.id, onComplete]);
+
+  const progress = Math.min(1, frame / 3500);
+
+  // Outer ripple 1
+  const ripple1Radius = 10 + progress * 80;
+  const ripple1Opacity = Math.max(0, 1 - progress);
+
+  // Staggered ripple 2
+  const progress2 = (progress + 0.35) % 1;
+  const ripple2Radius = 10 + progress2 * 80;
+  const ripple2Opacity = progress > 0.15 ? Math.max(0, 1 - progress2) : 0;
+
+  // Blinking inner red dot
+  const pulse = Math.abs(Math.sin(frame * 0.012));
+  const dotRadius = 9 + pulse * 4;
+  const dotOpacity = 0.85 + pulse * 0.15;
+
+  return (
+    <Group x={ping.x} y={ping.y}>
+      <Circle
+        radius={ripple1Radius}
+        stroke="#ef4444"
+        strokeWidth={3}
+        opacity={ripple1Opacity * 0.9}
+        listening={false}
+      />
+      <Circle
+        radius={ripple2Radius}
+        stroke="#f87171"
+        strokeWidth={2}
+        opacity={ripple2Opacity * 0.7}
+        listening={false}
+      />
+      <Circle
+        radius={18}
+        fill="#ef4444"
+        opacity={0.35 * dotOpacity}
+        listening={false}
+      />
+      <Circle
+        radius={dotRadius}
+        fill="#ef4444"
+        stroke="#ffffff"
+        strokeWidth={2.5}
+        shadowColor="#ef4444"
+        shadowBlur={18}
+        shadowOpacity={1}
+        opacity={dotOpacity}
+        listening={false}
+      />
+    </Group>
+  );
+};
+
+interface MapCanvasProps {
+  isMeasureMode?: boolean;
+  isPingMode?: boolean;
+}
+
+export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isPingMode = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
+
+  const [rulerStart, setRulerStart] = useState<{ x: number; y: number } | null>(null);
+  const [rulerEnd, setRulerEnd] = useState<{ x: number; y: number } | null>(null);
+  const [isMeasuring, setIsMeasuring] = useState(false);
 
   const activeMap = useMapStore((state) => state.activeMap);
   const {
@@ -71,18 +153,39 @@ export const MapCanvas: React.FC = () => {
     tokenLocks,
     setTokenLock,
     clearTokenLock,
+    pings,
+    addPing,
+    removePing,
     fitMapToView,
-    panBy,
     zoomTo,
   } = useMapStore();
 
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
   const isGM = useIsGM();
+  const tokenPositionsByMap = useMapStore((state) => state.tokenPositionsByMap);
+  const measureShape = useMapStore((state) => state.measureShape);
   const { characters, moveCharacterPosition, updateCharacterDetails } = useCharacters();
   const { currentMapNPCs, moveNPCPosition, updateNPCInstanceDetails } = useNPCs();
   const { updateFogData, updateDrawingData, updateEffectData } = useMap();
   const canDrawOnMap = isGM || Boolean(session?.allowPlayersDrawings);
+
+  const placedCharacters = useMemo(() => {
+    if (!activeMap) return [];
+    const mapPositions = tokenPositionsByMap[activeMap.id]?.characters;
+    if (!mapPositions) return [];
+    return characters
+      .filter((char) => Boolean(mapPositions[char.id]))
+      .map((char) => ({
+        ...char,
+        positionX: mapPositions[char.id].x,
+        positionY: mapPositions[char.id].y,
+      }));
+  }, [activeMap, characters, tokenPositionsByMap]);
+
+  useEffect(() => {
+    clearSelection();
+  }, [activeMap?.id, clearSelection]);
 
   const [mapImage] = useImage(activeMap?.imageUrl || '');
   const [currentFogStroke, setCurrentFogStroke] = useState<{ x: number; y: number }[]>([]);
@@ -91,6 +194,7 @@ export const MapCanvas: React.FC = () => {
   const [rectEnd, setRectEnd] = useState<{ x: number; y: number } | null>(null);
   const [currentDrawing, setCurrentDrawing] = useState<DrawingRegion | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isErasing, setIsErasing] = useState(false);
   const [selectedTokenKeys, setSelectedTokenKeys] = useState<string[]>([]);
   const [groupDragStartPositions, setGroupDragStartPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [effectPulse, setEffectPulse] = useState(0);
@@ -145,6 +249,14 @@ export const MapCanvas: React.FC = () => {
       setIsDrawing(false);
     }
   }, [drawingTool, canDrawOnMap]);
+
+  useEffect(() => {
+    if (!isMeasureMode) {
+      setRulerStart(null);
+      setRulerEnd(null);
+      setIsMeasuring(false);
+    }
+  }, [isMeasureMode]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setEffectPulse((prev) => (prev + 1) % 100000), 40);
@@ -477,20 +589,53 @@ export const MapCanvas: React.FC = () => {
     return { minX, maxX, minY, maxY };
   }, []);
 
-  const handleDrawingMouseDown = useCallback(() => {
-    if (!drawingTool || !activeMap || !canDrawOnMap) return;
+  const eraseAtPoint = useCallback(
+    (mapPos: { x: number; y: number }) => {
+      if (!activeMap || !canDrawOnMap) return;
 
-    const stage = stageRef.current;
-    if (!stage) return;
+      const pointToSegmentDist = (
+        p: { x: number; y: number },
+        v: { x: number; y: number },
+        w: { x: number; y: number }
+      ) => {
+        const l2 = (w.x - v.x) ** 2 + (w.y - v.y) ** 2;
+        if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+      };
 
-    const pointer = stage.getPointerPosition();
-    const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
-
-    if (drawingTool === 'eraser') {
       const reversed = [...drawingData].reverse();
       const erased = reversed.find((region) => {
+        const hitRadius = Math.max(24, (region.strokeWidth || 3) * 4);
         const { minX, maxX, minY, maxY } = getDrawingBounds(region);
-        return mapPos.x >= minX && mapPos.x <= maxX && mapPos.y >= minY && mapPos.y <= maxY;
+
+        if (
+          mapPos.x < minX - hitRadius ||
+          mapPos.x > maxX + hitRadius ||
+          mapPos.y < minY - hitRadius ||
+          mapPos.y > maxY + hitRadius
+        ) {
+          return false;
+        }
+
+        if (region.shape === 'emoji') {
+          return true;
+        }
+
+        const points = region.points;
+        if (!points || points.length === 0) return false;
+        if (points.length === 1) {
+          return Math.hypot(mapPos.x - points[0].x, mapPos.y - points[0].y) <= hitRadius;
+        }
+
+        for (let i = 0; i < points.length - 1; i++) {
+          const dist = pointToSegmentDist(mapPos, points[i], points[i + 1]);
+          if (dist <= hitRadius) {
+            return true;
+          }
+        }
+        return false;
       });
 
       if (erased) {
@@ -498,54 +643,88 @@ export const MapCanvas: React.FC = () => {
         removeDrawingRegion(activeMap.id, erased.id);
         void updateDrawingData(activeMap.id, newDrawingData);
       }
-      return;
-    }
+    },
+    [activeMap, canDrawOnMap, drawingData, getDrawingBounds, removeDrawingRegion, updateDrawingData]
+  );
 
-    const newRegion = createDrawingRegion(drawingTool, mapPos);
-    if (!newRegion) return;
+  const handleDrawingMouseDown = useCallback(
+    (_e?: unknown) => {
+      if (!drawingTool || !activeMap || !canDrawOnMap) return;
 
-    setIsDrawing(true);
-    setCurrentDrawing(newRegion);
-  }, [
-    drawingTool,
-    activeMap,
-    canDrawOnMap,
-    drawingData,
-    clampToMapBounds,
-    screenToMap,
-    createDrawingRegion,
-    getDrawingBounds,
-    removeDrawingRegion,
-    updateDrawingData,
-  ]);
+      const stage = stageRef.current;
+      if (!stage) return;
 
-  const handleDrawingMouseMove = useCallback(() => {
-    if (!isDrawing || !currentDrawing || !canDrawOnMap) return;
+      const pointer = stage.getPointerPosition();
+      const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
 
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const pointer = stage.getPointerPosition();
-    const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
-
-    setCurrentDrawing((prev) => {
-      if (!prev) return prev;
-      if (prev.shape === 'free') {
-        const lastPoint = prev.points[prev.points.length - 1];
-        if (lastPoint && lastPoint.x === mapPos.x && lastPoint.y === mapPos.y) {
-          return prev;
-        }
-        return { ...prev, points: [...prev.points, mapPos] };
+      if (drawingTool === 'eraser') {
+        setIsErasing(true);
+        eraseAtPoint(mapPos);
+        return;
       }
 
-      const nextPoints = [...prev.points];
-      nextPoints[nextPoints.length - 1] = mapPos;
-      return { ...prev, points: nextPoints };
-    });
-  }, [isDrawing, currentDrawing, canDrawOnMap, clampToMapBounds, screenToMap]);
+      const newRegion = createDrawingRegion(drawingTool, mapPos);
+      if (!newRegion) return;
 
-  const handleDrawingMouseUp = useCallback(() => {
-    if (!isDrawing || !currentDrawing || !activeMap || !canDrawOnMap) return;
+      setIsDrawing(true);
+      setCurrentDrawing(newRegion);
+    },
+    [
+      drawingTool,
+      activeMap,
+      canDrawOnMap,
+      clampToMapBounds,
+      screenToMap,
+      createDrawingRegion,
+      eraseAtPoint,
+    ]
+  );
+
+  const handleDrawingMouseMove = useCallback(
+    (_e?: unknown) => {
+      if (!drawingTool || !canDrawOnMap) return;
+
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const pointer = stage.getPointerPosition();
+      const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
+
+      if (drawingTool === 'eraser') {
+        if (isErasing) {
+          eraseAtPoint(mapPos);
+        }
+        return;
+      }
+
+      if (!isDrawing || !currentDrawing) return;
+
+      setCurrentDrawing((prev) => {
+        if (!prev) return prev;
+        if (prev.shape === 'free') {
+          const lastPoint = prev.points[prev.points.length - 1];
+          if (lastPoint && lastPoint.x === mapPos.x && lastPoint.y === mapPos.y) {
+            return prev;
+          }
+          return { ...prev, points: [...prev.points, mapPos] };
+        }
+
+        const nextPoints = [...prev.points];
+        nextPoints[nextPoints.length - 1] = mapPos;
+        return { ...prev, points: nextPoints };
+      });
+    },
+    [drawingTool, canDrawOnMap, isErasing, eraseAtPoint, isDrawing, currentDrawing, clampToMapBounds, screenToMap]
+  );
+
+  const handleDrawingMouseUp = useCallback(
+    (_e?: unknown) => {
+      if (drawingTool === 'eraser') {
+        setIsErasing(false);
+        return;
+      }
+
+      if (!isDrawing || !currentDrawing || !activeMap || !canDrawOnMap) return;
 
     const start = currentDrawing.points[0];
     const end = currentDrawing.points[currentDrawing.points.length - 1];
@@ -575,7 +754,7 @@ export const MapCanvas: React.FC = () => {
   ]);
 
 
-  const handleEffectPaint = useCallback(() => {
+  const handleEffectPaint = useCallback((_e?: unknown) => {
     if (!effectPaintMode || !isGM || !activeMap?.effectsEnabled || !activeMap.gridEnabled) return;
 
     const stage = stageRef.current;
@@ -661,7 +840,7 @@ export const MapCanvas: React.FC = () => {
     [fogToolMode, fogToolShape, isGM, isPainting, rectStart, screenToMap, clampToMapBounds]
   );
 
-  const handleFogMouseUp = useCallback(async () => {
+  const handleFogMouseUp = useCallback(async (_e?: unknown) => {
     if (!fogToolMode || !isGM || !activeMap) return;
 
     const isWithinMap = (point: { x: number; y: number }) =>
@@ -736,12 +915,7 @@ export const MapCanvas: React.FC = () => {
     requestAnimationFrame(() => fitMapToView());
   };
 
-  // Pan controls
-  const panStep = 100;
-  const handlePanUp = () => panBy(0, panStep);
-  const handlePanDown = () => panBy(0, -panStep);
-  const handlePanLeft = () => panBy(panStep, 0);
-  const handlePanRight = () => panBy(-panStep, 0);
+
 
   const gridCellSize = activeMap?.gridCellSize ?? 0;
   const tokenSizeOverrideEnabled = activeMap?.tokenSizeOverrideEnabled ?? false;
@@ -760,7 +934,7 @@ export const MapCanvas: React.FC = () => {
     <div
       ref={containerRef}
       className="w-full h-full bg-slate-950 overflow-hidden relative"
-      style={{ cursor: effectPaintMode || fogToolMode || (canDrawOnMap && drawingTool) ? 'crosshair' : 'default' }}
+      style={{ cursor: isPingMode || effectPaintMode || fogToolMode || (canDrawOnMap && drawingTool) ? 'crosshair' : 'default' }}
     >
       {activeMap ? (
           <Stage
@@ -771,28 +945,77 @@ export const MapCanvas: React.FC = () => {
             scaleY={viewportScale}
             x={viewportX}
             y={viewportY}
-            draggable={!effectPaintMode && !fogToolMode && !(canDrawOnMap && drawingTool)}
+            draggable={!isPingMode && !isMeasureMode && !effectPaintMode && !fogToolMode && !(canDrawOnMap && drawingTool)}
             onWheel={handleWheel}
             onDragEnd={handleDragEnd}
             onClick={handleStageClick}
-            onMouseDown={
-              effectPaintMode
-                ? handleEffectPaint
-                : fogToolMode
-                  ? handleFogMouseDown
-                  : canDrawOnMap && drawingTool
-                    ? handleDrawingMouseDown
-                    : undefined
-            }
-            onMouseMove={
-              fogToolMode ? handleFogMouseMove : canDrawOnMap && drawingTool ? handleDrawingMouseMove : undefined
-            }
-            onMouseUp={
-              fogToolMode ? handleFogMouseUp : canDrawOnMap && drawingTool ? handleDrawingMouseUp : undefined
-            }
-            onMouseLeave={
-              fogToolMode ? handleFogMouseUp : canDrawOnMap && drawingTool ? handleDrawingMouseUp : undefined
-            }
+            onMouseDown={(e) => {
+              if (isPingMode) {
+                const stage = stageRef.current;
+                if (stage && activeMap) {
+                  const pointer = stage.getPointerPosition();
+                  const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
+                  const pingId = `ping_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                  const ping = {
+                    id: pingId,
+                    mapId: activeMap.id,
+                    x: mapPos.x,
+                    y: mapPos.y,
+                    createdAt: Date.now(),
+                  };
+                  addPing(ping);
+                  if (session?.id) {
+                    void broadcastMapPing({
+                      sessionId: session.id,
+                      mapId: activeMap.id,
+                      x: mapPos.x,
+                      y: mapPos.y,
+                      id: pingId,
+                    });
+                  }
+                }
+                return;
+              }
+              if (isMeasureMode) {
+                const stage = stageRef.current;
+                if (stage) {
+                  const pointer = stage.getPointerPosition();
+                  const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
+                  setRulerStart(mapPos);
+                  setRulerEnd(mapPos);
+                  setIsMeasuring(true);
+                }
+                return;
+              }
+              if (effectPaintMode) handleEffectPaint(e);
+              else if (fogToolMode) handleFogMouseDown(e);
+              else if (canDrawOnMap && drawingTool) handleDrawingMouseDown(e);
+            }}
+            onMouseMove={(e) => {
+              if (isMeasureMode && isMeasuring) {
+                const stage = stageRef.current;
+                if (stage) {
+                  const pointer = stage.getPointerPosition();
+                  const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
+                  setRulerEnd(mapPos);
+                }
+                return;
+              }
+              if (fogToolMode) handleFogMouseMove(e);
+              else if (canDrawOnMap && drawingTool) handleDrawingMouseMove(e);
+            }}
+            onMouseUp={(e) => {
+              if (isMeasureMode && isMeasuring) {
+                setIsMeasuring(false);
+                return;
+              }
+              if (fogToolMode) handleFogMouseUp(e);
+              else if (canDrawOnMap && drawingTool) handleDrawingMouseUp(e);
+            }}
+            onMouseLeave={(e) => {
+              if (fogToolMode) handleFogMouseUp(e);
+              else if (canDrawOnMap && drawingTool) handleDrawingMouseUp(e);
+            }}
           >
             {/* Map image layer */}
             <Layer key={`map-surface-${activeMap.id}`}>
@@ -834,7 +1057,7 @@ export const MapCanvas: React.FC = () => {
             )}
 
             {/* NPC tokens (below player tokens) */}
-            <Layer>
+            <Layer listening={!isMeasureMode && !isPingMode}>
               {currentMapNPCs
                 .filter((npc) => npc.isVisible || isGM)
                 .map((npc) => (
@@ -866,8 +1089,8 @@ export const MapCanvas: React.FC = () => {
 
             {/* Player character tokens */}
             {activeMap.showPlayerTokens && (
-              <Layer>
-                {characters.map((char) => (
+              <Layer listening={!isMeasureMode && !isPingMode}>
+                {placedCharacters.map((char) => (
                   <Token
                     key={char.id}
                     id={char.id}
@@ -907,25 +1130,178 @@ export const MapCanvas: React.FC = () => {
                   currentStroke={isPainting ? currentFogStroke : []}
                   currentBrushSize={getFogBrushPixelSize(fogBrushSize)}
                   currentMode={fogToolMode}
+                  rectStart={rectStart}
+                  rectEnd={rectEnd}
+                  fogToolShape={fogToolShape}
                 />
               </Layer>
             )}
 
-            {/* Rectangle selection preview for fog */}
-            {fogToolMode && fogToolShape === 'rectangle' && rectStart && rectEnd && (
+            {/* Distance / AoE Measurement Ruler Layer */}
+            {rulerStart && rulerEnd && (
               <Layer listening={false} hitGraphEnabled={false}>
-                <Rect
-                  x={Math.min(rectStart.x, rectEnd.x)}
-                  y={Math.min(rectStart.y, rectEnd.y)}
-                  width={Math.abs(rectEnd.x - rectStart.x)}
-                  height={Math.abs(rectEnd.y - rectStart.y)}
-                  stroke={fogToolMode === 'reveal' ? '#00ff00' : '#ff0000'}
-                  strokeWidth={2 / viewportScale}
-                  dash={[10 / viewportScale, 5 / viewportScale]}
-                  fill={fogToolMode === 'reveal' ? 'rgba(0,255,0,0.2)' : 'rgba(255,0,0,0.2)'}
-                />
+                {(() => {
+                  const dx = rulerEnd.x - rulerStart.x;
+                  const dy = rulerEnd.y - rulerStart.y;
+                  const distancePx = Math.hypot(dx, dy);
+                  const cellSize = activeMap?.gridCellSize || 50;
+                  const feet = Math.round((distancePx / cellSize) * 5);
+                  const squares = (distancePx / cellSize).toFixed(1);
+
+                  if (measureShape === 'radius') {
+                    const midX = (rulerStart.x + rulerEnd.x) / 2;
+                    const midY = (rulerStart.y + rulerEnd.y) / 2;
+
+                    return (
+                      <>
+                        <Circle
+                          x={rulerStart.x}
+                          y={rulerStart.y}
+                          radius={distancePx}
+                          fill="rgba(56, 189, 248, 0.25)"
+                          stroke="#38bdf8"
+                          strokeWidth={2 / viewportScale}
+                          dash={[8 / viewportScale, 4 / viewportScale]}
+                        />
+                        <Line
+                          points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
+                          stroke="#38bdf8"
+                          strokeWidth={3 / viewportScale}
+                          dash={[6 / viewportScale, 3 / viewportScale]}
+                        />
+                        <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
+                        <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
+
+                        <Group x={midX} y={midY - 18 / viewportScale}>
+                          <Rect
+                            x={-70 / viewportScale}
+                            y={-12 / viewportScale}
+                            width={140 / viewportScale}
+                            height={24 / viewportScale}
+                            fill="rgba(15, 23, 42, 0.9)"
+                            stroke="#38bdf8"
+                            strokeWidth={1 / viewportScale}
+                            cornerRadius={6 / viewportScale}
+                          />
+                          <Text
+                            x={-70 / viewportScale}
+                            y={-6 / viewportScale}
+                            width={140 / viewportScale}
+                            align="center"
+                            text={`Radius: ${feet} ft (${squares} sq)`}
+                            fontSize={11 / viewportScale}
+                            fontStyle="bold"
+                            fill="#38bdf8"
+                          />
+                        </Group>
+                      </>
+                    );
+                  }
+
+                  if (measureShape === 'cone') {
+                    const angleRad = Math.atan2(dy, dx);
+                    const angleDeg = (angleRad * 180) / Math.PI;
+                    const rotationDeg = angleDeg - 30;
+
+                    return (
+                      <>
+                        <Wedge
+                          x={rulerStart.x}
+                          y={rulerStart.y}
+                          radius={distancePx}
+                          angle={60}
+                          rotation={rotationDeg}
+                          fill="rgba(56, 189, 248, 0.25)"
+                          stroke="#38bdf8"
+                          strokeWidth={2 / viewportScale}
+                          dash={[8 / viewportScale, 4 / viewportScale]}
+                        />
+                        <Line
+                          points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
+                          stroke="#38bdf8"
+                          strokeWidth={3 / viewportScale}
+                          dash={[6 / viewportScale, 3 / viewportScale]}
+                        />
+                        <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
+                        <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
+
+                        <Group x={rulerEnd.x} y={rulerEnd.y - 18 / viewportScale}>
+                          <Rect
+                            x={-65 / viewportScale}
+                            y={-12 / viewportScale}
+                            width={130 / viewportScale}
+                            height={24 / viewportScale}
+                            fill="rgba(15, 23, 42, 0.9)"
+                            stroke="#38bdf8"
+                            strokeWidth={1 / viewportScale}
+                            cornerRadius={6 / viewportScale}
+                          />
+                          <Text
+                            x={-65 / viewportScale}
+                            y={-6 / viewportScale}
+                            width={130 / viewportScale}
+                            align="center"
+                            text={`Cone: ${feet} ft (${squares} sq)`}
+                            fontSize={11 / viewportScale}
+                            fontStyle="bold"
+                            fill="#38bdf8"
+                          />
+                        </Group>
+                      </>
+                    );
+                  }
+
+                  // Default Line measurement
+                  const midX = (rulerStart.x + rulerEnd.x) / 2;
+                  const midY = (rulerStart.y + rulerEnd.y) / 2;
+
+                  return (
+                    <>
+                      <Line
+                        points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
+                        stroke="#38bdf8"
+                        strokeWidth={4 / viewportScale}
+                        dash={[8 / viewportScale, 4 / viewportScale]}
+                      />
+                      <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
+                      <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
+
+                      <Group x={midX} y={midY - 18 / viewportScale}>
+                        <Rect
+                          x={-55 / viewportScale}
+                          y={-12 / viewportScale}
+                          width={110 / viewportScale}
+                          height={24 / viewportScale}
+                          fill="rgba(15, 23, 42, 0.9)"
+                          stroke="#38bdf8"
+                          strokeWidth={1 / viewportScale}
+                          cornerRadius={6 / viewportScale}
+                        />
+                        <Text
+                          x={-55 / viewportScale}
+                          y={-6 / viewportScale}
+                          width={110 / viewportScale}
+                          align="center"
+                          text={`${feet} ft (${squares} sq)`}
+                          fontSize={11 / viewportScale}
+                          fontStyle="bold"
+                          fill="#38bdf8"
+                        />
+                      </Group>
+                    </>
+                  );
+                })()}
               </Layer>
             )}
+
+            {/* Pings Overlay Layer */}
+            <Layer key="pings-layer">
+              {pings
+                .filter((p) => p.mapId === activeMap.id)
+                .map((ping) => (
+                  <PingMarker key={ping.id} ping={ping} onComplete={removePing} />
+                ))}
+            </Layer>
           </Stage>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -963,22 +1339,22 @@ export const MapCanvas: React.FC = () => {
 
       {/* Drawing tool indicator */}
       {drawingTool && canDrawOnMap && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-sm rounded-lg px-4 py-2 border border-slate-600">
-          <span className="text-slate-100">
-            Drawing Tool: <span className="font-semibold capitalize">{drawingTool}</span>
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 rounded-full border border-white/15 bg-slate-950/50 px-4 py-1.5 backdrop-blur-2xl shadow-2xl text-slate-100 text-xs font-semibold">
+          <span>
+            Drawing Tool: <span className="font-semibold capitalize text-blue-400">{drawingTool}</span>
           </span>
         </div>
       )}
 
       {/* Map controls overlay - Bottom left */}
       {activeMap && (
-        <div className="absolute bottom-4 left-4 flex flex-col gap-2">
+        <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-30">
           {/* Zoom controls */}
-          <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg border border-slate-700 p-2">
+          <div className="bg-slate-950/50 backdrop-blur-2xl rounded-2xl border border-white/15 p-2.5 shadow-2xl">
             <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={handleZoomOut}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
+                className="p-1.5 hover:bg-slate-700/60 rounded-xl transition-colors text-slate-300 hover:text-slate-100"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-4 h-4" />
@@ -991,12 +1367,12 @@ export const MapCanvas: React.FC = () => {
                 max="500"
                 value={zoomPercent}
                 onChange={(e) => zoomTo(parseInt(e.target.value) / 100)}
-                className="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-tempest-400"
+                className="w-24 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
               />
 
               <button
                 onClick={handleZoomIn}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
+                className="p-1.5 hover:bg-slate-700/60 rounded-xl transition-colors text-slate-300 hover:text-slate-100"
                 title="Zoom In"
               >
                 <ZoomIn className="w-4 h-4" />
@@ -1007,56 +1383,15 @@ export const MapCanvas: React.FC = () => {
               <span className="text-xs text-slate-400 font-mono">{zoomPercent}%</span>
               <button
                 onClick={handleFitToView}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
+                className="p-1.5 hover:bg-slate-700/60 rounded-xl transition-colors text-slate-300 hover:text-slate-100"
                 title="Fit to View"
               >
                 <Maximize className="w-4 h-4" />
               </button>
             </div>
           </div>
-
-          {/* Pan controls */}
-          <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg border border-slate-700 p-2">
-            <div className="grid grid-cols-3 gap-0.5 w-fit">
-              <div />
-              <button
-                onClick={handlePanUp}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
-                title="Pan Up"
-              >
-                <ChevronUp className="w-4 h-4" />
-              </button>
-              <div />
-              <button
-                onClick={handlePanLeft}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
-                title="Pan Left"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <div className="p-1.5 flex items-center justify-center text-slate-500">
-                <Move className="w-3 h-3" />
-              </div>
-              <button
-                onClick={handlePanRight}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
-                title="Pan Right"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <div />
-              <button
-                onClick={handlePanDown}
-                className="p-1.5 hover:bg-slate-700 rounded transition-colors text-slate-300 hover:text-slate-100"
-                title="Pan Down"
-              >
-                <ChevronDown className="w-4 h-4" />
-              </button>
-              <div />
-            </div>
-          </div>
           {selectedNpc && canResizeNpc && selectedNpcSizeIndex >= 0 && (
-            <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg border border-slate-700 p-2">
+            <div className="bg-slate-950/50 backdrop-blur-2xl rounded-2xl border border-white/15 p-2.5 shadow-2xl">
               <div className="text-xs text-slate-400 mb-2">
                 NPC Size:{' '}
                 <span className="text-slate-200">{selectedNpc.displayName || 'NPC'}</span>
@@ -1083,14 +1418,8 @@ export const MapCanvas: React.FC = () => {
         </div>
       )}
 
-      {/* Map info overlay - Top right */}
-      {activeMap && (
-        <div className="absolute top-4 right-4 bg-slate-900/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-700 pointer-events-none">
-          <span className="text-sm text-slate-300">
-            {activeMap.name} ({activeMap.width}x{activeMap.height})
-          </span>
-        </div>
-      )}
+      {/* Floating Token Popover */}
+      <TokenPopover />
     </div>
   );
 };

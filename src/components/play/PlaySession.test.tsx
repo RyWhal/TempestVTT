@@ -43,6 +43,7 @@ vi.mock('../../hooks/useSession', () => ({
     releaseGM: vi.fn().mockResolvedValue({ success: true }),
     loadChatData: vi.fn().mockResolvedValue(undefined),
     loadInitiativeData: vi.fn().mockResolvedValue(undefined),
+    loadNpcTemplateData: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 
@@ -58,7 +59,7 @@ vi.mock('../shared/Toast', () => ({
   }),
 }));
 
-describe('PlaySession drawing mode', () => {
+describe('PlaySession modern layout', () => {
   beforeEach(() => {
     updateDrawingDataMock.mockClear();
     vi.stubGlobal('confirm', vi.fn(() => true));
@@ -90,6 +91,32 @@ describe('PlaySession drawing mode', () => {
     });
 
     useMapStore.setState({
+      maps: [
+        {
+          id: 'map_001',
+          sessionId: 'session_001',
+          name: 'Room One',
+          imageUrl: '',
+          width: 1000,
+          height: 1000,
+          sortOrder: 0,
+          createdAt: '2026-04-01T00:00:00.000Z',
+          gridEnabled: false,
+          gridOffsetX: 0,
+          gridOffsetY: 0,
+          gridCellSize: 50,
+          gridColor: '#000000',
+          tokenSizeOverrideEnabled: false,
+          mediumTokenSizePx: null,
+          fogEnabled: false,
+          fogDefaultState: 'revealed',
+          fogData: [],
+          drawingData: [],
+          effectsEnabled: false,
+          effectData: [],
+          showPlayerTokens: true,
+        },
+      ],
       activeMap: {
         id: 'map_001',
         sessionId: 'session_001',
@@ -114,93 +141,25 @@ describe('PlaySession drawing mode', () => {
         effectData: [],
         showPlayerTokens: true,
       },
+      characters: [],
+      npcTemplates: [],
+      npcInstances: [],
       drawingData: [],
       drawingTool: null,
     });
   });
 
-  it('turns off drawing mode when leaving the draw tab', async () => {
-    const user = userEvent.setup();
-
+  it('renders the left toolbar and opens Token Hub by default', async () => {
     render(
       <MemoryRouter>
         <PlaySession />
       </MemoryRouter>
     );
 
-    await user.click(screen.getByRole('button', { name: /draw/i }));
-    useMapStore.getState().setDrawingTool('free');
-
-    await user.click(screen.getByRole('button', { name: /chat/i }));
-
-    expect(useMapStore.getState().drawingTool).toBeNull();
+    expect(screen.getByText('Players & Tokens')).not.toBeNull();
   });
 
-  it('clears only the current player drawings from the draw tab clear action', async () => {
-    const user = userEvent.setup();
-
-    useSessionStore.setState({
-      currentUser: {
-        username: 'Kaladin',
-        characterId: 'char_001',
-        isGm: false,
-      },
-    });
-
-    useMapStore.setState({
-      drawingData: [
-        {
-          id: 'drawing_1',
-          authorRole: 'player',
-          authorUsername: 'Kaladin',
-          shape: 'free',
-          points: [{ x: 0, y: 0 }],
-          strokeWidth: 4,
-          color: '#000000',
-          filled: false,
-          createdAt: '2026-04-01T00:00:00.000Z',
-        },
-        {
-          id: 'drawing_2',
-          authorRole: 'player',
-          authorUsername: 'Shallan',
-          shape: 'free',
-          points: [{ x: 1, y: 1 }],
-          strokeWidth: 4,
-          color: '#000000',
-          filled: false,
-          createdAt: '2026-04-01T00:00:00.000Z',
-        },
-        {
-          id: 'drawing_3',
-          authorRole: 'gm',
-          authorUsername: 'GM',
-          shape: 'free',
-          points: [{ x: 2, y: 2 }],
-          strokeWidth: 4,
-          color: '#000000',
-          filled: false,
-          createdAt: '2026-04-01T00:00:00.000Z',
-        },
-      ],
-    });
-
-    render(
-      <MemoryRouter>
-        <PlaySession />
-      </MemoryRouter>
-    );
-
-    await user.click(screen.getByRole('button', { name: /draw/i }));
-    await user.click(screen.getByRole('button', { name: /^clear$/i }));
-
-    expect(updateDrawingDataMock).toHaveBeenCalledWith('map_001', [
-      expect.objectContaining({ id: 'drawing_2' }),
-      expect.objectContaining({ id: 'drawing_3' }),
-    ]);
-  });
-
-  it('keeps both sidebars compact on normal desktop widths while preserving the larger draw tools layout', async () => {
+  it('allows switching to Chat and Dice panels via the left toolbar', async () => {
     const user = userEvent.setup();
 
     render(
@@ -209,23 +168,12 @@ describe('PlaySession drawing mode', () => {
       </MemoryRouter>
     );
 
-    await user.click(screen.getByRole('button', { name: /draw/i }));
+    const chatButton = screen.getByTitle('Chat Log');
+    await user.click(chatButton);
+    expect(screen.getByText('Chat Panel')).not.toBeNull();
 
-    const gmSidebar = screen.getByText('GM Panel').closest('aside');
-    const playerSidebar = screen.getByRole('button', { name: /chat/i }).closest('aside');
-    const scrollArea = screen.getByTestId('draw-tools-scroll-area');
-    const gmSidebarClasses = gmSidebar?.className.split(/\s+/) ?? [];
-    const playerSidebarClasses = playerSidebar?.className.split(/\s+/) ?? [];
-
-    expect(gmSidebarClasses).toContain('w-72');
-    expect(gmSidebarClasses).toContain('2xl:w-80');
-    expect(gmSidebarClasses).not.toContain('w-80');
-    expect(playerSidebarClasses).toContain('w-80');
-    expect(playerSidebarClasses).toContain('2xl:w-96');
-    expect(playerSidebarClasses).not.toContain('w-96');
-    expect(playerSidebarClasses).not.toContain('w-[26rem]');
-    expect(scrollArea.className).toContain('flex-1');
-    expect(scrollArea.className).not.toContain('max-h-72');
-    expect(scrollArea.className).toContain('[@media(max-height:900px)]:overflow-y-auto');
+    const diceButton = screen.getByTitle('Dice Roller');
+    await user.click(diceButton);
+    expect(screen.getByText('Dice Panel')).not.toBeNull();
   });
 });

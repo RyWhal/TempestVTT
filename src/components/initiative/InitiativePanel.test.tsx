@@ -25,7 +25,7 @@ const {
     },
     session: {
       allowPlayersRenamePcs: true,
-      enableInitiativePhase: false,
+      enableInitiativePhase: true,
     },
   },
   mockInitiative: {
@@ -53,15 +53,45 @@ const {
         visibility: 'public',
       },
     ],
+    groupedEntries: {
+      fastPcs: [
+        {
+          id: 'entry_1',
+          sourceType: 'player',
+          sourceId: 'char_1',
+          sourceName: 'Sir Henry',
+          modifier: 3,
+          rollValue: 15,
+          total: 18,
+          phase: 'fast',
+          visibility: 'public',
+        },
+        {
+          id: 'entry_2',
+          sourceType: 'player',
+          sourceId: 'char_2',
+          sourceName: 'Adolin',
+          modifier: 2,
+          rollValue: 12,
+          total: 14,
+          phase: 'fast',
+          visibility: 'public',
+        },
+      ],
+      fastNpcs: [],
+      slowPcs: [],
+      slowNpcs: [],
+    },
     rollLogs: [],
     currentMapNpcs: [],
     hasCurrentPlayerEntry: true,
     setMyModifier: vi.fn(),
     addPlayerInitiative: vi.fn(),
     addNpcInitiative: vi.fn(),
-    updateEntry: vi.fn(),
-    deleteEntry: vi.fn(),
-    clearTracker: vi.fn(),
+    setPhaseForParticipant: vi.fn().mockResolvedValue({ success: true }),
+    updateEntry: vi.fn().mockResolvedValue({ success: true }),
+    deleteEntry: vi.fn().mockResolvedValue({ success: true }),
+    clearTracker: vi.fn().mockResolvedValue({ success: true }),
   },
 }));
 
@@ -96,31 +126,33 @@ vi.mock('../shared/Toast', () => ({
   }),
 }));
 
-describe('InitiativePanel PC renaming', () => {
+describe('InitiativePanel Cosmere 4-Phase System', () => {
   beforeEach(() => {
     updateCharacterDetailsMock.mockClear();
     mockSessionState.currentUser.isGm = false;
-    mockSessionState.session.allowPlayersRenamePcs = true;
+    mockSessionState.session.enableInitiativePhase = true;
   });
 
-  it('lets a player rename only the PC they currently control when enabled', () => {
+  it('renders the 4-phase Cosmere turn order structure and allows switching phase', () => {
     render(<InitiativePanel />);
 
-    const renameInput = screen.getByRole('textbox', { name: /rename sir henry/i });
-    fireEvent.change(renameInput, { target: { value: 'Stormblessed' } });
-    fireEvent.blur(renameInput);
+    expect(screen.getByText(/1. Fast Player Characters/i)).not.toBeNull();
+    expect(screen.getByText(/2. Fast Enemies/i)).not.toBeNull();
+    expect(screen.getByText(/3. Slow Player Characters/i)).not.toBeNull();
+    expect(screen.getByText(/4. Slow Enemies/i)).not.toBeNull();
 
-    expect(updateCharacterDetailsMock).toHaveBeenCalledWith('char_1', {
-      name: 'Stormblessed',
-    });
-    expect(screen.queryByRole('textbox', { name: /rename adolin/i })).toBeNull();
-  });
+    // Player toggling to Slow turn
+    const slowButton = screen.getByRole('button', { name: /slow turn/i });
+    fireEvent.click(slowButton);
 
-  it('hides player rename controls when the session setting is disabled', () => {
-    mockSessionState.session.allowPlayersRenamePcs = false;
-
-    render(<InitiativePanel />);
-
-    expect(screen.queryByRole('textbox', { name: /rename sir henry/i })).toBeNull();
+    expect(mockInitiative.setPhaseForParticipant).toHaveBeenCalledWith(
+      {
+        sourceType: 'player',
+        sourceId: 'char_1',
+        sourceName: 'Sir Henry',
+      },
+      'slow',
+      'public'
+    );
   });
 });

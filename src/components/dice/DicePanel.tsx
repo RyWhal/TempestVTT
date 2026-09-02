@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Dices, Eye, EyeOff, Lock, Star, AlertTriangle, Circle } from 'lucide-react';
+import { Dices } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useSessionStore } from '../../stores/sessionStore';
-import { Button } from '../shared/Button';
 import { buildDiceExpression, getPlotDieFaceName, normalizePlotDieResult } from '../../lib/dice';
 import { useToast } from '../shared/Toast';
-import type { DiceRoll, PlotDieFace, PlotDieResult, RollAttempt, RollMode, RollVisibility } from '../../types';
+import type { DiceRoll, RollAttempt, RollMode, RollVisibility } from '../../types';
+
+import { playDiceRollSound } from '../../lib/audio';
 
 const DICE_TYPES = [4, 6, 8, 10, 12, 20] as const;
 const ROLL_MODE_OPTIONS: Array<{ value: RollMode; label: string }> = [
@@ -14,6 +15,58 @@ const ROLL_MODE_OPTIONS: Array<{ value: RollMode; label: string }> = [
   { value: 'advantage', label: 'Advantage' },
   { value: 'disadvantage', label: 'Disadvantage' },
 ];
+
+const DiceIcon: React.FC<{ sides: number; className?: string }> = ({ sides, className = 'h-5 w-5' }) => {
+  switch (sides) {
+    case 4:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 2 20 22 20" />
+          <line x1="12" y1="2" x2="12" y2="20" opacity="0.35" />
+          <text x="12" y="16.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">4</text>
+        </svg>
+      );
+    case 6:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+          <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="9.5" fontWeight="bold">6</text>
+        </svg>
+      );
+    case 8:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 21.5 12 12 22 2.5 12" />
+          <line x1="2.5" y1="12" x2="21.5" y2="12" opacity="0.35" />
+          <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="9" fontWeight="bold">8</text>
+        </svg>
+      );
+    case 10:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 21 8 16.5 21 7.5 21 3 8" />
+          <text x="12" y="14.8" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">10</text>
+        </svg>
+      );
+    case 12:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 21.5 8.9 17.9 20 6.1 20 2.5 8.9" />
+          <text x="12" y="14.8" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">12</text>
+        </svg>
+      );
+    case 20:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 21.5 7.5 21.5 16.5 12 22 2.5 16.5 2.5 7.5" />
+          <polygon points="12 2 17 8 7 8" opacity="0.35" />
+          <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">20</text>
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
 
 export const DicePanel: React.FC = () => {
   const { showToast } = useToast();
@@ -56,6 +109,7 @@ export const DicePanel: React.FC = () => {
     const expression = buildDiceExpression(dice, modifier);
     if (!canRoll || expression === '0') return;
 
+    playDiceRollSound();
     setIsRolling(true);
     const result = await rollDice(expression || '0', {
       visibility,
@@ -87,159 +141,147 @@ export const DicePanel: React.FC = () => {
     }
   };
 
+  // Sort newest rolls first (at top)
+  const sortedRolls = useMemo(() => [...diceRolls].reverse(), [diceRolls]);
+
   return (
-    <div className="h-full flex flex-col">
-      {/* Dice selector */}
-      <div className="p-4 border-b border-slate-700">
-        <div className="mb-3">
-          <label className="text-sm text-slate-400 mb-2 block">Standard Dice</label>
-          <div className="grid grid-cols-6 gap-2">
-            {DICE_TYPES.map((sides) => (
+    <div className="h-full flex flex-col bg-transparent text-slate-100">
+      {/* Iconographic dice controls header */}
+      <div className="p-3 border-b border-white/10 space-y-2.5">
+        {/* Dice Shape Selector Row */}
+        <div className="grid grid-cols-6 gap-1.5">
+          {DICE_TYPES.map((sides) => {
+            const count = dice[sides] || 0;
+            const isActive = count > 0;
+            return (
               <button
                 key={sides}
                 onClick={() => addDie(sides)}
-                className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-center transition-colors"
+                title={`Add d${sides}`}
+                aria-label={`d${sides}`}
+                className={`relative flex items-center justify-center p-2 rounded-2xl border transition-all ${
+                  isActive
+                    ? 'border-blue-500/80 bg-blue-600/30 text-blue-300 shadow-lg shadow-blue-500/20'
+                    : 'border-white/10 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                }`}
               >
-                <div className="text-sm font-medium text-slate-200">d{sides}</div>
-                {dice[sides] > 0 && (
-                  <div className="text-xs text-slate-400">x{dice[sides]}</div>
+                <DiceIcon sides={sides} className="h-8 w-8" />
+                {isActive && (
+                  <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-blue-600 font-mono text-[10px] font-extrabold text-white shadow-md">
+                    {count}
+                  </span>
                 )}
               </button>
-            ))}
+            );
+          })}
+        </div>
+
+        {/* Selected Dice Pills & Clear Button */}
+        {totalDice > 0 && (
+          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-800/60">
+            <div className="flex flex-wrap items-center gap-1">
+              {Object.entries(dice).map(
+                ([sidesStr, count]) =>
+                  count > 0 && (
+                    <span
+                      key={sidesStr}
+                      onClick={() => removeDie(parseInt(sidesStr, 10))}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900/90 px-2 py-0.5 font-mono text-[11px] text-blue-300 border border-slate-700/80 cursor-pointer hover:bg-slate-800"
+                    >
+                      <DiceIcon sides={parseInt(sidesStr, 10)} className="h-3.5 w-3.5 text-blue-400" />
+                      <span>{count}d{sidesStr}</span>
+                      <span className="text-slate-500 hover:text-rose-400">×</span>
+                    </span>
+                  )
+              )}
+            </div>
+            <button
+              onClick={clearDice}
+              className="text-[11px] text-slate-400 hover:text-slate-200 underline ml-2"
+            >
+              Clear
+            </button>
           </div>
-        </div>
+        )}
 
-        {/* Current roll display */}
-        <div className="bg-slate-800 rounded-lg p-3 mb-3">
-          <div className="flex flex-wrap gap-2 min-h-[2rem]">
-            {DICE_TYPES.map(
-              (sides) =>
-                dice[sides] > 0 && (
-                  <button
-                    key={sides}
-                    onClick={() => removeDie(sides)}
-                    className="px-2 py-1 bg-slate-700 hover:bg-red-900/50 rounded text-sm text-slate-200 transition-colors"
-                  >
-                    {dice[sides]}d{sides} ×
-                  </button>
-                )
-            )}
-            {modifier !== 0 && (
-              <span className="px-2 py-1 text-sm text-slate-300">
-                {modifier > 0 ? `+${modifier}` : modifier}
-              </span>
-            )}
-            {plotDiceFeatureEnabled && plotDieEnabled && (
-              <span className="px-2 py-1 rounded bg-amber-500/10 text-sm text-amber-300">
-                Plot Die
-              </span>
-            )}
-            {totalDice === 0 && modifier === 0 && !plotDieEnabled && (
-              <span className="text-slate-500 text-sm">
-                Click dice above to add
-              </span>
-            )}
+        {/* Modifier, Mode, Visibility & Roll Action Bar */}
+        <div className="grid grid-cols-12 gap-1.5 items-center text-xs">
+          <div className="col-span-3 flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-900/80 px-2 py-1">
+            <button
+              onClick={() => setModifier((prev) => prev - 1)}
+              className="text-slate-400 hover:text-slate-200 font-bold px-1"
+            >
+              -
+            </button>
+            <span className="font-mono text-xs font-semibold text-slate-200">
+              {modifier >= 0 ? `+${modifier}` : modifier}
+            </span>
+            <button
+              onClick={() => setModifier((prev) => prev + 1)}
+              className="text-slate-400 hover:text-slate-200 font-bold px-1"
+            >
+              +
+            </button>
           </div>
-        </div>
 
-        {/* Modifier */}
-        <div className="flex items-center gap-2 mb-3">
-          <label className="text-sm text-slate-400">Modifier:</label>
-          <button
-            onClick={() => setModifier((m) => m - 1)}
-            className="w-8 h-8 bg-slate-800 hover:bg-slate-700 rounded text-slate-200"
-          >
-            -
-          </button>
-          <input
-            type="number"
-            value={modifier}
-            onChange={(e) => setModifier(parseInt(e.target.value) || 0)}
-            className="w-16 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-center text-slate-200"
-          />
-          <button
-            onClick={() => setModifier((m) => m + 1)}
-            className="w-8 h-8 bg-slate-800 hover:bg-slate-700 rounded text-slate-200"
-          >
-            +
-          </button>
-        </div>
-
-        {/* Roll mode */}
-        <div className="flex items-center gap-2 mb-3">
-          <label className="text-sm text-slate-400">Mode:</label>
           <select
             value={rollMode}
             onChange={(e) => setRollMode(e.target.value as RollMode)}
-            className="flex-1 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-slate-200"
+            className="col-span-4 rounded-xl border border-slate-800/80 bg-slate-900/80 px-2 py-1 text-xs text-slate-200 focus:outline-none"
           >
-            {ROLL_MODE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            {ROLL_MODE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </select>
+
+          <div className="col-span-5 flex items-center gap-1">
+            <select
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as RollVisibility)}
+              className="flex-1 rounded-xl border border-slate-800/80 bg-slate-900/80 px-1.5 py-1 text-[11px] text-slate-300 focus:outline-none"
+            >
+              <option value="public">Public</option>
+              <option value="gm_only">GM Only</option>
+              <option value="self">Self Only</option>
+            </select>
+
+            <button
+              onClick={handleRoll}
+              disabled={!canRoll}
+              className="flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-500 disabled:opacity-40"
+            >
+              <Dices className="h-3.5 w-3.5" /> Roll!
+            </button>
+          </div>
         </div>
 
-        {/* Plot die (Stormlight system) */}
+        {/* Plot Die Checkbox if enabled */}
         {plotDiceFeatureEnabled && (
-          <div className="mb-3 rounded-lg border border-slate-700 bg-slate-900/40 p-3">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+          <div className="flex items-center justify-between text-xs px-1">
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
               <input
                 type="checkbox"
                 checked={plotDieEnabled}
                 onChange={(e) => setPlotDieEnabled(e.target.checked)}
-                aria-label="Use plot die"
+                className="rounded accent-blue-600"
               />
               Use plot die
             </label>
-            <p className="mt-1 text-xs text-slate-500">
-              Adds a single Stormlight plot die to the roll when a d20 is present.
-            </p>
             {hasInvalidPlotDieSelection && (
-              <p className="mt-2 text-xs text-amber-300">
-                Plot die requires a d20 in the selected roll.
-              </p>
+              <span className="text-[10px] text-amber-300">Plot die requires a d20</span>
             )}
           </div>
         )}
-
-        {/* Visibility */}
-        <div className="flex items-center gap-2 mb-4">
-          <label className="text-sm text-slate-400">Visibility:</label>
-          <select
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value as RollVisibility)}
-            className="flex-1 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-slate-200"
-          >
-            <option value="public">Public</option>
-            <option value="gm_only">GM Only</option>
-            <option value="self">Self Only</option>
-          </select>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={clearDice} className="flex-1">
-            Clear
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleRoll}
-            disabled={!canRoll}
-            isLoading={isRolling}
-            className="flex-1"
-          >
-            <Dices className="w-4 h-4 mr-2" />
-            Roll!
-          </Button>
-        </div>
       </div>
 
-      {/* Roll history */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium text-slate-400">Roll History</h3>
+      {/* Expanded Roll history */}
+      <div className="flex-1 overflow-y-auto p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Roll History
+          </h3>
           {isGM && (
             <button
               type="button"
@@ -251,18 +293,12 @@ export const DicePanel: React.FC = () => {
           )}
         </div>
 
-        {diceRolls.length === 0 ? (
-          <p className="text-slate-500 text-sm text-center py-4">
-            No rolls yet
-          </p>
+        {sortedRolls.length === 0 ? (
+          <div className="p-4 text-center text-xs text-slate-500 italic">No dice rolls yet</div>
         ) : (
-          <div className="space-y-3">
-            {[...diceRolls].reverse().map((roll, idx) => (
-              <DiceRollEntry
-                key={roll.id}
-                roll={roll}
-                isNew={idx === 0}
-              />
+          <div className="space-y-2">
+            {sortedRolls.map((roll) => (
+              <DiceRollItem key={roll.id} roll={roll} />
             ))}
           </div>
         )}
@@ -271,190 +307,110 @@ export const DicePanel: React.FC = () => {
   );
 };
 
-interface DiceRollEntryProps {
+interface DiceRollItemProps {
   roll: DiceRoll;
-  isNew: boolean;
 }
 
-const getSelectedAttemptPresentation = (rollMode: RollMode, isSelected: boolean) => {
-  if (!isSelected || rollMode === 'normal') {
-    return {
-      attemptClassName: 'border-slate-700 bg-slate-900/40',
-      badgeLabel: null,
-      badgeClassName: '',
-    };
-  }
+const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
+  const attempts = useMemo(() => {
+    const rawAttempts = (roll.rollResults as { attempts?: RollAttempt[] })?.attempts;
+    if (Array.isArray(rawAttempts) && rawAttempts.length > 0) {
+      return rawAttempts;
+    }
 
-  if (rollMode === 'advantage') {
-    return {
-      attemptClassName: 'border-green-500/40 bg-green-500/10',
-      badgeLabel: 'Advantage',
-      badgeClassName: 'rounded bg-green-500/20 px-2 py-0.5 text-green-200',
-    };
-  }
+    const rawRolls = (roll.rollResults as { rolls?: number[] })?.rolls;
+    if (Array.isArray(rawRolls)) {
+      return [
+        {
+          dice: [{ type: 'custom', count: rawRolls.length, results: rawRolls }],
+          modifier: (roll.rollResults as { modifier?: number })?.modifier ?? 0,
+          subtotal: (roll.rollResults as { total?: number })?.total ?? 0,
+          total: (roll.rollResults as { total?: number })?.total ?? 0,
+          plotDie: null,
+        },
+      ];
+    }
 
-  return {
-    attemptClassName: 'border-red-500/40 bg-red-500/10',
-    badgeLabel: 'Disadvantage',
-    badgeClassName: 'rounded bg-red-500/20 px-2 py-0.5 text-red-200',
-  };
-};
+    return [];
+  }, [roll.rollResults]);
 
-const DiceRollEntry: React.FC<DiceRollEntryProps> = ({ roll, isNew }) => {
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
+  const mode = (roll.rollResults as { mode?: RollMode })?.mode || 'normal';
+  const keptAttemptIndex =
+    (roll.rollResults as { keptAttemptIndex?: number })?.keptAttemptIndex ??
+    (attempts.length > 1 ? 0 : 0);
 
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  const visibilityIcon = {
-    public: <Eye className="w-3 h-3" />,
-    gm_only: <Lock className="w-3 h-3" />,
-    self: <EyeOff className="w-3 h-3" />,
-  };
-
-  const rollMode = roll.rollResults.mode ?? 'normal';
-  const legacyPlotDie = roll.plotDiceResults?.[0] ?? roll.rollResults.plotDie ?? null;
-  const attempts: RollAttempt[] =
-    roll.rollResults.attempts && roll.rollResults.attempts.length > 0
-      ? roll.rollResults.attempts
-      : [
-          {
-            dice: roll.rollResults.dice,
-            modifier: roll.rollResults.modifier,
-            subtotal:
-              roll.rollResults.total -
-              (legacyPlotDie ? normalizePlotDieResult(legacyPlotDie as PlotDieResult).bonus : 0),
-            total: roll.rollResults.total,
-            plotDie: legacyPlotDie as PlotDieResult | null,
-          },
-        ];
-  const keptAttemptIndex = roll.rollResults.keptAttemptIndex ?? 0;
+  const formattedTime = useMemo(() => {
+    if (!roll.createdAt) return '';
+    try {
+      const d = new Date(roll.createdAt);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  }, [roll.createdAt]);
 
   return (
-    <div
-      className={`
-        bg-slate-800/50 rounded-lg p-3 border border-slate-700
-        ${isNew ? 'animate-roll-appear' : ''}
-      `}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-slate-200">{roll.username}</span>
-          {roll.characterName && (
-            <span className="text-slate-400 text-sm">
-              ({roll.characterName})
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-slate-500">
-          {visibilityIcon[roll.visibility]}
-          <span className="text-xs">{formatTime(roll.createdAt)}</span>
-        </div>
+    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-2.5 text-xs space-y-1.5 shadow-sm">
+      <div className="flex items-center justify-between text-slate-400">
+        <span className="font-semibold text-slate-200">
+          {roll.characterName || roll.username}
+        </span>
+        <span className="font-mono text-[10px] text-slate-500 flex items-center gap-1.5">
+          {formattedTime && <span>{formattedTime}</span>}
+          {formattedTime && <span>•</span>}
+          <span>{roll.rollExpression}</span>
+        </span>
       </div>
 
-      {/* Roll results */}
-      <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
-        <span>{rollMode}</span>
-        <span>{roll.rollExpression}</span>
-      </div>
-
-      <div className="space-y-2">
-        {attempts.map((attempt, index) => {
-          const plotDie = attempt.plotDie
-            ? normalizePlotDieResult(attempt.plotDie as PlotDieResult)
-            : null;
-          const selectedAttemptPresentation = getSelectedAttemptPresentation(
-            rollMode,
-            index === keptAttemptIndex
-          );
+      <div className="space-y-1">
+        {attempts.map((att, idx) => {
+          const isKept = attempts.length === 1 || keptAttemptIndex === idx;
+          const flatRolls = att.dice.flatMap((d) => d.results);
+          const plotResult = att.plotDie ? normalizePlotDieResult(att.plotDie) : null;
 
           return (
             <div
-              key={`${roll.id}-attempt-${index}`}
-              className={`rounded border px-2 py-2 text-sm ${selectedAttemptPresentation.attemptClassName}`}
+              key={idx}
+              className={`rounded-xl border p-2 text-xs transition-colors ${
+                isKept
+                  ? mode === 'advantage'
+                    ? 'border-green-500/40 bg-green-500/10 text-green-200'
+                    : mode === 'disadvantage'
+                    ? 'border-red-500/40 bg-red-500/10 text-red-200'
+                    : 'border-slate-800 bg-slate-950/60 text-slate-200'
+                  : 'border-slate-800/80 bg-slate-950/40 text-slate-400 opacity-60'
+              }`}
             >
-              <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
-                <span>{attempts.length > 1 ? `Attempt ${index + 1}` : 'Result'}</span>
-                {selectedAttemptPresentation.badgeLabel && (
-                  <span className={selectedAttemptPresentation.badgeClassName}>
-                    {selectedAttemptPresentation.badgeLabel}
+              <div className="flex items-center justify-between">
+                <span>Result</span>
+                {isKept && mode !== 'normal' && (
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] uppercase font-bold ${
+                      mode === 'advantage'
+                        ? 'bg-green-500/20 text-green-200'
+                        : 'bg-red-500/20 text-red-200'
+                    }`}
+                  >
+                    {mode}
                   </span>
                 )}
               </div>
-              <div className="text-slate-300">
-                {attempt.dice.map((die, dieIndex) => (
-                  <span key={dieIndex}>
-                    {dieIndex > 0 && ' + '}
-                    <span className="text-slate-100">[{die.results.join(', ')}]</span>
-                  </span>
-                ))}
-                {attempt.modifier !== 0 && (
-                  <span>
-                    {attempt.modifier > 0 ? ' + ' : ' - '}
-                    {Math.abs(attempt.modifier)}
-                  </span>
-                )}
+              <div className="mt-1 font-mono text-[11px] text-slate-300">
+                [{flatRolls.join(', ')}]
+                {att.modifier !== 0 && (att.modifier > 0 ? ` + ${att.modifier}` : ` ${att.modifier}`)}
               </div>
-              {plotDie && (
-                <div className="mt-2 flex items-center gap-2">
-                  <PlotDieDisplay face={plotDie.face} />
-                  {plotDie.bonus > 0 && (
-                    <span className="text-xs text-amber-300">Bonus +{plotDie.bonus}</span>
-                  )}
+              {plotResult && (
+                <div className="mt-1 text-[10px] font-semibold text-amber-300">
+                  Plot Die: {getPlotDieFaceName(plotResult.face)}
                 </div>
               )}
-              <div className="mt-2 text-lg font-semibold text-slate-100">
-                = {attempt.total}
+              <div className="mt-1 text-right font-mono font-bold text-sm text-slate-100">
+                = {att.total}
               </div>
             </div>
           );
         })}
       </div>
-    </div>
-  );
-};
-
-const PlotDieDisplay: React.FC<{ face: PlotDieFace }> = ({ face }) => {
-  const plotDie = normalizePlotDieResult({ face });
-  const config =
-    plotDie.kind === 'opportunity'
-      ? {
-          icon: <Star className="w-4 h-4" />,
-          bg: 'bg-green-900/50',
-          border: 'border-green-600',
-          text: 'text-green-400',
-        }
-      : plotDie.kind === 'complication'
-        ? {
-            icon: <AlertTriangle className="w-4 h-4" />,
-            bg: 'bg-red-900/50',
-            border: 'border-red-600',
-            text: 'text-red-400',
-          }
-        : {
-            icon: <Circle className="w-4 h-4" />,
-            bg: 'bg-slate-700/50',
-            border: 'border-slate-600',
-            text: 'text-slate-400',
-          };
-
-  const { icon, bg, border, text } = config;
-
-  return (
-    <div
-      className={`flex items-center gap-1 px-2 py-1 rounded border ${bg} ${border} ${text}`}
-      title={getPlotDieFaceName(face)}
-    >
-      {icon}
-      <span className="text-xs">{getPlotDieFaceName(face)}</span>
     </div>
   );
 };

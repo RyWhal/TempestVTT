@@ -68,6 +68,14 @@ export interface Map {
   showPlayerTokens: boolean;
 }
 
+export interface MapPing {
+  id: string;
+  mapId: string;
+  x: number;
+  y: number;
+  createdAt: number;
+}
+
 export type HandoutKind = 'image' | 'text';
 
 export interface Handout {
