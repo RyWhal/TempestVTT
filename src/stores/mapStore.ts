@@ -90,6 +90,7 @@ interface MapState {
   updateCharacter: (characterId: string, updates: Partial<Character>) => void;
   removeCharacter: (characterId: string) => void;
   moveCharacter: (characterId: string, x: number, y: number, mapId?: string) => void;
+  removeCharacterFromMap: (characterId: string, mapId?: string) => void;
 
   // Actions - NPC Templates
   setNPCTemplates: (templates: NPCTemplate[]) => void;
@@ -267,6 +268,9 @@ export const useMapStore = create<MapState>()((set, get) => ({
         drawingData: map.drawingData ?? [],
         characters,
         npcInstances,
+        selectedTokenId: null,
+        selectedTokenType: null,
+        selectedTokenKeys: [],
       };
     });
     // Auto-fit map to view when a new map is activated
@@ -345,6 +349,27 @@ export const useMapStore = create<MapState>()((set, get) => ({
                 },
               }
             : state.tokenPositionsByMap,
+      };
+    }),
+
+  removeCharacterFromMap: (characterId, mapId) =>
+    set((state) => {
+      const targetMapId = mapId ?? state.activeMap?.id;
+      if (!targetMapId) return {};
+      const currentPositions = state.tokenPositionsByMap[targetMapId];
+      if (!currentPositions) return {};
+
+      const nextChars = { ...currentPositions.characters };
+      delete nextChars[characterId];
+
+      return {
+        tokenPositionsByMap: {
+          ...state.tokenPositionsByMap,
+          [targetMapId]: {
+            ...currentPositions,
+            characters: nextChars,
+          },
+        },
       };
     }),
 

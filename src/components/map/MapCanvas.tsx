@@ -163,10 +163,28 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
   const isGM = useIsGM();
+  const tokenPositionsByMap = useMapStore((state) => state.tokenPositionsByMap);
   const { characters, moveCharacterPosition, updateCharacterDetails } = useCharacters();
   const { currentMapNPCs, moveNPCPosition, updateNPCInstanceDetails } = useNPCs();
   const { updateFogData, updateDrawingData, updateEffectData } = useMap();
   const canDrawOnMap = isGM || Boolean(session?.allowPlayersDrawings);
+
+  const placedCharacters = useMemo(() => {
+    if (!activeMap) return [];
+    const mapPositions = tokenPositionsByMap[activeMap.id]?.characters;
+    if (!mapPositions) return [];
+    return characters
+      .filter((char) => Boolean(mapPositions[char.id]))
+      .map((char) => ({
+        ...char,
+        positionX: mapPositions[char.id].x,
+        positionY: mapPositions[char.id].y,
+      }));
+  }, [activeMap, characters, tokenPositionsByMap]);
+
+  useEffect(() => {
+    clearSelection();
+  }, [activeMap?.id, clearSelection]);
 
   const [mapImage] = useImage(activeMap?.imageUrl || '');
   const [currentFogStroke, setCurrentFogStroke] = useState<{ x: number; y: number }[]>([]);
@@ -1071,7 +1089,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
             {/* Player character tokens */}
             {activeMap.showPlayerTokens && (
               <Layer>
-                {characters.map((char) => (
+                {placedCharacters.map((char) => (
                   <Token
                     key={char.id}
                     id={char.id}

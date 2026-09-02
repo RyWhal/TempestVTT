@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Search, Plus, User, Upload, X } from 'lucide-react';
 import { useMapStore } from '../../stores/mapStore';
 import { useIsGM } from '../../stores/sessionStore';
@@ -6,7 +6,7 @@ import { useNPCs } from '../../hooks/useNPCs';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useToast } from '../shared/Toast';
 import { validateTokenUpload } from '../../lib/validation';
-import type { TokenSize } from '../../types';
+import type { TokenSize, NPCInstance } from '../../types';
 
 const SIZE_OPTIONS: TokenSize[] = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
 
@@ -26,6 +26,23 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
   const centerViewportOnToken = useMapStore((state) => state.centerViewportOnToken);
   const selectToken = useMapStore((state) => state.selectToken);
   const moveCharacter = useMapStore((state) => state.moveCharacter);
+  const removeCharacterFromMap = useMapStore((state) => state.removeCharacterFromMap);
+  const tokenPositionsByMap = useMapStore((state) => state.tokenPositionsByMap);
+
+  const activeNpcs = useMemo(() => {
+    if (!activeMap) return [];
+    return npcInstances.filter((npc) => npc.mapId === activeMap.id);
+  }, [npcInstances, activeMap]);
+
+  const handlePlaceAllPCs = () => {
+    if (!activeMap) return;
+    const center = getMapViewportCenter();
+    characters.forEach((char, index) => {
+      const offset = (index - (characters.length - 1) / 2) * 60;
+      moveCharacter(char.id, center.x + offset, center.y, activeMap.id);
+    });
+    showToast('Placed all PCs on map', 'success');
+  };
 
   const { addNPCToMap, createNPCTemplate } = useNPCs();
   const { claimCharacter, createCharacter } = useCharacters();
@@ -193,7 +210,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Active ({npcInstances.length})
+          Active ({activeNpcs.length})
         </button>
       </div>
 
@@ -371,50 +388,104 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
       {/* Token List / Cards Grid */}
       <div className="flex-1 overflow-y-auto p-3">
         {activeTab === 'pcs' && (
-          <div className="grid grid-cols-2 gap-2.5">
-            {characters.map((pc) => (
-              <div
-                key={pc.id}
-                onClick={() => {
-                  selectToken(pc.id, 'character');
-                  centerViewportOnToken(pc.id, 'character');
-                }}
-                className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-blue-500/60 cursor-pointer"
+          <div className="space-y-3">
+            {characters.some((c) => !tokenPositionsByMap[activeMap?.id || '']?.characters[c.id]) && (
+              <button
+                onClick={handlePlaceAllPCs}
+                className="w-full flex items-center justify-center gap-1 rounded-xl bg-blue-600/20 border border-blue-500/30 px-3 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-600/40 transition-all"
               >
-                <div className="flex items-center gap-2">
-                  {pc.tokenUrl ? (
-                    <img
-                      src={pc.tokenUrl}
-                      alt={pc.name}
-                      className="h-8 w-8 flex-shrink-0 rounded-full object-cover border border-blue-500/30"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-xs font-bold text-blue-300 border border-blue-500/30">
-                      {pc.name.charAt(0).toUpperCase()}
+                <Plus className="h-3.5 w-3.5" /> Place All PCs on Map
+              </button>
+            )}
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {characters.map((pc) => {
+                const isPlaced = Boolean(tokenPositionsByMap[activeMap?.id || '']?.characters[pc.id]);
+
+                return (
+                  <div
+                    key={pc.id}
+                    className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-slate-700"
+                  >
+                    <div className="flex items-center gap-2">
+                      {pc.tokenUrl ? (
+                        <img
+                          src={pc.tokenUrl}
+                          alt={pc.name}
+                          className="h-8 w-8 flex-shrink-0 rounded-full object-cover border border-blue-500/30"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-xs font-bold text-blue-300 border border-blue-500/30">
+                          {pc.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-slate-200">{pc.name}</p>
+                        <span className="uppercase text-[10px] text-slate-500 font-mono">
+                          {pc.size}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-slate-200">{pc.name}</p>
-                    <span className="uppercase text-[10px] text-slate-500 font-mono">
-                      {pc.size}
-                    </span>
+
+                    <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-800/60">
+                      <span className="text-[10px] text-slate-400">
+                        {pc.isClaimed
+                          ? `@${pc.claimedByUsername}`
+                          : isPlaced
+                          ? 'On Map'
+                          : 'Not on Map'}
+                      </span>
+
+                      {!pc.isClaimed && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleClaimPC(pc.id);
+                          }}
+                          className="rounded-md bg-blue-600/20 px-2 py-0.5 text-[10px] font-medium text-blue-300 hover:bg-blue-600/40"
+                        >
+                          Claim
+                        </button>
+                      )}
+
+                      {isPlaced ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              selectToken(pc.id, 'character');
+                              centerViewportOnToken(pc.id, 'character');
+                            }}
+                            className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300 hover:bg-slate-700"
+                          >
+                            Focus
+                          </button>
+                          <button
+                            onClick={() => removeCharacterFromMap(pc.id, activeMap?.id)}
+                            className="rounded-md bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-400 hover:bg-rose-500/20"
+                            title="Remove from map"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (!activeMap) return;
+                            const pos = getMapViewportCenter();
+                            moveCharacter(pc.id, pos.x, pos.y, activeMap.id);
+                            selectToken(pc.id, 'character');
+                            centerViewportOnToken(pc.id, 'character');
+                          }}
+                          className="flex items-center gap-0.5 rounded-md bg-blue-600/20 px-2 py-0.5 text-[10px] font-medium text-blue-300 hover:bg-blue-600/40"
+                        >
+                          <Plus className="h-3 w-3" /> Place
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-800/60">
-                  <span className="text-[10px] text-slate-400">
-                    {pc.isClaimed ? `@${pc.claimedByUsername}` : 'Unclaimed'}
-                  </span>
-                  {!pc.isClaimed && (
-                    <button
-                      onClick={() => void handleClaimPC(pc.id)}
-                      className="rounded-md bg-blue-600/20 px-2 py-0.5 text-[10px] font-medium text-blue-300 hover:bg-blue-600/40"
-                    >
-                      Claim
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -461,44 +532,55 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
         )}
 
         {activeTab === 'active' && (
-          <div className="grid grid-cols-2 gap-2.5">
-            {npcInstances.map((npc) => (
-              <div
-                key={npc.id}
-                onClick={() => {
-                  selectToken(npc.id, 'npc');
-                  centerViewportOnToken(npc.id, 'npc');
-                }}
-                className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-amber-500/60 cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  {npc.tokenUrl ? (
-                    <img
-                      src={npc.tokenUrl}
-                      alt={npc.displayName || 'NPC'}
-                      className="h-8 w-8 flex-shrink-0 rounded-full object-cover border border-amber-500/30"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-600/20 text-xs font-bold text-amber-300 border border-amber-500/30">
-                      {(npc.displayName || 'NPC').charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-slate-200">
-                      {npc.displayName || 'NPC'}
-                    </p>
-                    <span className="uppercase text-[10px] text-slate-500 font-mono">
-                      {npc.size || 'medium'}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-800/60">
-                  <span className="text-[10px] text-slate-400">
-                    {npc.isVisible ? 'Visible' : 'Hidden'}
-                  </span>
-                </div>
+          <div>
+            {activeNpcs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                <p className="text-xs font-medium">No active NPCs on this map.</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Spawn NPCs from the Library tab to add them to this map.
+                </p>
               </div>
-            ))}
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5">
+                {activeNpcs.map((npc: NPCInstance) => (
+                  <div
+                    key={npc.id}
+                    onClick={() => {
+                      selectToken(npc.id, 'npc');
+                      centerViewportOnToken(npc.id, 'npc');
+                    }}
+                    className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-amber-500/60 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      {npc.tokenUrl ? (
+                        <img
+                          src={npc.tokenUrl}
+                          alt={npc.displayName || 'NPC'}
+                          className="h-8 w-8 flex-shrink-0 rounded-full object-cover border border-amber-500/30"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-600/20 text-xs font-bold text-amber-300 border border-amber-500/30">
+                          {(npc.displayName || 'NPC').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-slate-200">
+                          {npc.displayName || 'NPC'}
+                        </p>
+                        <span className="uppercase text-[10px] text-slate-500 font-mono">
+                          {npc.size || 'medium'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-800/60">
+                      <span className="text-[10px] text-slate-400">
+                        {npc.isVisible ? 'Visible' : 'Hidden'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
