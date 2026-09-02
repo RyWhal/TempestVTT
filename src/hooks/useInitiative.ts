@@ -243,12 +243,58 @@ export const useInitiative = () => {
     [session, currentUser, npcInstances, upsertRollForSource]
   );
 
+  const setPhaseForParticipant = useCallback(
+    async (
+      source: RollSource,
+      phase: InitiativePhase,
+      visibility: InitiativeVisibility = 'public'
+    ) => {
+      if (!session || !currentUser) return { success: false, error: 'No session' };
+
+      const existingEntryId = await findExistingEntryId(source);
+
+      if (existingEntryId) {
+        const { error } = await supabase
+          .from('initiative_entries')
+          .update({ phase, visibility })
+          .eq('id', existingEntryId);
+
+        if (error) return { success: false, error: error.message };
+        return { success: true };
+      } else {
+        const { error } = await supabase.from('initiative_entries').insert({
+          session_id: session.id,
+          source_type: source.sourceType,
+          source_id: source.sourceId,
+          source_name: source.sourceName,
+          rolled_by_username: currentUser.username,
+          modifier: 0,
+          roll_value: 0,
+          total: 0,
+          phase,
+          visibility,
+        });
+
+        if (error) return { success: false, error: error.message };
+        return { success: true };
+      }
+    },
+    [session, currentUser, findExistingEntryId]
+  );
+
   const updateEntry = useCallback(
     async (
       id: string,
       updates: Partial<{ total: number; phase: InitiativePhase; visibility: InitiativeVisibility }>
     ) => {
-      if (!currentUser?.isGm) return { success: false, error: 'GM only' };
+      const existingEntry = entries.find((e) => e.id === id);
+      const isOwner =
+        existingEntry?.sourceType === 'player' &&
+        ((currentCharacter?.id && existingEntry.sourceId === currentCharacter.id) ||
+          existingEntry.sourceName === currentUser?.username);
+
+      if (!currentUser?.isGm && !isOwner) return { success: false, error: 'Permission denied' };
+
       const dbUpdates: Record<string, unknown> = { is_manual_override: true };
       if (updates.total !== undefined) dbUpdates.total = updates.total;
       if (updates.phase !== undefined) dbUpdates.phase = updates.phase;
@@ -258,7 +304,7 @@ export const useInitiative = () => {
       if (error) return { success: false, error: error.message };
       return { success: true };
     },
-    [currentUser?.isGm]
+    [currentUser, currentCharacter, entries]
   );
 
   const clearTracker = useCallback(async () => {
@@ -286,15 +332,27 @@ export const useInitiative = () => {
     return npcInstances.filter((npc) => npc.mapId === activeMap.id);
   }, [npcInstances, activeMap]);
 
+  const groupedEntries = useMemo(() => {
+    const list = visibleEntries;
+    return {
+      fastPcs: list.filter((e) => e.sourceType === 'player' && e.phase === 'fast'),
+      fastNpcs: list.filter((e) => e.sourceType === 'npc' && e.phase === 'fast'),
+      slowPcs: list.filter((e) => e.sourceType === 'player' && e.phase === 'slow'),
+      slowNpcs: list.filter((e) => e.sourceType === 'npc' && e.phase === 'slow'),
+    };
+  }, [visibleEntries]);
+
   return {
     entries: visibleEntries,
     allEntries: entries,
+    groupedEntries,
     rollLogs: visibleLogs,
     currentMapNpcs,
     hasCurrentPlayerEntry,
     setMyModifier,
     addPlayerInitiative,
     addNpcInitiative,
+    setPhaseForParticipant,
     updateEntry,
     deleteEntry,
     clearTracker,
