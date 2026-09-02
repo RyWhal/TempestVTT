@@ -31,8 +31,8 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
 
   const activeNpcs = useMemo(() => {
     if (!activeMap) return [];
-    return npcInstances.filter((npc) => npc.mapId === activeMap.id);
-  }, [npcInstances, activeMap]);
+    return npcInstances.filter((npc) => npc.mapId === activeMap.id && (isGM || npc.isVisible));
+  }, [npcInstances, activeMap, isGM]);
 
   const handlePlaceAllPCs = () => {
     if (!activeMap) return;
@@ -159,9 +159,11 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
     }
   };
 
+  const currentTab = !isGM && activeTab === 'library' ? 'pcs' : activeTab;
+
   return (
-    <div className="flex h-full w-full flex-col bg-transparent text-slate-100">
-      {/* Panel Header */}
+    <div className="flex h-full w-full flex-col border-l border-slate-800/80 bg-slate-950/80 backdrop-blur-xl text-slate-100 shadow-2xl">
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 p-4">
         <div>
           <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
@@ -185,27 +187,29 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
         <button
           onClick={() => setActiveTab('pcs')}
           className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all ${
-            activeTab === 'pcs'
+            currentTab === 'pcs'
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           PCs ({characters.length})
         </button>
-        <button
-          onClick={() => setActiveTab('library')}
-          className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all ${
-            activeTab === 'library'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          Library ({npcTemplates.length})
-        </button>
+        {isGM && (
+          <button
+            onClick={() => setActiveTab('library')}
+            className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all ${
+              currentTab === 'library'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Library ({npcTemplates.length})
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('active')}
           className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all ${
-            activeTab === 'active'
+            currentTab === 'active'
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-400 hover:text-slate-200'
           }`}
@@ -223,7 +227,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search token library..."
+              placeholder="Search tokens..."
               className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -387,7 +391,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
 
       {/* Token List / Cards Grid */}
       <div className="flex-1 overflow-y-auto p-3">
-        {activeTab === 'pcs' && (
+        {currentTab === 'pcs' && (
           <div className="space-y-3">
             {characters.some((c) => !tokenPositionsByMap[activeMap?.id || '']?.characters[c.id]) && (
               <button
@@ -489,7 +493,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
           </div>
         )}
 
-        {activeTab === 'library' && (
+        {isGM && currentTab === 'library' && (
           <div className="grid grid-cols-2 gap-2.5">
             {filteredTemplates.map((npc) => (
               <div
@@ -531,7 +535,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
           </div>
         )}
 
-        {activeTab === 'active' && (
+        {currentTab === 'active' && (
           <div>
             {activeNpcs.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
