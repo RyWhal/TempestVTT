@@ -14,6 +14,58 @@ const ROLL_MODE_OPTIONS: Array<{ value: RollMode; label: string }> = [
   { value: 'disadvantage', label: 'Disadvantage' },
 ];
 
+const DiceIcon: React.FC<{ sides: number; className?: string }> = ({ sides, className = 'h-5 w-5' }) => {
+  switch (sides) {
+    case 4:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 2 20 22 20" />
+          <line x1="12" y1="2" x2="12" y2="20" opacity="0.35" />
+          <text x="12" y="16.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">4</text>
+        </svg>
+      );
+    case 6:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+          <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="9.5" fontWeight="bold">6</text>
+        </svg>
+      );
+    case 8:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 21.5 12 12 22 2.5 12" />
+          <line x1="2.5" y1="12" x2="21.5" y2="12" opacity="0.35" />
+          <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="9" fontWeight="bold">8</text>
+        </svg>
+      );
+    case 10:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 21 8 16.5 21 7.5 21 3 8" />
+          <text x="12" y="14.8" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">10</text>
+        </svg>
+      );
+    case 12:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 21.5 8.9 17.9 20 6.1 20 2.5 8.9" />
+          <text x="12" y="14.8" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">12</text>
+        </svg>
+      );
+    case 20:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <polygon points="12 2 21.5 7.5 21.5 16.5 12 22 2.5 16.5 2.5 7.5" />
+          <polygon points="12 2 17 8 7 8" opacity="0.35" />
+          <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">20</text>
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
+
 export const DicePanel: React.FC = () => {
   const { showToast } = useToast();
   const { diceRolls, rollDice, clearDiceHistory } = useChat();
@@ -90,34 +142,40 @@ export const DicePanel: React.FC = () => {
   const sortedRolls = useMemo(() => [...diceRolls].reverse(), [diceRolls]);
 
   return (
-    <div className="h-full flex flex-col bg-slate-900/95 text-slate-100">
-      {/* Slimmed-down dice controls header */}
-      <div className="p-3 border-b border-slate-800 space-y-2">
-        {/* Dice Type Row */}
+    <div className="h-full flex flex-col bg-slate-950/80 backdrop-blur-2xl text-slate-100">
+      {/* Iconographic dice controls header */}
+      <div className="p-3 border-b border-slate-800/80 space-y-2.5">
+        {/* Dice Shape Selector Row */}
         <div className="grid grid-cols-6 gap-1.5">
-          {DICE_TYPES.map((sides) => (
-            <button
-              key={sides}
-              onClick={() => addDie(sides)}
-              className={`relative py-1.5 px-1 rounded-xl text-center border transition-all ${
-                (dice[sides] || 0) > 0
-                  ? 'border-blue-500/80 bg-blue-600/20 text-blue-300 font-bold'
-                  : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:bg-slate-800'
-              }`}
-            >
-              d{sides}
-              {(dice[sides] || 0) > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 font-mono text-[9px] font-extrabold text-white shadow-sm">
-                  {dice[sides]}
-                </span>
-              )}
-            </button>
-          ))}
+          {DICE_TYPES.map((sides) => {
+            const count = dice[sides] || 0;
+            const isActive = count > 0;
+            return (
+              <button
+                key={sides}
+                onClick={() => addDie(sides)}
+                title={`Add d${sides}`}
+                className={`relative flex flex-col items-center justify-center py-2 px-1 rounded-2xl border transition-all ${
+                  isActive
+                    ? 'border-blue-500/80 bg-blue-600/25 text-blue-300 shadow-md shadow-blue-500/10'
+                    : 'border-slate-800/80 bg-slate-900/60 text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                }`}
+              >
+                <DiceIcon sides={sides} className="h-6 w-6 mb-0.5" />
+                <span className="text-[10px] font-mono font-bold leading-none">d{sides}</span>
+                {isActive && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 font-mono text-[9px] font-extrabold text-white shadow-md">
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Selected Dice Pills & Clear Button */}
         {totalDice > 0 && (
-          <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/60">
+          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-800/60">
             <div className="flex flex-wrap items-center gap-1">
               {Object.entries(dice).map(
                 ([sidesStr, count]) =>
@@ -125,16 +183,18 @@ export const DicePanel: React.FC = () => {
                     <span
                       key={sidesStr}
                       onClick={() => removeDie(parseInt(sidesStr, 10))}
-                      className="inline-flex items-center gap-1 rounded-lg bg-slate-800 px-2 py-0.5 font-mono text-[11px] text-blue-300 border border-slate-700 cursor-pointer hover:bg-slate-700"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900/90 px-2 py-0.5 font-mono text-[11px] text-blue-300 border border-slate-700/80 cursor-pointer hover:bg-slate-800"
                     >
-                      {count}d{sidesStr} <span className="text-slate-500">×</span>
+                      <DiceIcon sides={parseInt(sidesStr, 10)} className="h-3.5 w-3.5 text-blue-400" />
+                      <span>{count}d{sidesStr}</span>
+                      <span className="text-slate-500 hover:text-rose-400">×</span>
                     </span>
                   )
               )}
             </div>
             <button
               onClick={clearDice}
-              className="text-[11px] text-slate-400 hover:text-slate-200 underline"
+              className="text-[11px] text-slate-400 hover:text-slate-200 underline ml-2"
             >
               Clear
             </button>
@@ -143,7 +203,7 @@ export const DicePanel: React.FC = () => {
 
         {/* Modifier, Mode, Visibility & Roll Action Bar */}
         <div className="grid grid-cols-12 gap-1.5 items-center text-xs">
-          <div className="col-span-3 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 px-2 py-1">
+          <div className="col-span-3 flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-900/80 px-2 py-1">
             <button
               onClick={() => setModifier((prev) => prev - 1)}
               className="text-slate-400 hover:text-slate-200 font-bold px-1"
@@ -164,7 +224,7 @@ export const DicePanel: React.FC = () => {
           <select
             value={rollMode}
             onChange={(e) => setRollMode(e.target.value as RollMode)}
-            className="col-span-4 rounded-xl border border-slate-800 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+            className="col-span-4 rounded-xl border border-slate-800/80 bg-slate-900/80 px-2 py-1 text-xs text-slate-200 focus:outline-none"
           >
             {ROLL_MODE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -177,7 +237,7 @@ export const DicePanel: React.FC = () => {
             <select
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as RollVisibility)}
-              className="flex-1 rounded-xl border border-slate-800 bg-slate-950 px-1.5 py-1 text-[11px] text-slate-300 focus:outline-none"
+              className="flex-1 rounded-xl border border-slate-800/80 bg-slate-900/80 px-1.5 py-1 text-[11px] text-slate-300 focus:outline-none"
             >
               <option value="public">Public</option>
               <option value="gm_only">GM Only</option>
@@ -231,7 +291,7 @@ export const DicePanel: React.FC = () => {
         </div>
 
         {sortedRolls.length === 0 ? (
-          <div className="p-4 text-center text-xs text-slate-500">No dice rolls yet</div>
+          <div className="p-4 text-center text-xs text-slate-500 italic">No dice rolls yet</div>
         ) : (
           <div className="space-y-2">
             {sortedRolls.map((roll) => (
@@ -287,7 +347,7 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
   }, [roll.createdAt]);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-2.5 text-xs space-y-1.5">
+    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-2.5 text-xs space-y-1.5 shadow-sm">
       <div className="flex items-center justify-between text-slate-400">
         <span className="font-semibold text-slate-200">
           {roll.characterName || roll.username}
@@ -308,14 +368,14 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
           return (
             <div
               key={idx}
-              className={`rounded-lg border p-2 text-xs transition-colors ${
+              className={`rounded-xl border p-2 text-xs transition-colors ${
                 isKept
                   ? mode === 'advantage'
                     ? 'border-green-500/40 bg-green-500/10 text-green-200'
                     : mode === 'disadvantage'
                     ? 'border-red-500/40 bg-red-500/10 text-red-200'
-                    : 'border-slate-700 bg-slate-900/40 text-slate-200'
-                  : 'border-slate-800/80 bg-slate-900/40 text-slate-400 opacity-60'
+                    : 'border-slate-800 bg-slate-950/60 text-slate-200'
+                  : 'border-slate-800/80 bg-slate-950/40 text-slate-400 opacity-60'
               }`}
             >
               <div className="flex items-center justify-between">

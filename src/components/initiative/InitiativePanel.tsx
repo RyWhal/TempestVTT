@@ -103,7 +103,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
   // If Stormlight / Cosmere RPG Initiative Phase System is ENABLED
   if (phaseEnabled) {
     return (
-      <div className="h-full overflow-y-auto p-3.5 space-y-4 text-slate-100 bg-slate-900/95">
+      <div className="h-full overflow-y-auto p-3.5 space-y-4 text-slate-100 bg-slate-950/80 backdrop-blur-2xl">
         {/* Player Fast/Slow Selection Card */}
         {myCharacter && (
           <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3 shadow-lg space-y-2">

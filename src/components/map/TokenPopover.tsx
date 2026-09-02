@@ -185,7 +185,7 @@ export const TokenPopover: React.FC = () => {
 
   return (
     <div
-      className="absolute z-40 w-72 rounded-2xl border border-slate-700/80 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur-xl text-slate-100 transition-all pointer-events-auto"
+      className="absolute z-40 w-72 rounded-2xl border border-slate-700/60 bg-slate-950/80 p-3.5 shadow-2xl backdrop-blur-2xl text-slate-100 transition-all pointer-events-auto"
       style={{
         left: `${screenX}px`,
         top: `${screenY - 20}px`,

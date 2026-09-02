@@ -149,7 +149,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   };
 
   return (
-    <div className="absolute left-3 top-16 z-30 flex flex-col items-center gap-3 py-2 px-1.5 rounded-2xl border border-slate-800/80 bg-slate-950/90 backdrop-blur-md shadow-2xl">
+    <div className="absolute left-3 top-16 z-30 flex flex-col items-center gap-3 py-2 px-1.5 rounded-2xl border border-slate-700/60 bg-slate-950/80 backdrop-blur-2xl shadow-2xl">
       {/* Top Group: Canvas Interaction Tools */}
       <div className="flex flex-col items-center gap-1.5 border-b border-slate-800/80 pb-2.5">
         <button

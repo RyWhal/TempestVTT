@@ -1302,14 +1302,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
         </div>
       )}
 
-      {/* Map info overlay - Top right */}
-      {activeMap && (
-        <div className="absolute top-4 right-4 bg-slate-900/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-700 pointer-events-none">
-          <span className="text-sm text-slate-300">
-            {activeMap.name} ({activeMap.width}x{activeMap.height})
-          </span>
-        </div>
-      )}
       {/* Floating Token Popover */}
       <TokenPopover />
     </div>

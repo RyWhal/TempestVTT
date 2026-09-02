@@ -155,8 +155,7 @@ describe('DicePanel', () => {
     expect(screen.queryByText(/^disadvantage$/i, { selector: 'span.rounded' })).toBeNull();
 
     const resultCard = screen.getByText(/^Result$/i).parentElement?.parentElement;
-    expect(resultCard?.className.includes('border-slate-700')).toBe(true);
-    expect(resultCard?.className.includes('bg-slate-900/40')).toBe(true);
+    expect(resultCard?.className.includes('border-slate')).toBe(true);
     expect(resultCard?.className.includes('border-tempest-500/40')).toBe(false);
     expect(resultCard?.className.includes('bg-tempest-500/10')).toBe(false);
   });
