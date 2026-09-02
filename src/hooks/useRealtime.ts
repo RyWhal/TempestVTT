@@ -6,6 +6,7 @@ import { useMapStore } from '../stores/mapStore';
 import { useChatStore } from '../stores/chatStore';
 import { useInitiativeStore } from '../stores/initiativeStore';
 import { useSession } from './useSession';
+import { playDiceRollSound } from '../lib/audio';
 import {
   dbSessionToSession,
   dbMapToMap,
@@ -443,10 +444,13 @@ export const useRealtime = () => {
       const activeUser = currentUserRef.current;
       if (roll.visibility === 'public') {
         addDiceRoll(roll);
+        playDiceRollSound();
       } else if (roll.visibility === 'gm_only' && activeUser?.isGm) {
         addDiceRoll(roll);
+        playDiceRollSound();
       } else if (roll.visibility === 'self' && roll.username === activeUser?.username) {
         addDiceRoll(roll);
+        playDiceRollSound();
       }
     });
 

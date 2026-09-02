@@ -7,6 +7,8 @@ import { buildDiceExpression, getPlotDieFaceName, normalizePlotDieResult } from 
 import { useToast } from '../shared/Toast';
 import type { DiceRoll, RollAttempt, RollMode, RollVisibility } from '../../types';
 
+import { playDiceRollSound } from '../../lib/audio';
+
 const DICE_TYPES = [4, 6, 8, 10, 12, 20] as const;
 const ROLL_MODE_OPTIONS: Array<{ value: RollMode; label: string }> = [
   { value: 'normal', label: 'Normal' },
@@ -107,6 +109,7 @@ export const DicePanel: React.FC = () => {
     const expression = buildDiceExpression(dice, modifier);
     if (!canRoll || expression === '0') return;
 
+    playDiceRollSound();
     setIsRolling(true);
     const result = await rollDice(expression || '0', {
       visibility,

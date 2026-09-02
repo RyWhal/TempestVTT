@@ -13,6 +13,7 @@ import type {
   MapEffectType,
   MapPing,
 } from '../types';
+import { playPingSound } from '../lib/audio';
 
 interface MapState {
   // Maps
@@ -188,10 +189,12 @@ export const useMapStore = create<MapState>()((set, get) => ({
   effectType: 'fire',
   pings: [],
 
-  addPing: (ping) =>
+  addPing: (ping) => {
+    playPingSound();
     set((state) => ({
       pings: [...state.pings.filter((p) => p.id !== ping.id).slice(-10), ping],
-    })),
+    }));
+  },
 
   removePing: (pingId) =>
     set((state) => ({

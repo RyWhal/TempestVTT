@@ -9,6 +9,8 @@ import {
   LogOut,
   Settings,
   X,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { MapCanvas } from '../map/MapCanvas';
 import { ChatPanel } from '../chat/ChatPanel';
@@ -19,6 +21,7 @@ import { InitiativePanel } from '../initiative/InitiativePanel';
 import { LeftToolbar, type ActivePanelTab } from './LeftToolbar';
 import { TokenHubPanel } from './TokenHubPanel';
 import { useSessionStore, useIsGM } from '../../stores/sessionStore';
+import { useAudioStore } from '../../stores/audioStore';
 import { useSession } from '../../hooks/useSession';
 import { useToast } from '../shared/Toast';
 
@@ -57,6 +60,9 @@ export const PlaySession: React.FC = () => {
       void loadInitiativeData(session.id);
     }
   }, [session?.id, activePanel, connectionStatus, loadChatData, loadInitiativeData, loadNpcTemplateData]);
+
+  const isMuted = useAudioStore((state) => state.isMuted);
+  const toggleMute = useAudioStore((state) => state.toggleMute);
 
   if (!session || !currentUser) return null;
 
@@ -115,6 +121,18 @@ export const PlaySession: React.FC = () => {
                 <Crown className="h-3 w-3 text-amber-400" /> GM
               </button>
             )}
+
+            <button
+              onClick={toggleMute}
+              title={isMuted ? 'Unmute Sound Effects' : 'Mute Sound Effects'}
+              className={`rounded-lg p-1 transition-colors ${
+                isMuted
+                  ? 'text-rose-400 hover:bg-rose-500/20'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+            </button>
 
             <button
               onClick={async () => {
