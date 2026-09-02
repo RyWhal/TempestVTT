@@ -36,11 +36,8 @@ const PREVIEW_LIMIT = 4;
 export const NPCManager: React.FC = () => {
   const { showToast } = useToast();
   const activeMap = useMapStore((state) => state.activeMap);
-  const viewportScale = useMapStore((state) => state.viewportScale);
-  const stageWidth = useMapStore((state) => state.stageWidth);
-  const stageHeight = useMapStore((state) => state.stageHeight);
   const selectToken = useMapStore((state) => state.selectToken);
-  const setViewportPosition = useMapStore((state) => state.setViewportPosition);
+  const centerViewportOnToken = useMapStore((state) => state.centerViewportOnToken);
   const {
     npcTemplates,
     currentMapNPCs,
@@ -159,10 +156,6 @@ export const NPCManager: React.FC = () => {
     if (!result.success) {
       showToast(result.error || 'Failed to rename NPC', 'error');
     }
-  };
-
-  const focusToken = (x: number, y: number) => {
-    setViewportPosition(stageWidth / 2 - x * viewportScale, stageHeight / 2 - y * viewportScale);
   };
 
   return (
@@ -463,7 +456,7 @@ export const NPCManager: React.FC = () => {
                           `}
                           onClick={() => {
                             selectToken(npc.id, 'npc');
-                            focusToken(npc.positionX, npc.positionY);
+                            centerViewportOnToken(npc.id, 'npc');
                           }}
                         >
                           <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded bg-slate-700">

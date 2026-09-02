@@ -29,15 +29,8 @@ export const CharacterManager: React.FC = () => {
     releaseCharacter,
   } = useCharacters();
   const activeMap = useMapStore((state) => state.activeMap);
-  const viewportScale = useMapStore((state) => state.viewportScale);
-  const stageWidth = useMapStore((state) => state.stageWidth);
-  const stageHeight = useMapStore((state) => state.stageHeight);
   const selectToken = useMapStore((state) => state.selectToken);
-  const setViewportPosition = useMapStore((state) => state.setViewportPosition);
-
-  const focusToken = (x: number, y: number) => {
-    setViewportPosition(stageWidth / 2 - x * viewportScale, stageHeight / 2 - y * viewportScale);
-  };
+  const centerViewportOnToken = useMapStore((state) => state.centerViewportOnToken);
 
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -249,7 +242,7 @@ export const CharacterManager: React.FC = () => {
                 setOpenStatusMenuFor(null);
                 if (!activeMap) return;
                 selectToken(char.id, 'character');
-                focusToken(char.positionX, char.positionY);
+                centerViewportOnToken(char.id, 'character');
               }}
             >
               <div className="flex items-center gap-3">

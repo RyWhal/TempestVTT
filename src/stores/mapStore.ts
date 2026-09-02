@@ -12,8 +12,10 @@ import type {
   MapEffectTile,
   MapEffectType,
   MapPing,
+  TokenSize,
 } from '../types';
 import { playPingSound } from '../lib/audio';
+import { getTokenPixelSize } from '../lib/tokenSizing';
 
 interface MapState {
   // Maps
@@ -448,30 +450,61 @@ export const useMapStore = create<MapState>()((set, get) => ({
   setViewportPosition: (x, y) => set({ viewportX: x, viewportY: y }),
 
   centerViewportOnToken: (id, type) => {
-    const { stageWidth, stageHeight, viewportScale, activeMap, tokenPositionsByMap, npcInstances } = get();
+    const {
+      stageWidth,
+      stageHeight,
+      viewportScale,
+      activeMap,
+      tokenPositionsByMap,
+      characters,
+      npcInstances,
+    } = get();
     if (!activeMap) return;
 
     const width = stageWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
     const height = stageHeight || (typeof window !== 'undefined' ? window.innerHeight : 800);
     const scale = viewportScale || 1;
 
-    let pos = { x: activeMap.width / 2, y: activeMap.height / 2 };
+    let posX: number | null = null;
+    let posY: number | null = null;
+    let tokenSize: TokenSize = 'medium';
+
     const mapPos = tokenPositionsByMap[activeMap.id];
     if (type === 'character') {
-      if (mapPos?.characters[id]) {
-        pos = mapPos.characters[id];
+      const char = characters.find((c) => c.id === id);
+      if (char) {
+        posX = mapPos?.characters[id]?.x ?? char.positionX;
+        posY = mapPos?.characters[id]?.y ?? char.positionY;
+        tokenSize = char.size || 'medium';
       }
     } else {
-      if (mapPos?.npcs[id]) {
-        pos = mapPos.npcs[id];
-      } else {
-        const inst = npcInstances.find((i) => i.id === id);
-        if (inst) pos = { x: inst.positionX, y: inst.positionY };
+      const inst = npcInstances.find((i) => i.id === id);
+      if (inst) {
+        posX = mapPos?.npcs[id]?.x ?? inst.positionX;
+        posY = mapPos?.npcs[id]?.y ?? inst.positionY;
+        tokenSize = inst.size || 'medium';
       }
     }
 
-    const targetX = width / 2 - pos.x * scale;
-    const targetY = height / 2 - pos.y * scale;
+    if (posX === null || posY === null || !Number.isFinite(posX) || !Number.isFinite(posY)) {
+      return;
+    }
+
+    // Calculate token center based on grid cell size and token scale
+    const gridCellSize = activeMap.gridCellSize || 50;
+    const pixelSize = getTokenPixelSize({
+      gridCellSize,
+      tokenSizeOverrideEnabled: activeMap.tokenSizeOverrideEnabled ?? false,
+      mediumTokenSizePx: activeMap.mediumTokenSizePx ?? null,
+      size: tokenSize,
+    });
+    const tokenRadius = pixelSize / 2;
+
+    const tokenCenterX = posX + tokenRadius;
+    const tokenCenterY = posY + tokenRadius;
+
+    const targetX = width / 2 - tokenCenterX * scale;
+    const targetY = height / 2 - tokenCenterY * scale;
     set({ viewportX: targetX, viewportY: targetY });
   },
 
