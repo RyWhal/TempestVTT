@@ -67,11 +67,14 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
   const setFogBrushSize = useMapStore((state) => state.setFogBrushSize);
   const fogToolShape = useMapStore((state) => state.fogToolShape);
   const setFogToolShape = useMapStore((state) => state.setFogToolShape);
+  const measureShape = useMapStore((state) => state.measureShape);
+  const setMeasureShape = useMapStore((state) => state.setMeasureShape);
 
   const isFogDisabledOnMap = Boolean(activeMap && !activeMap.fogEnabled);
 
   const [showDrawMenu, setShowDrawMenu] = useState(false);
   const [showFogMenu, setShowFogMenu] = useState(false);
+  const [showMeasureMenu, setShowMeasureMenu] = useState(false);
   const [showFullEmojiGrid, setShowFullEmojiGrid] = useState(false);
 
   const isSelectActive = !drawingTool && !fogToolMode && !isMeasureMode && !isPingMode;
@@ -85,6 +88,7 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
     setFogToolMode(null);
     setShowDrawMenu(false);
     setShowFogMenu(false);
+    setShowMeasureMenu(false);
   };
 
   const handleToggleMeasure = () => {
@@ -96,6 +100,9 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
       setFogToolMode(null);
       setShowDrawMenu(false);
       setShowFogMenu(false);
+      setShowMeasureMenu(true);
+    } else {
+      setShowMeasureMenu(false);
     }
   };
 
@@ -164,17 +171,81 @@ export const LeftToolbar: React.FC<LeftToolbarProps> = ({
           <MousePointer className="h-4 w-4" />
         </button>
 
-        <button
-          onClick={handleToggleMeasure}
-          title="Ruler / Distance Measure"
-          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-            isMeasureMode
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-              : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-          }`}
-        >
-          <Ruler className="h-4 w-4" />
-        </button>
+        {/* Ruler Button & Measure Options Popover */}
+        <div className="relative">
+          <button
+            onClick={handleToggleMeasure}
+            title="Ruler / Distance Measure"
+            className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
+              isMeasureMode
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+            }`}
+          >
+            <Ruler className="h-4 w-4" />
+          </button>
+
+          {/* Floating Measure Options Popover */}
+          {showMeasureMenu && (
+            <div className="absolute left-14 top-0 z-50 w-64 rounded-3xl border border-white/15 bg-slate-950/60 p-4 shadow-2xl backdrop-blur-2xl text-slate-100 animate-in fade-in slide-in-from-left-2">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
+                  Measuring Tool
+                </span>
+                <button
+                  onClick={() => setShowMeasureMenu(false)}
+                  className="text-[11px] text-slate-500 hover:text-slate-300"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-1.5">
+                <button
+                  onClick={() => setMeasureShape('line')}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                    measureShape === 'line'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Slash className="h-4 w-4" /> Straight Line
+                  </span>
+                  {measureShape === 'line' && <span className="text-[10px] font-bold">Active</span>}
+                </button>
+
+                <button
+                  onClick={() => setMeasureShape('radius')}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                    measureShape === 'radius'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Circle className="h-4 w-4" /> Radius / AoE Circle
+                  </span>
+                  {measureShape === 'radius' && <span className="text-[10px] font-bold">Active</span>}
+                </button>
+
+                <button
+                  onClick={() => setMeasureShape('cone')}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                    measureShape === 'cone'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-slate-900/60 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Square className="h-4 w-4 rotate-45 transform" /> Cone Angle (60°)
+                  </span>
+                  {measureShape === 'cone' && <span className="text-[10px] font-bold">Active</span>}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Pencil Button & Drawing Popover Menu */}
         <div className="relative">

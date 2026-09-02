@@ -154,6 +154,10 @@ interface MapState {
   updateHandout: (handoutId: string, updates: Partial<Handout>) => void;
   removeHandout: (handoutId: string) => void;
 
+  // Measuring tools
+  measureShape: 'line' | 'radius' | 'cone';
+  setMeasureShape: (shape: 'line' | 'radius' | 'cone') => void;
+
   // Clear all state
   clearMapState: () => void;
 }
@@ -193,6 +197,9 @@ export const useMapStore = create<MapState>()((set, get) => ({
   effectPaintMode: false,
   effectType: 'fire',
   pings: [],
+  measureShape: 'line',
+
+  setMeasureShape: (shape) => set({ measureShape: shape }),
 
   addPing: (ping) => {
     playPingSound();

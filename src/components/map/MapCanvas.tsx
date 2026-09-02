@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle, Text, Group } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle, Text, Group, Wedge } from 'react-konva';
 import useImage from 'use-image';
 import {
   ZoomIn,
@@ -164,6 +164,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
   const currentUser = useSessionStore((state) => state.currentUser);
   const isGM = useIsGM();
   const tokenPositionsByMap = useMapStore((state) => state.tokenPositionsByMap);
+  const measureShape = useMapStore((state) => state.measureShape);
   const { characters, moveCharacterPosition, updateCharacterDetails } = useCharacters();
   const { currentMapNPCs, moveNPCPosition, updateNPCInstanceDetails } = useNPCs();
   const { updateFogData, updateDrawingData, updateEffectData } = useMap();
@@ -1056,7 +1057,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
             )}
 
             {/* NPC tokens (below player tokens) */}
-            <Layer>
+            <Layer listening={!isMeasureMode && !isPingMode}>
               {currentMapNPCs
                 .filter((npc) => npc.isVisible || isGM)
                 .map((npc) => (
@@ -1088,7 +1089,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
 
             {/* Player character tokens */}
             {activeMap.showPlayerTokens && (
-              <Layer>
+              <Layer listening={!isMeasureMode && !isPingMode}>
                 {placedCharacters.map((char) => (
                   <Token
                     key={char.id}
@@ -1136,61 +1137,158 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
               </Layer>
             )}
 
-            {/* Distance Measurement Ruler Layer */}
+            {/* Distance / AoE Measurement Ruler Layer */}
             {rulerStart && rulerEnd && (
               <Layer listening={false} hitGraphEnabled={false}>
-                <Line
-                  points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
-                  stroke="#38bdf8"
-                  strokeWidth={4 / viewportScale}
-                  dash={[8 / viewportScale, 4 / viewportScale]}
-                />
-                <Circle
-                  x={rulerStart.x}
-                  y={rulerStart.y}
-                  radius={5 / viewportScale}
-                  fill="#38bdf8"
-                />
-                <Circle
-                  x={rulerEnd.x}
-                  y={rulerEnd.y}
-                  radius={5 / viewportScale}
-                  fill="#38bdf8"
-                />
                 {(() => {
                   const dx = rulerEnd.x - rulerStart.x;
                   const dy = rulerEnd.y - rulerStart.y;
                   const distancePx = Math.hypot(dx, dy);
                   const cellSize = activeMap?.gridCellSize || 50;
-                  const squares = (distancePx / cellSize).toFixed(1);
                   const feet = Math.round((distancePx / cellSize) * 5);
+                  const squares = (distancePx / cellSize).toFixed(1);
+
+                  if (measureShape === 'radius') {
+                    const midX = (rulerStart.x + rulerEnd.x) / 2;
+                    const midY = (rulerStart.y + rulerEnd.y) / 2;
+
+                    return (
+                      <>
+                        <Circle
+                          x={rulerStart.x}
+                          y={rulerStart.y}
+                          radius={distancePx}
+                          fill="rgba(56, 189, 248, 0.25)"
+                          stroke="#38bdf8"
+                          strokeWidth={2 / viewportScale}
+                          dash={[8 / viewportScale, 4 / viewportScale]}
+                        />
+                        <Line
+                          points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
+                          stroke="#38bdf8"
+                          strokeWidth={3 / viewportScale}
+                          dash={[6 / viewportScale, 3 / viewportScale]}
+                        />
+                        <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
+                        <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
+
+                        <Group x={midX} y={midY - 18 / viewportScale}>
+                          <Rect
+                            x={-70 / viewportScale}
+                            y={-12 / viewportScale}
+                            width={140 / viewportScale}
+                            height={24 / viewportScale}
+                            fill="rgba(15, 23, 42, 0.9)"
+                            stroke="#38bdf8"
+                            strokeWidth={1 / viewportScale}
+                            cornerRadius={6 / viewportScale}
+                          />
+                          <Text
+                            x={-70 / viewportScale}
+                            y={-6 / viewportScale}
+                            width={140 / viewportScale}
+                            align="center"
+                            text={`Radius: ${feet} ft (${squares} sq)`}
+                            fontSize={11 / viewportScale}
+                            fontStyle="bold"
+                            fill="#38bdf8"
+                          />
+                        </Group>
+                      </>
+                    );
+                  }
+
+                  if (measureShape === 'cone') {
+                    const angleRad = Math.atan2(dy, dx);
+                    const angleDeg = (angleRad * 180) / Math.PI;
+                    const rotationDeg = angleDeg - 30;
+
+                    return (
+                      <>
+                        <Wedge
+                          x={rulerStart.x}
+                          y={rulerStart.y}
+                          radius={distancePx}
+                          angle={60}
+                          rotation={rotationDeg}
+                          fill="rgba(56, 189, 248, 0.25)"
+                          stroke="#38bdf8"
+                          strokeWidth={2 / viewportScale}
+                          dash={[8 / viewportScale, 4 / viewportScale]}
+                        />
+                        <Line
+                          points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
+                          stroke="#38bdf8"
+                          strokeWidth={3 / viewportScale}
+                          dash={[6 / viewportScale, 3 / viewportScale]}
+                        />
+                        <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
+                        <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
+
+                        <Group x={rulerEnd.x} y={rulerEnd.y - 18 / viewportScale}>
+                          <Rect
+                            x={-65 / viewportScale}
+                            y={-12 / viewportScale}
+                            width={130 / viewportScale}
+                            height={24 / viewportScale}
+                            fill="rgba(15, 23, 42, 0.9)"
+                            stroke="#38bdf8"
+                            strokeWidth={1 / viewportScale}
+                            cornerRadius={6 / viewportScale}
+                          />
+                          <Text
+                            x={-65 / viewportScale}
+                            y={-6 / viewportScale}
+                            width={130 / viewportScale}
+                            align="center"
+                            text={`Cone: ${feet} ft (${squares} sq)`}
+                            fontSize={11 / viewportScale}
+                            fontStyle="bold"
+                            fill="#38bdf8"
+                          />
+                        </Group>
+                      </>
+                    );
+                  }
+
+                  // Default Line measurement
                   const midX = (rulerStart.x + rulerEnd.x) / 2;
                   const midY = (rulerStart.y + rulerEnd.y) / 2;
-                  const labelText = `${feet} ft (${squares} sq)`;
 
                   return (
-                    <Group x={midX} y={midY - 18 / viewportScale}>
-                      <Rect
-                        x={-55 / viewportScale}
-                        y={-12 / viewportScale}
-                        width={110 / viewportScale}
-                        height={24 / viewportScale}
-                        fill="rgba(15, 23, 42, 0.9)"
+                    <>
+                      <Line
+                        points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
                         stroke="#38bdf8"
-                        strokeWidth={1 / viewportScale}
-                        cornerRadius={6 / viewportScale}
+                        strokeWidth={4 / viewportScale}
+                        dash={[8 / viewportScale, 4 / viewportScale]}
                       />
-                      <Text
-                        x={-55 / viewportScale}
-                        y={-6 / viewportScale}
-                        width={110 / viewportScale}
-                        align="center"
-                        text={labelText}
-                        fontSize={11 / viewportScale}
-                        fontStyle="bold"
-                        fill="#38bdf8"
-                      />
-                    </Group>
+                      <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
+                      <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
+
+                      <Group x={midX} y={midY - 18 / viewportScale}>
+                        <Rect
+                          x={-55 / viewportScale}
+                          y={-12 / viewportScale}
+                          width={110 / viewportScale}
+                          height={24 / viewportScale}
+                          fill="rgba(15, 23, 42, 0.9)"
+                          stroke="#38bdf8"
+                          strokeWidth={1 / viewportScale}
+                          cornerRadius={6 / viewportScale}
+                        />
+                        <Text
+                          x={-55 / viewportScale}
+                          y={-6 / viewportScale}
+                          width={110 / viewportScale}
+                          align="center"
+                          text={`${feet} ft (${squares} sq)`}
+                          fontSize={11 / viewportScale}
+                          fontStyle="bold"
+                          fill="#38bdf8"
+                        />
+                      </Group>
+                    </>
                   );
                 })()}
               </Layer>
