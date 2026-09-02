@@ -472,6 +472,25 @@ export const useRealtime = () => {
       }
     });
 
+    tokenChannel.on('broadcast', { event: 'map_ping' }, ({ payload }) => {
+      const pingPayload = payload as {
+        sessionId: string;
+        mapId: string;
+        x: number;
+        y: number;
+        id: string;
+      };
+
+      if (pingPayload.sessionId !== sessionId) return;
+      useMapStore.getState().addPing({
+        id: pingPayload.id || `ping_${Date.now()}_${Math.random()}`,
+        mapId: pingPayload.mapId,
+        x: pingPayload.x,
+        y: pingPayload.y,
+        createdAt: Date.now(),
+      });
+    });
+
     const connectInitiativeChannel = async () => {
       const hasInitiativeEntriesTable = await canUseInitiativeRealtimeTable('initiative_entries');
       if (!hasInitiativeEntriesTable || cancelled) {

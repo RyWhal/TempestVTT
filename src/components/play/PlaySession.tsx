@@ -146,7 +146,7 @@ export const PlaySession: React.FC = () => {
         />
 
         <section className="relative flex-1 overflow-hidden">
-          <MapCanvas isMeasureMode={isMeasureMode} />
+          <MapCanvas isMeasureMode={isMeasureMode} isPingMode={isPingMode} />
         </section>
 
         {/* Collapsible Right Tool Context Panel */}

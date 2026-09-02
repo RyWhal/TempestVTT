@@ -11,14 +11,14 @@ import { useSessionStore, useIsGM } from '../../stores/sessionStore';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useNPCs } from '../../hooks/useNPCs';
 import { useMap } from '../../hooks/useMap';
-import { broadcastTokenLock, broadcastTokenUnlock } from '../../lib/tokenBroadcast';
+import { broadcastTokenLock, broadcastTokenUnlock, broadcastMapPing } from '../../lib/tokenBroadcast';
 import { Token } from './Token';
 import { TokenPopover } from './TokenPopover';
 import { GridOverlay } from './GridOverlay';
 import { FogLayer } from './FogLayer';
 import { DrawingLayer } from './DrawingLayer';
 import { MapEffectsLayer } from './MapEffectsLayer';
-import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile } from '../../types';
+import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile, MapPing } from '../../types';
 import { isDrawingColor } from '../../types';
 import { nanoid } from 'nanoid';
 
@@ -31,12 +31,90 @@ const TOKEN_SIZE_ORDER: TokenSize[] = [
   'gargantuan',
 ];
 
+interface PingMarkerProps {
+  ping: MapPing;
+  onComplete: (id: string) => void;
+}
+
+const PingMarker: React.FC<PingMarkerProps> = ({ ping, onComplete }) => {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const startTime = Date.now();
+    const duration = 3500;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= duration) {
+        clearInterval(interval);
+        onComplete(ping.id);
+      } else {
+        setFrame(elapsed);
+      }
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, [ping.id, onComplete]);
+
+  const progress = Math.min(1, frame / 3500);
+
+  // Outer ripple 1
+  const ripple1Radius = 10 + progress * 80;
+  const ripple1Opacity = Math.max(0, 1 - progress);
+
+  // Staggered ripple 2
+  const progress2 = (progress + 0.35) % 1;
+  const ripple2Radius = 10 + progress2 * 80;
+  const ripple2Opacity = progress > 0.15 ? Math.max(0, 1 - progress2) : 0;
+
+  // Blinking inner red dot
+  const pulse = Math.abs(Math.sin(frame * 0.012));
+  const dotRadius = 9 + pulse * 4;
+  const dotOpacity = 0.85 + pulse * 0.15;
+
+  return (
+    <Group x={ping.x} y={ping.y}>
+      <Circle
+        radius={ripple1Radius}
+        stroke="#ef4444"
+        strokeWidth={3}
+        opacity={ripple1Opacity * 0.9}
+        listening={false}
+      />
+      <Circle
+        radius={ripple2Radius}
+        stroke="#f87171"
+        strokeWidth={2}
+        opacity={ripple2Opacity * 0.7}
+        listening={false}
+      />
+      <Circle
+        radius={18}
+        fill="#ef4444"
+        opacity={0.35 * dotOpacity}
+        listening={false}
+      />
+      <Circle
+        radius={dotRadius}
+        fill="#ef4444"
+        stroke="#ffffff"
+        strokeWidth={2.5}
+        shadowColor="#ef4444"
+        shadowBlur={18}
+        shadowOpacity={1}
+        opacity={dotOpacity}
+        listening={false}
+      />
+    </Group>
+  );
+};
 
 interface MapCanvasProps {
   isMeasureMode?: boolean;
+  isPingMode?: boolean;
 }
 
-export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) => {
+export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isPingMode = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
 
@@ -75,6 +153,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
     tokenLocks,
     setTokenLock,
     clearTokenLock,
+    pings,
+    addPing,
+    removePing,
     fitMapToView,
     zoomTo,
   } = useMapStore();
@@ -834,7 +915,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
     <div
       ref={containerRef}
       className="w-full h-full bg-slate-950 overflow-hidden relative"
-      style={{ cursor: effectPaintMode || fogToolMode || (canDrawOnMap && drawingTool) ? 'crosshair' : 'default' }}
+      style={{ cursor: isPingMode || effectPaintMode || fogToolMode || (canDrawOnMap && drawingTool) ? 'crosshair' : 'default' }}
     >
       {activeMap ? (
           <Stage
@@ -845,11 +926,37 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
             scaleY={viewportScale}
             x={viewportX}
             y={viewportY}
-            draggable={!isMeasureMode && !effectPaintMode && !fogToolMode && !(canDrawOnMap && drawingTool)}
+            draggable={!isPingMode && !isMeasureMode && !effectPaintMode && !fogToolMode && !(canDrawOnMap && drawingTool)}
             onWheel={handleWheel}
             onDragEnd={handleDragEnd}
             onClick={handleStageClick}
             onMouseDown={(e) => {
+              if (isPingMode) {
+                const stage = stageRef.current;
+                if (stage && activeMap) {
+                  const pointer = stage.getPointerPosition();
+                  const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
+                  const pingId = `ping_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                  const ping = {
+                    id: pingId,
+                    mapId: activeMap.id,
+                    x: mapPos.x,
+                    y: mapPos.y,
+                    createdAt: Date.now(),
+                  };
+                  addPing(ping);
+                  if (session?.id) {
+                    void broadcastMapPing({
+                      sessionId: session.id,
+                      mapId: activeMap.id,
+                      x: mapPos.x,
+                      y: mapPos.y,
+                      id: pingId,
+                    });
+                  }
+                }
+                return;
+              }
               if (isMeasureMode) {
                 const stage = stageRef.current;
                 if (stage) {
@@ -1083,6 +1190,15 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false }) =
                 })()}
               </Layer>
             )}
+
+            {/* Pings Overlay Layer */}
+            <Layer key="pings-layer">
+              {pings
+                .filter((p) => p.mapId === activeMap.id)
+                .map((ping) => (
+                  <PingMarker key={ping.id} ping={ping} onComplete={removePing} />
+                ))}
+            </Layer>
           </Stage>
         ) : (
           <div className="w-full h-full flex items-center justify-center">

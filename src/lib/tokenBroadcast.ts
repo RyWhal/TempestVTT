@@ -157,12 +157,30 @@ export const broadcastDiceRollHistoryCleared = async (
   });
 };
 
+export type MapPingPayload = {
+  sessionId: string;
+  mapId: string;
+  x: number;
+  y: number;
+  id: string;
+};
+
 export const broadcastActiveMap = async (payload: ActiveMapPayload) => {
   await ensureTokenBroadcastReady(payload.sessionId);
   const channel = getTokenBroadcastChannel(payload.sessionId);
   await channel.send({
     type: 'broadcast',
     event: 'active_map',
+    payload,
+  });
+};
+
+export const broadcastMapPing = async (payload: MapPingPayload) => {
+  await ensureTokenBroadcastReady(payload.sessionId);
+  const channel = getTokenBroadcastChannel(payload.sessionId);
+  await channel.send({
+    type: 'broadcast',
+    event: 'map_ping',
     payload,
   });
 };

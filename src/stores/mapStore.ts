@@ -11,6 +11,7 @@ import type {
   DrawingShape,
   MapEffectTile,
   MapEffectType,
+  MapPing,
 } from '../types';
 
 interface MapState {
@@ -67,6 +68,11 @@ interface MapState {
   // Map effects state
   effectPaintMode: boolean;
   effectType: MapEffectType;
+
+  // Map pings state
+  pings: MapPing[];
+  addPing: (ping: MapPing) => void;
+  removePing: (pingId: string) => void;
 
   // Actions - Maps
   setMaps: (maps: Map[]) => void;
@@ -180,6 +186,17 @@ export const useMapStore = create<MapState>()((set, get) => ({
   drawingEmojiScale: 1,
   effectPaintMode: false,
   effectType: 'fire',
+  pings: [],
+
+  addPing: (ping) =>
+    set((state) => ({
+      pings: [...state.pings.filter((p) => p.id !== ping.id).slice(-10), ping],
+    })),
+
+  removePing: (pingId) =>
+    set((state) => ({
+      pings: state.pings.filter((p) => p.id !== pingId),
+    })),
 
   // Map actions
   setMaps: (maps) => set({ maps }),
