@@ -22,6 +22,11 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
   const npcTemplates = useMapStore((state) => state.npcTemplates);
   const npcInstances = useMapStore((state) => state.npcInstances);
 
+  const getMapViewportCenter = useMapStore((state) => state.getMapViewportCenter);
+  const centerViewportOnToken = useMapStore((state) => state.centerViewportOnToken);
+  const selectToken = useMapStore((state) => state.selectToken);
+  const moveCharacter = useMapStore((state) => state.moveCharacter);
+
   const { addNPCToMap, createNPCTemplate } = useNPCs();
   const { claimCharacter, createCharacter } = useCharacters();
 
@@ -68,7 +73,11 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
     const result = await createCharacter(newPcName.trim(), tokenFile || undefined);
     setIsSubmitting(false);
 
-    if (result.success) {
+    if (result.success && result.character) {
+      const spawnPos = getMapViewportCenter();
+      moveCharacter(result.character.id, spawnPos.x, spawnPos.y);
+      selectToken(result.character.id, 'character');
+      centerViewportOnToken(result.character.id, 'character');
       showToast('Character PC created', 'success');
       setNewPcName('');
       setTokenFile(null);
@@ -110,14 +119,14 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
       return;
     }
 
-    const randomPos = {
-      x: 150 + Math.random() * 50,
-      y: 150 + Math.random() * 50,
-    };
-
-    const result = await addNPCToMap(templateId, randomPos, name);
+    const spawnPos = getMapViewportCenter();
+    const result = await addNPCToMap(templateId, spawnPos, name);
 
     if (result.success) {
+      if (result.instance) {
+        selectToken(result.instance.id, 'npc');
+        centerViewportOnToken(result.instance.id, 'npc');
+      }
       showToast(`Spawned ${name} onto map`, 'success');
     } else {
       showToast(result.error || 'Failed to spawn token', 'error');
@@ -289,49 +298,51 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
               className="mt-2.5 w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
             />
 
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] text-slate-400 font-semibold">HP:</span>
+            <div className="mt-2.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-semibold uppercase text-slate-400">HP:</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newNpcHp}
+                    onChange={(e) => setNewNpcHp(parseInt(e.target.value, 10) || 1)}
+                    className="w-14 rounded-lg border border-slate-800 bg-slate-900 px-1.5 py-1 text-xs text-slate-200 focus:outline-none"
+                  />
+                </div>
+
+                <select
+                  value={newNpcSize}
+                  onChange={(e) => setNewNpcSize(e.target.value as TokenSize)}
+                  className="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs uppercase text-slate-300 focus:outline-none"
+                >
+                  {SIZE_OPTIONS.map((sz) => (
+                    <option key={sz} value={sz}>
+                      {sz}
+                    </option>
+                  ))}
+                </select>
+
                 <input
-                  type="number"
-                  min={1}
-                  value={newNpcHp}
-                  onChange={(e) => setNewNpcHp(parseInt(e.target.value, 10) || 1)}
-                  className="w-14 rounded-lg border border-slate-800 bg-slate-900 px-1.5 py-1 text-xs text-slate-200 focus:outline-none"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-slate-800"
+                >
+                  <Upload className="h-3 w-3" />
+                  {tokenFile ? tokenFile.name : 'Image'}
+                </button>
               </div>
-
-              <select
-                value={newNpcSize}
-                onChange={(e) => setNewNpcSize(e.target.value as TokenSize)}
-                className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs uppercase text-slate-300 focus:outline-none"
-              >
-                {SIZE_OPTIONS.map((sz) => (
-                  <option key={sz} value={sz}>
-                    {sz}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-slate-800"
-              >
-                <Upload className="h-3 w-3" />
-                {tokenFile ? tokenFile.name : 'Image'}
-              </button>
 
               <button
                 onClick={handleCreateNPC}
                 disabled={isSubmitting || !newNpcName.trim()}
-                className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+                className="w-full rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md hover:bg-blue-500 disabled:opacity-50"
               >
                 {isSubmitting ? 'Creating...' : 'Save Template'}
               </button>
@@ -364,7 +375,11 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
             {characters.map((pc) => (
               <div
                 key={pc.id}
-                className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-slate-700"
+                onClick={() => {
+                  selectToken(pc.id, 'character');
+                  centerViewportOnToken(pc.id, 'character');
+                }}
+                className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-blue-500/60 cursor-pointer"
               >
                 <div className="flex items-center gap-2">
                   {pc.tokenUrl ? (
@@ -450,7 +465,11 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
             {npcInstances.map((npc) => (
               <div
                 key={npc.id}
-                className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-slate-700"
+                onClick={() => {
+                  selectToken(npc.id, 'npc');
+                  centerViewportOnToken(npc.id, 'npc');
+                }}
+                className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-2.5 transition-all hover:border-amber-500/60 cursor-pointer"
               >
                 <div className="flex items-center gap-2">
                   {npc.tokenUrl ? (

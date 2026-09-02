@@ -105,6 +105,8 @@ interface MapState {
   // Actions - Viewport
   setViewportScale: (scale: number) => void;
   setViewportPosition: (x: number, y: number) => void;
+  centerViewportOnToken: (id: string, type: 'character' | 'npc') => void;
+  getMapViewportCenter: () => { x: number; y: number };
   setStageSize: (width: number, height: number) => void;
   resetViewport: () => void;
   fitMapToView: () => void;
@@ -444,6 +446,55 @@ export const useMapStore = create<MapState>()((set, get) => ({
     set({ viewportScale: Math.max(0.1, Math.min(5, scale)) }),
 
   setViewportPosition: (x, y) => set({ viewportX: x, viewportY: y }),
+
+  centerViewportOnToken: (id, type) => {
+    const { stageWidth, stageHeight, viewportScale, activeMap, tokenPositionsByMap, npcInstances } = get();
+    if (!activeMap) return;
+
+    const width = stageWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+    const height = stageHeight || (typeof window !== 'undefined' ? window.innerHeight : 800);
+    const scale = viewportScale || 1;
+
+    let pos = { x: activeMap.width / 2, y: activeMap.height / 2 };
+    const mapPos = tokenPositionsByMap[activeMap.id];
+    if (type === 'character') {
+      if (mapPos?.characters[id]) {
+        pos = mapPos.characters[id];
+      }
+    } else {
+      if (mapPos?.npcs[id]) {
+        pos = mapPos.npcs[id];
+      } else {
+        const inst = npcInstances.find((i) => i.id === id);
+        if (inst) pos = { x: inst.positionX, y: inst.positionY };
+      }
+    }
+
+    const targetX = width / 2 - pos.x * scale;
+    const targetY = height / 2 - pos.y * scale;
+    set({ viewportX: targetX, viewportY: targetY });
+  },
+
+  getMapViewportCenter: () => {
+    const { stageWidth, stageHeight, viewportScale, viewportX, viewportY, activeMap } = get();
+    const width = stageWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+    const height = stageHeight || (typeof window !== 'undefined' ? window.innerHeight : 800);
+    const scale = viewportScale || 1;
+
+    let mapX = (width / 2 - viewportX) / scale;
+    let mapY = (height / 2 - viewportY) / scale;
+
+    if (activeMap) {
+      const buffer = 60;
+      const mapW = activeMap.width || 2000;
+      const mapH = activeMap.height || 2000;
+
+      mapX = Math.max(buffer, Math.min(mapW - buffer, mapX));
+      mapY = Math.max(buffer, Math.min(mapH - buffer, mapY));
+    }
+
+    return { x: Math.round(mapX), y: Math.round(mapY) };
+  },
 
   setStageSize: (width, height) => set({ stageWidth: width, stageHeight: height }),
 
