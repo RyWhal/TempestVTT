@@ -23,7 +23,7 @@ interface TokenProps {
   isSpotlighted?: boolean;
   onSelect: (event: any) => void;
   onDragStart?: () => void;
-  onDragEnd: (x: number, y: number) => void;
+  onDragEnd: (x: number, y: number) => void | Promise<void>;
   showResizeControls?: boolean;
   onResize?: (direction: 'increase' | 'decrease') => void;
 }
@@ -68,6 +68,9 @@ export const Token: React.FC<TokenProps> = ({
   onDragEnd,
 }) => {
   const groupRef = useRef<any>(null);
+  const savedPosition = useRef({ x, y });
+  savedPosition.current = { x, y };
+  const dragSequence = useRef(0);
   const [image] = useImage(imageUrl || '');
 
   const pixelSize = getTokenPixelSize({
@@ -84,12 +87,23 @@ export const Token: React.FC<TokenProps> = ({
     return null;
   }
 
-  const handleDragEnd = (e: any) => {
+  const handleDragEnd = async (e: any) => {
     const node = e.target;
-    onDragEnd(node.x(), node.y());
+    const sequence = ++dragSequence.current;
+    try {
+      await onDragEnd(node.x(), node.y());
+    } finally {
+      // Konva moves nodes outside React. On failure the props have not changed,
+      // so explicitly return to the latest saved position (also for partial drags).
+      if (sequence === dragSequence.current) {
+        node.position(savedPosition.current);
+        node.getLayer()?.batchDraw();
+      }
+    }
   };
 
   const handleDragStart = () => {
+    dragSequence.current += 1;
     onDragStart?.();
   };
 

@@ -127,6 +127,16 @@ describe('DicePanel', () => {
     expect(screen.getByRole('button', { name: /roll!/i }).hasAttribute('disabled')).toBe(true);
   });
 
+  it('renders legacy rolls with dice, modifier and total but no attempts', () => {
+    Object.assign(mockDiceRolls[0], { rollResults: {
+      dice: [{ type: 'd20', count: 1, results: [18] }], modifier: 2, total: 20,
+    } });
+    render(<DicePanel />);
+    expect(screen.getByText('= 20')).toBeTruthy();
+    expect(screen.getByText('[18] + 2')).toBeTruthy();
+    expect(screen.getByText(/^Result$/i)).toBeTruthy();
+  });
+
   it('blocks plot-die rolls that do not include a d20', () => {
     render(<DicePanel />);
 

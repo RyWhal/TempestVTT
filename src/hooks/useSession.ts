@@ -5,6 +5,7 @@ import { useSessionStore } from '../stores/sessionStore';
 import { useMapStore } from '../stores/mapStore';
 import { useChatStore } from '../stores/chatStore';
 import { useInitiativeStore } from '../stores/initiativeStore';
+import { hydrateCharacterPlacements, type CharacterPlacement } from '../lib/characterPlacement';
 import {
   dbSessionToSession,
   dbMapToMap,
@@ -288,6 +289,14 @@ export const useSession = () => {
 
           const uploadedMapIds = uploadedMaps.map((map) => map.id);
           if (uploadedMapIds.length > 0) {
+            const placements = await supabase.from('character_map_placements')
+              .select('session_id,map_id,character_id,position_x,position_y,is_placed')
+              .eq('session_id', sessionId);
+            if (placements.error) {
+              console.error('Unable to load PC placements. Apply migration 016.', placements.error.message);
+            } else {
+              hydrateCharacterPlacements((placements.data ?? []) as CharacterPlacement[]);
+            }
             const { data: instancesData } = await supabase
               .from('npc_instances')
               .select('*')
@@ -319,7 +328,7 @@ export const useSession = () => {
   const loadNpcTemplateData = useCallback(
     async (explicitSessionId?: string) => {
       const sessionId = resolveSessionId(explicitSessionId);
-      if (!sessionId) {
+      if (!sessionId || !useSessionStore.getState().currentUser?.isGm) {
         return;
       }
 
@@ -330,7 +339,8 @@ export const useSession = () => {
             .select('*')
             .eq('session_id', sessionId);
 
-          if (templatesData) {
+          if (templatesData && useSessionStore.getState().currentUser?.isGm &&
+              useSessionStore.getState().session?.id === sessionId) {
             setNPCTemplates((templatesData as DbNPCTemplate[]).map(dbNPCTemplateToNPCTemplate));
           }
         } catch (error) {

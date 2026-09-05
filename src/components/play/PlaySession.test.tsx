@@ -8,7 +8,8 @@ import { PlaySession } from './PlaySession';
 import { useMapStore } from '../../stores/mapStore';
 import { useSessionStore } from '../../stores/sessionStore';
 
-const { updateDrawingDataMock } = vi.hoisted(() => ({
+const { updateDrawingDataMock, loadNpcTemplateDataMock } = vi.hoisted(() => ({
+  loadNpcTemplateDataMock: vi.fn().mockResolvedValue(undefined),
   updateDrawingDataMock: vi.fn().mockResolvedValue({ success: true }),
 }));
 
@@ -43,7 +44,7 @@ vi.mock('../../hooks/useSession', () => ({
     releaseGM: vi.fn().mockResolvedValue({ success: true }),
     loadChatData: vi.fn().mockResolvedValue(undefined),
     loadInitiativeData: vi.fn().mockResolvedValue(undefined),
-    loadNpcTemplateData: vi.fn().mockResolvedValue(undefined),
+    loadNpcTemplateData: loadNpcTemplateDataMock,
   }),
 }));
 
@@ -62,6 +63,7 @@ vi.mock('../shared/Toast', () => ({
 describe('PlaySession modern layout', () => {
   beforeEach(() => {
     updateDrawingDataMock.mockClear();
+    loadNpcTemplateDataMock.mockClear();
     vi.stubGlobal('confirm', vi.fn(() => true));
 
     useSessionStore.setState({
@@ -175,5 +177,15 @@ describe('PlaySession modern layout', () => {
     const diceButton = screen.getByTitle('Dice Roller');
     await user.click(diceButton);
     expect(screen.getByText('Dice Panel')).not.toBeNull();
+    expect(loadNpcTemplateDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fetch the NPC library for a player', async () => {
+    useSessionStore.setState({ currentUser: { username: 'Player', characterId: null, isGm: false } });
+    const user = userEvent.setup();
+    render(<MemoryRouter><PlaySession /></MemoryRouter>);
+    await user.click(screen.getByTitle('Chat Log'));
+    await user.click(screen.getByTitle('Dice Roller'));
+    expect(loadNpcTemplateDataMock).not.toHaveBeenCalled();
   });
 });

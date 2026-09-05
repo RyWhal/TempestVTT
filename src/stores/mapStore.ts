@@ -323,6 +323,11 @@ export const useMapStore = create<MapState>()((set, get) => ({
   removeCharacter: (characterId) =>
     set((state) => ({
       characters: state.characters.filter((c) => c.id !== characterId),
+      tokenPositionsByMap: Object.fromEntries(Object.entries(state.tokenPositionsByMap).map(([id, positions]) => {
+        const characters = { ...positions.characters };
+        delete characters[characterId];
+        return [id, { ...positions, characters }];
+      })),
       selectedTokenId:
         state.selectedTokenId === characterId ? null : state.selectedTokenId,
       selectedTokenType:
@@ -370,6 +375,8 @@ export const useMapStore = create<MapState>()((set, get) => ({
       delete nextChars[characterId];
 
       return {
+        selectedTokenId: state.activeMap?.id === targetMapId && state.selectedTokenId === characterId ? null : state.selectedTokenId,
+        selectedTokenType: state.activeMap?.id === targetMapId && state.selectedTokenId === characterId ? null : state.selectedTokenType,
         tokenPositionsByMap: {
           ...state.tokenPositionsByMap,
           [targetMapId]: {
@@ -806,6 +813,8 @@ export const useMapStore = create<MapState>()((set, get) => ({
       npcTemplates: [],
       npcInstances: [],
       tokenPositionsByMap: {},
+      pings: [],
+      measureShape: 'line',
       handouts: [],
       viewportScale: 1,
       viewportX: 0,

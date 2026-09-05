@@ -7,11 +7,13 @@ import { useChatStore } from '../stores/chatStore';
 import { useInitiativeStore } from '../stores/initiativeStore';
 import { useSession } from './useSession';
 import { playDiceRollSound } from '../lib/audio';
+import { applyCharacterPlacement, type CharacterPlacement } from '../lib/characterPlacement';
 import {
   dbSessionToSession,
   dbMapToMap,
   dbCharacterToCharacter,
   dbNPCInstanceToNPCInstance,
+  dbNPCTemplateToNPCTemplate,
   dbSessionPlayerToSessionPlayer,
   dbChatMessageToChatMessage,
   dbDiceRollToDiceRoll,
@@ -21,6 +23,7 @@ import {
   type DbMap,
   type DbCharacter,
   type DbNPCInstance,
+  type DbNPCTemplate,
   type DbSessionPlayer,
   type DbChatMessage,
   type DbDiceRoll,
@@ -102,6 +105,23 @@ export const useRealtime = () => {
   const { upsertEntry, removeEntry, addRollLog } = useInitiativeStore();
 
   useEffect(() => {
+    if (!session?.id || !currentUser?.isGm) {
+      useMapStore.getState().setNPCTemplates([]);
+      return;
+    }
+    const channel = supabase.channel(`npc-library:${session.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'npc_templates', filter: `session_id=eq.${session.id}`,
+      }, (payload) => {
+        if (!useSessionStore.getState().currentUser?.isGm) return;
+        const store = useMapStore.getState();
+        if (payload.eventType === 'DELETE') store.removeNPCTemplate((payload.old as { id: string }).id);
+        else store.addNPCTemplate(dbNPCTemplateToNPCTemplate(payload.new as DbNPCTemplate));
+      }).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [session?.id, currentUser?.isGm]);
+
+  useEffect(() => {
     mapsRef.current = maps;
   }, [maps]);
 
@@ -146,6 +166,13 @@ export const useRealtime = () => {
         }
       }
     );
+
+    for (const event of ['INSERT', 'UPDATE'] as const) {
+      channel.on('postgres_changes', {
+        event, schema: 'public', table: 'character_map_placements',
+        filter: `session_id=eq.${sessionId}`,
+      }, (payload) => applyCharacterPlacement(payload.new as CharacterPlacement));
+    }
 
     channel
       .on(
@@ -210,7 +237,12 @@ export const useRealtime = () => {
         },
         (payload) => {
           const updated = dbCharacterToCharacter(payload.new as DbCharacter);
-          updateCharacter(updated.id, updated);
+          const position = useMapStore.getState().tokenPositionsByMap[
+            useMapStore.getState().activeMap?.id ?? ''
+          ]?.characters[updated.id];
+          updateCharacter(updated.id, position
+            ? { ...updated, positionX: position.x, positionY: position.y }
+            : updated);
         }
       )
       .on(

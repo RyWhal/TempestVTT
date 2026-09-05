@@ -5,13 +5,14 @@ import { useMapStore } from '../stores/mapStore';
 import { useInitiativeStore } from '../stores/initiativeStore';
 import { dbCharacterToCharacter, type DbCharacter, type Character, type InventoryItem } from '../types';
 import { nanoid } from 'nanoid';
-import { broadcastTokenMove } from '../lib/tokenBroadcast';
+import { applyCharacterPlacement } from '../lib/characterPlacement';
+import { enqueueWrite } from '../lib/writeQueue';
 
 export const useCharacters = () => {
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
   const activeMap = useMapStore((state) => state.activeMap);
-  const { characters, addCharacter, updateCharacter, removeCharacter, moveCharacter } = useMapStore();
+  const { characters, addCharacter, updateCharacter, removeCharacter } = useMapStore();
   const renameInitiativeSource = useInitiativeStore((state) => state.renameSource);
 
   /**
@@ -269,48 +270,41 @@ export const useCharacters = () => {
     async (
       characterId: string,
       x: number,
-      y: number
+      y: number,
+      mapId = activeMap?.id,
+      isPlaced = true
     ): Promise<{ success: boolean; error?: string }> => {
-      if (!session) {
-        return { success: false, error: 'Not in a session' };
+      if (!session || !mapId) {
+        return { success: false, error: 'Select a map first' };
       }
 
-      // Optimistic update
-      moveCharacter(characterId, x, y, activeMap?.id);
-
-      try {
-        const { error } = await supabase
-          .from('characters')
-          .update({ position_x: x, position_y: y })
-          .eq('id', characterId);
-
-        if (error) {
-          // Revert on error
-          const original = characters.find((c) => c.id === characterId);
-          if (original) {
-            moveCharacter(characterId, original.positionX, original.positionY, activeMap?.id);
+      return enqueueWrite(`placement:${mapId}:${characterId}`, async () => {
+        try {
+          const row = {
+            session_id: session.id, map_id: mapId, character_id: characterId,
+            position_x: x, position_y: y, is_placed: isPlaced,
+          };
+          const { error } = await supabase.from('character_map_placements')
+            .upsert(row, { onConflict: 'map_id,character_id' });
+          if (error) {
+            return { success: false, error: error.message };
           }
-          return { success: false, error: error.message };
+          if (useSessionStore.getState().session?.id === session.id) {
+            applyCharacterPlacement(row);
+          }
+          return { success: true };
+        } catch (error) {
+          return { success: false, error: error instanceof Error ? error.message : 'Unable to save placement' };
         }
-
-        await broadcastTokenMove({
-          sessionId: session.id,
-          tokenId: characterId,
-          tokenType: 'character',
-          mapId: activeMap?.id,
-          x,
-          y,
-        });
-
-        return { success: true };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
-      }
+      });
     },
-    [session, characters, moveCharacter, activeMap?.id]
+    [session, activeMap?.id]
+  );
+
+  const removeCharacterFromMap = useCallback(
+    (characterId: string, mapId = activeMap?.id) =>
+      moveCharacterPosition(characterId, 0, 0, mapId, false),
+    [moveCharacterPosition, activeMap?.id]
   );
 
   /**
@@ -392,6 +386,7 @@ export const useCharacters = () => {
     claimCharacter,
     releaseCharacter,
     moveCharacterPosition,
+    removeCharacterFromMap,
     updateInventory,
     deleteCharacter,
   };

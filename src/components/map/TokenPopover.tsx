@@ -15,6 +15,8 @@ import { useNPCs } from '../../hooks/useNPCs';
 import { useInitiative } from '../../hooks/useInitiative';
 import type { TokenSize } from '../../types';
 import { parseNPCHp, formatNPCHp } from '../../lib/npcHp';
+import { enqueueWrite } from '../../lib/writeQueue';
+import { useToast } from '../shared/Toast';
 
 const SIZE_OPTIONS: TokenSize[] = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
 
@@ -28,6 +30,13 @@ const STATUS_RING_OPTIONS = [
 ];
 
 export const TokenPopover: React.FC = () => {
+  const id = useMapStore((state) => state.selectedTokenId);
+  const type = useMapStore((state) => state.selectedTokenType);
+  return id && type ? <TokenPopoverContent key={`${type}:${id}`} /> : null;
+};
+
+const TokenPopoverContent: React.FC = () => {
+  const { showToast } = useToast();
   const isGM = useIsGM();
   const currentUser = useSessionStore((state) => state.currentUser);
   const session = useSessionStore((state) => state.session);
@@ -44,7 +53,7 @@ export const TokenPopover: React.FC = () => {
   const viewportX = useMapStore((state) => state.viewportX);
   const viewportY = useMapStore((state) => state.viewportY);
 
-  const { updateCharacterDetails, deleteCharacter } = useCharacters();
+  const { updateCharacterDetails, removeCharacterFromMap } = useCharacters();
   const { updateNPCInstanceDetails, removeNPCFromMap } = useNPCs();
   const { entries, setPhaseForParticipant } = useInitiative();
 
@@ -103,25 +112,34 @@ export const TokenPopover: React.FC = () => {
   const screenX = viewportX + posX * viewportScale;
   const screenY = viewportY + posY * viewportScale;
 
-  const handleDirectSetHp = async (newHp: number, newMaxHp: number) => {
-    const validHp = Math.max(0, newHp);
-    const validMaxHp = Math.max(1, newMaxHp);
-    const updatedNotes = formatNPCHp(validHp, validMaxHp, hpState.notes);
-    if (selectedTokenType === 'character') {
-      await updateCharacterDetails(selectedTokenId, { notes: updatedNotes });
-    } else {
-      await updateNPCInstanceDetails(selectedTokenId, { notes: updatedNotes });
-    }
+  const saveHp = (edit: (hp: ReturnType<typeof parseNPCHp>) => { hp: number; maxHp: number }) =>
+    enqueueWrite(`hp:${selectedTokenType}:${selectedTokenId}`, async () => {
+      const state = useMapStore.getState();
+      const token = selectedTokenType === 'character'
+        ? state.characters.find((c) => c.id === selectedTokenId)
+        : state.npcInstances.find((n) => n.id === selectedTokenId);
+      if (!token) return;
+      const latest = parseNPCHp(token.notes, 30);
+      const next = edit(latest);
+      const notes = formatNPCHp(next.hp, next.maxHp, latest.notes);
+      const result = selectedTokenType === 'character'
+        ? await updateCharacterDetails(selectedTokenId, { notes })
+        : await updateNPCInstanceDetails(selectedTokenId, { notes });
+      if (!result.success) showToast(result.error || 'Unable to save HP', 'error');
+    });
+
+  const handleDirectSetHp = (value: string, field: 'hp' | 'maxHp') => {
+    const number = Number(value);
+    if (!value.trim() || !Number.isFinite(number)) return;
+    if (number === hpState[field]) return;
+    return saveHp((latest) => ({ ...latest, [field]: number }));
   };
 
-  const handleAdjustHp = async (delta: number) => {
-    const nextHp = Math.max(0, hpState.hp + delta);
-    await handleDirectSetHp(nextHp, hpState.maxHp);
-  };
+  const handleAdjustHp = (delta: number) => saveHp((latest) => ({ ...latest, hp: latest.hp + delta }));
 
   const handleRename = async (newName: string) => {
     const trimmed = newName.trim();
-    if (!trimmed) return;
+    if (!trimmed || trimmed === tokenName) return;
     if (selectedTokenType === 'character') {
       await updateCharacterDetails(selectedTokenId, { name: trimmed });
     } else {
@@ -175,12 +193,11 @@ export const TokenPopover: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (selectedTokenType === 'character') {
-      await deleteCharacter(selectedTokenId);
-    } else {
-      await removeNPCFromMap(selectedTokenId);
-    }
-    clearSelection();
+    const result = selectedTokenType === 'character'
+      ? await removeCharacterFromMap(selectedTokenId)
+      : await removeNPCFromMap(selectedTokenId);
+    if (result.success) clearSelection();
+    else showToast(result.error || 'Unable to remove token', 'error');
   };
 
   return (
@@ -198,11 +215,11 @@ export const TokenPopover: React.FC = () => {
           {canEditInfo ? (
             <input
               type="text"
+              key={tokenName}
               defaultValue={tokenName}
               onBlur={(e) => handleRename(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  handleRename(e.currentTarget.value);
                   e.currentTarget.blur();
                 }
               }}
@@ -249,10 +266,10 @@ export const TokenPopover: React.FC = () => {
                 <input
                   type="number"
                   min={0}
-                  value={hpState.hp}
-                  onChange={(e) =>
-                    handleDirectSetHp(parseInt(e.target.value, 10) || 0, hpState.maxHp)
-                  }
+                  key={`hp:${hpState.hp}`}
+                  defaultValue={hpState.hp}
+                  onBlur={(e) => void handleDirectSetHp(e.target.value, 'hp')}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                   className="w-12 text-center rounded bg-slate-950 border border-slate-700 px-1 py-0.5 font-bold text-slate-100 focus:border-rose-500 focus:outline-none"
                   title="Current HP"
                 />
@@ -260,10 +277,10 @@ export const TokenPopover: React.FC = () => {
                 <input
                   type="number"
                   min={1}
-                  value={hpState.maxHp}
-                  onChange={(e) =>
-                    handleDirectSetHp(hpState.hp, parseInt(e.target.value, 10) || 1)
-                  }
+                  key={`maxHp:${hpState.maxHp}`}
+                  defaultValue={hpState.maxHp}
+                  onBlur={(e) => void handleDirectSetHp(e.target.value, 'maxHp')}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                   className="w-12 text-center rounded bg-slate-950 border border-slate-700 px-1 py-0.5 font-bold text-slate-100 focus:border-rose-500 focus:outline-none"
                   title="Max HP"
                 />
@@ -412,7 +429,7 @@ export const TokenPopover: React.FC = () => {
 
           <button
             onClick={handleDelete}
-            title="Delete Token"
+            title="Remove from map"
             className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-950 hover:text-rose-300 transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" />

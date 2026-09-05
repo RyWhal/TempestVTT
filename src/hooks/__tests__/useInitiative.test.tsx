@@ -12,6 +12,7 @@ const {
   existingEntryLookup,
   updateEntryById,
   insertRollLog,
+  updatePayload,
 } = vi.hoisted(() => ({
   fromMock: vi.fn(),
   mockSessionState: {
@@ -45,7 +46,7 @@ const {
     activeMap: {
       id: 'map_1',
     },
-    npcInstances: [],
+    npcInstances: [] as { id: string; displayName: string; mapId: string }[],
   },
   mockInitiativeState: {
     entries: [],
@@ -55,6 +56,7 @@ const {
   existingEntryLookup: vi.fn(),
   updateEntryById: vi.fn(),
   insertRollLog: vi.fn(),
+  updatePayload: vi.fn(),
 }));
 
 vi.mock('../../lib/supabase', () => ({
@@ -83,6 +85,9 @@ describe('useInitiative', () => {
     existingEntryLookup.mockReset();
     updateEntryById.mockReset();
     insertRollLog.mockReset();
+    updatePayload.mockReset();
+    mockSessionState.currentUser.isGm = false;
+    mockMapState.npcInstances = [];
 
     existingEntryLookup.mockResolvedValue({
       data: { id: 'entry_1' },
@@ -109,7 +114,7 @@ describe('useInitiative', () => {
               }),
             };
           },
-          update: vi.fn().mockReturnValue({
+          update: updatePayload.mockReturnValue({
             eq: updateEntryById,
           }),
           insert: vi.fn().mockReturnValue({
@@ -141,5 +146,44 @@ describe('useInitiative', () => {
     });
     expect(updateEntryById).not.toHaveBeenCalled();
     expect(insertRollLog).not.toHaveBeenCalled();
+  });
+
+  it('preserves GM-hidden visibility when a player changes phase even with explicit public visibility', async () => {
+    const { result } = renderHook(() => useInitiative());
+    await result.current.setPhaseForParticipant({ sourceType: 'player', sourceId: 'char_1', sourceName: 'Kaladin' }, 'slow', 'public');
+    expect(updatePayload).toHaveBeenCalledWith({ phase: 'slow' });
+  });
+
+  it('counts saved NPCs with failed audit logs as added and excludes them from retry', async () => {
+    mockSessionState.currentUser.isGm = true;
+    mockMapState.npcInstances = [{ id: 'npc_1', displayName: 'Guard', mapId: 'map_1' }, { id: 'npc_2', displayName: 'Scout', mapId: 'map_1' }];
+    insertRollLog.mockResolvedValueOnce({ error: { message: 'Audit unavailable' } });
+    updateEntryById.mockResolvedValueOnce({ error: null }).mockResolvedValueOnce({ error: { message: 'Entry denied' } });
+    const { result } = renderHook(() => useInitiative());
+    const response = await result.current.addNpcInitiative(['npc_1', 'npc_2'], 'fast', 'public', 0);
+    expect(response.success).toBe(false);
+    expect(response.failedIds).toEqual(['npc_2']);
+    expect(response.error).toContain('Added 1 NPCs; 1 failed to add; 1 audit logs failed');
+  });
+
+  it('reports stale NPC selections without retrying deleted NPCs or successful entries', async () => {
+    mockSessionState.currentUser.isGm = true;
+    mockMapState.npcInstances = [{ id: 'npc_1', displayName: 'Guard', mapId: 'map_1' }];
+    const { result } = renderHook(() => useInitiative());
+    const response = await result.current.addNpcInitiative(['npc_1', 'deleted'], 'fast', 'public', 0);
+    expect(response.success).toBe(false);
+    expect(response.failedIds).toEqual([]);
+    expect(response.error).toContain('Added 1 NPCs; 1 failed to add');
+    expect(response.error).toContain('no longer available');
+  });
+
+  it('preserves visibility for a GM phase-only change but allows an explicit GM visibility change', async () => {
+    mockSessionState.currentUser.isGm = true;
+    const { result } = renderHook(() => useInitiative());
+    const source = { sourceType: 'player' as const, sourceId: 'char_1', sourceName: 'Kaladin' };
+    await result.current.setPhaseForParticipant(source, 'slow');
+    expect(updatePayload).toHaveBeenLastCalledWith({ phase: 'slow' });
+    await result.current.setPhaseForParticipant(source, 'fast', 'public');
+    expect(updatePayload).toHaveBeenLastCalledWith({ phase: 'fast', visibility: 'public' });
   });
 });

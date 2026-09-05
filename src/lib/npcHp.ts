@@ -12,6 +12,16 @@ export function parseNPCHp(notes?: string | null, fallbackHp = 30): NPCHpState {
   try {
     if (notes.startsWith('{') && notes.endsWith('}')) {
       const parsed = JSON.parse(notes);
+      // Recognize only the HP envelope we write. Arbitrary JSON is still prose
+      // from the user's perspective and must survive a subsequent HP edit.
+      if (!parsed || Array.isArray(parsed) ||
+          !Object.keys(parsed).every((key) => ['hp', 'maxHp', 'notes'].includes(key)) ||
+          !(Number.isFinite(parsed.hp) || Number.isFinite(parsed.maxHp)) ||
+          ('hp' in parsed && !Number.isFinite(parsed.hp)) ||
+          ('maxHp' in parsed && !Number.isFinite(parsed.maxHp)) ||
+          ('notes' in parsed && typeof parsed.notes !== 'string')) {
+        return { hp: fallbackHp, maxHp: fallbackHp, notes };
+      }
       const max = typeof parsed.maxHp === 'number' ? parsed.maxHp : (typeof parsed.hp === 'number' ? parsed.hp : fallbackHp);
       const cur = typeof parsed.hp === 'number' ? parsed.hp : max;
       return {

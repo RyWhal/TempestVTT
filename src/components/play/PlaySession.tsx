@@ -51,15 +51,18 @@ export const PlaySession: React.FC = () => {
       return;
     }
 
-    // Load NPC templates by default or when token panel is open
-    void loadNpcTemplateData?.(session.id);
-
     if (activePanel === 'chat' || activePanel === 'dice') {
       void loadChatData(session.id);
     } else if (activePanel === 'initiative') {
       void loadInitiativeData(session.id);
     }
-  }, [session?.id, activePanel, connectionStatus, loadChatData, loadInitiativeData, loadNpcTemplateData]);
+  }, [session?.id, activePanel, connectionStatus, loadChatData, loadInitiativeData]);
+
+  useEffect(() => {
+    if (isGM && session?.id && connectionStatus === 'connected') {
+      void loadNpcTemplateData(session.id);
+    }
+  }, [isGM, session?.id, connectionStatus, loadNpcTemplateData]);
 
   const isMuted = useAudioStore((state) => state.isMuted);
   const toggleMute = useAudioStore((state) => state.toggleMute);

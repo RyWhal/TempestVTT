@@ -25,8 +25,6 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
   const getMapViewportCenter = useMapStore((state) => state.getMapViewportCenter);
   const centerViewportOnToken = useMapStore((state) => state.centerViewportOnToken);
   const selectToken = useMapStore((state) => state.selectToken);
-  const moveCharacter = useMapStore((state) => state.moveCharacter);
-  const removeCharacterFromMap = useMapStore((state) => state.removeCharacterFromMap);
   const tokenPositionsByMap = useMapStore((state) => state.tokenPositionsByMap);
 
   const activeNpcs = useMemo(() => {
@@ -34,18 +32,31 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
     return npcInstances.filter((npc) => npc.mapId === activeMap.id && (isGM || npc.isVisible));
   }, [npcInstances, activeMap, isGM]);
 
-  const handlePlaceAllPCs = () => {
+  const handlePlaceAllPCs = async () => {
     if (!activeMap) return;
     const center = getMapViewportCenter();
-    characters.forEach((char, index) => {
+    const results = await Promise.all(characters.map((char, index) => {
       const offset = (index - (characters.length - 1) / 2) * 60;
-      moveCharacter(char.id, center.x + offset, center.y, activeMap.id);
-    });
-    showToast('Placed all PCs on map', 'success');
+      return moveCharacterPosition(char.id, center.x + offset, center.y, activeMap.id);
+    }));
+    const failed = results.filter((result) => !result.success);
+    showToast(failed.length ? `${failed.length} PC placements failed: ${failed[0].error}` : 'Placed all PCs on map', failed.length ? 'error' : 'success');
   };
 
   const { addNPCToMap, createNPCTemplate } = useNPCs();
-  const { claimCharacter, createCharacter } = useCharacters();
+  const { claimCharacter, createCharacter, moveCharacterPosition, removeCharacterFromMap } = useCharacters();
+
+  const placePC = async (id: string) => {
+    if (!activeMap) return;
+    const pos = getMapViewportCenter();
+    const result = await moveCharacterPosition(id, pos.x, pos.y, activeMap.id);
+    if (!result.success) {
+      showToast(result.error || 'Unable to place PC', 'error');
+      return;
+    }
+    selectToken(id, 'character');
+    centerViewportOnToken(id, 'character');
+  };
 
   const [activeTab, setActiveTab] = useState<'pcs' | 'library' | 'active'>('library');
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,10 +102,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
     setIsSubmitting(false);
 
     if (result.success && result.character) {
-      const spawnPos = getMapViewportCenter();
-      moveCharacter(result.character.id, spawnPos.x, spawnPos.y);
-      selectToken(result.character.id, 'character');
-      centerViewportOnToken(result.character.id, 'character');
+      if (activeMap) await placePC(result.character.id);
       showToast('Character PC created', 'success');
       setNewPcName('');
       setTokenFile(null);
@@ -464,7 +472,10 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
                             Focus
                           </button>
                           <button
-                            onClick={() => removeCharacterFromMap(pc.id, activeMap?.id)}
+                            onClick={async () => {
+                              const result = await removeCharacterFromMap(pc.id, activeMap?.id);
+                              if (!result.success) showToast(result.error || 'Unable to remove PC', 'error');
+                            }}
                             className="rounded-md bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-400 hover:bg-rose-500/20"
                             title="Remove from map"
                           >
@@ -473,13 +484,7 @@ export const TokenHubPanel: React.FC<TokenHubPanelProps> = ({ onClose }) => {
                         </div>
                       ) : (
                         <button
-                          onClick={() => {
-                            if (!activeMap) return;
-                            const pos = getMapViewportCenter();
-                            moveCharacter(pc.id, pos.x, pos.y, activeMap.id);
-                            selectToken(pc.id, 'character');
-                            centerViewportOnToken(pc.id, 'character');
-                          }}
+                          onClick={() => void placePC(pc.id)}
                           className="flex items-center gap-0.5 rounded-md bg-blue-600/20 px-2 py-0.5 text-[10px] font-medium text-blue-300 hover:bg-blue-600/40"
                         >
                           <Plus className="h-3 w-3" /> Place

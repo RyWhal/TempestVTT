@@ -15,6 +15,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
   const { showToast } = useToast();
   const currentUser = useSessionStore((state) => state.currentUser);
   const session = useSessionStore((state) => state.session);
+  const players = useSessionStore((state) => state.players);
   const isGM = currentUser?.isGm ?? false;
   const phaseEnabled = Boolean(session?.enableInitiativePhase);
 
@@ -26,6 +27,11 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
     updateEntry,
     deleteEntry,
     clearTracker,
+    rollLogs,
+    setMyModifier,
+    addPlayerInitiative,
+    addNpcInitiative,
+    hasCurrentPlayerEntry,
   } = useInitiative();
 
   const { myCharacter } = useCharacters();
@@ -33,6 +39,20 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
   const [selectedNpcIds, setSelectedNpcIds] = useState<string[]>([]);
   const [defaultNpcPhase, setDefaultNpcPhase] = useState<InitiativePhase>('fast');
   const [defaultNpcVisibility, setDefaultNpcVisibility] = useState<InitiativeVisibility>('public');
+  const [modifier, setModifier] = useState(players.find((p) => p.username === currentUser?.username)?.initiativeModifier ?? 0);
+  const [npcModifier, setNpcModifier] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const participantName = myCharacter?.name || currentUser?.username || 'Player';
+  const isMyEntry = (entry: InitiativeEntry) => entry.sourceType === 'player' &&
+    (myCharacter ? entry.sourceId === myCharacter.id : entry.sourceId === null && entry.sourceName === currentUser?.username);
+  const auditView = isGM ? (
+    <section className="rounded-xl border border-slate-700 p-3 space-y-2">
+      <h3 className="text-sm font-semibold">Initiative Roll Audit</h3>
+      {rollLogs.length === 0 ? <p className="text-xs text-slate-400">No initiative rolls recorded.</p> : rollLogs.map((log) => (
+        <p key={log.id} className="text-xs">{log.sourceName}: {log.rollValue} + {log.modifier} = {log.total} · rolled by {log.rolledByUsername} · {log.visibility}</p>
+      ))}
+    </section>
+  ) : null;
 
   // Player toggle phase handler
   const handlePlayerTogglePhase = async (nextPhase: InitiativePhase) => {
@@ -44,8 +64,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
         sourceId: myCharacter?.id || null,
         sourceName,
       },
-      nextPhase,
-      'public'
+      nextPhase
     );
 
     if (result.success) {
@@ -59,10 +78,12 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
   const handleAddNpcsToInitiative = async () => {
     if (selectedNpcIds.length === 0) return;
 
+    setBusy(true);
+    const failedIds: string[] = [];
     for (const npcId of selectedNpcIds) {
       const npc = currentMapNpcs.find((n) => n.id === npcId);
       if (npc) {
-        await setPhaseForParticipant(
+        const result = await setPhaseForParticipant(
           {
             sourceType: 'npc',
             sourceId: npc.id,
@@ -71,10 +92,15 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
           defaultNpcPhase,
           defaultNpcVisibility
         );
+        if (!result.success) failedIds.push(npcId);
+      } else {
+        failedIds.push(npcId);
       }
     }
-    setSelectedNpcIds([]);
-    showToast('Added NPCs to initiative', 'success');
+    const added = selectedNpcIds.length - failedIds.length;
+    setSelectedNpcIds(failedIds);
+    setBusy(false);
+    showToast(failedIds.length ? `Added ${added} NPCs; ${failedIds.length} failed. Retry the selected NPCs.` : `Added ${added} NPCs to initiative`, failedIds.length ? 'error' : 'success');
   };
 
   const handleClear = async () => {
@@ -105,11 +131,11 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
     return (
       <div className="h-full overflow-y-auto p-3.5 space-y-4 text-slate-100 bg-transparent">
         {/* Player Fast/Slow Selection Card */}
-        {myCharacter && (
+        {currentUser && (
           <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3 shadow-lg space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-300">Your Action Phase</span>
-              <span className="font-semibold text-xs text-amber-400">{myCharacter.name}</span>
+              <span className="font-semibold text-xs text-amber-400">{participantName}</span>
             </div>
             <p className="text-[11px] text-slate-400">
               Choose your speed for this round. Fast turns go first with 2 actions; Slow turns wait for 3 actions.
@@ -118,7 +144,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
               <button
                 onClick={() => handlePlayerTogglePhase('fast')}
                 className={`flex flex-col items-center justify-center rounded-xl p-2 border transition-all ${
-                  entries.some((e) => e.sourceId === myCharacter.id && e.phase === 'fast')
+                  entries.some((e) => isMyEntry(e) && e.phase === 'fast')
                     ? 'border-amber-500/80 bg-amber-500/20 text-amber-300 font-bold shadow-md shadow-amber-500/10'
                     : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:bg-slate-800'
                 }`}
@@ -132,7 +158,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
               <button
                 onClick={() => handlePlayerTogglePhase('slow')}
                 className={`flex flex-col items-center justify-center rounded-xl p-2 border transition-all ${
-                  entries.some((e) => e.sourceId === myCharacter.id && e.phase === 'slow')
+                  entries.some((e) => isMyEntry(e) && e.phase === 'slow')
                     ? 'border-blue-500/80 bg-blue-600/20 text-blue-300 font-bold shadow-md shadow-blue-500/10'
                     : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:bg-slate-800'
                 }`}
@@ -211,7 +237,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
 
             <Button
               onClick={handleAddNpcsToInitiative}
-              disabled={selectedNpcIds.length === 0}
+              disabled={busy || selectedNpcIds.length === 0}
               size="sm"
               className="w-full"
             >
@@ -220,6 +246,7 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
           </div>
         )}
 
+        {auditView}
         {/* 4-PHASE TURN ORDER DISPLAY */}
         <div className="space-y-3">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
@@ -293,6 +320,35 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
         </p>
       </div>
 
+      <section className="rounded-xl border border-slate-700 p-3 space-y-2">
+        <label className="block text-xs">Your initiative modifier
+          <input aria-label="Your initiative modifier" type="number" value={modifier} onChange={(event) => setModifier(Number(event.target.value))} className="ml-2 w-16 bg-slate-800 p-1" />
+        </label>
+        <Button disabled={busy || hasCurrentPlayerEntry} onClick={async () => {
+          setBusy(true);
+          const saved = await setMyModifier(modifier);
+          const result = saved.success ? await addPlayerInitiative('fast', 'public', modifier) : saved;
+          setBusy(false);
+          showToast(result.success ? 'Rolled initiative' : result.error || 'Failed to roll initiative', result.success ? 'success' : 'error');
+        }}>Roll Initiative (d20)</Button>
+        {hasCurrentPlayerEntry && <p className="text-xs text-slate-400">Ask the GM to remove your entry before rolling again.</p>}
+      </section>
+      {isGM && <section className="rounded-xl border border-slate-700 p-3 space-y-2">
+        <h3 className="text-sm">Add Map NPCs</h3>
+        {currentMapNpcs.map((npc) => <label key={npc.id} className="block text-xs"><input type="checkbox" checked={selectedNpcIds.includes(npc.id)} onChange={(event) => setSelectedNpcIds((ids) => event.target.checked ? [...ids, npc.id] : ids.filter((id) => id !== npc.id))} /> {npc.displayName || 'NPC'}</label>)}
+        <label className="block text-xs">NPC modifier <input aria-label="NPC modifier" type="number" value={npcModifier} onChange={(event) => setNpcModifier(Number(event.target.value))} className="w-16 bg-slate-800" /></label>
+        <label className="block text-xs">NPC visibility <select value={defaultNpcVisibility} onChange={(event) => setDefaultNpcVisibility(event.target.value as InitiativeVisibility)} className="bg-slate-800"><option value="public">Public</option><option value="gm_only">GM Only</option></select></label>
+        <Button disabled={busy || selectedNpcIds.length === 0} onClick={async () => {
+          setBusy(true);
+          const result = await addNpcInitiative(selectedNpcIds, 'fast', defaultNpcVisibility, npcModifier);
+          setBusy(false);
+          if (result.success) setSelectedNpcIds([]);
+          else if (result.failedIds) setSelectedNpcIds(result.failedIds);
+          showToast(result.success ? 'Added NPCs to initiative' : result.error || 'Failed to add NPCs', result.success ? 'success' : 'error');
+        }}>Roll and Add Selected NPCs</Button>
+        <Button onClick={handleClear}>Clear all</Button>
+      </section>}
+      {auditView}
       <div className="bg-slate-950/80 rounded-2xl border border-slate-800 p-3 space-y-2">
         <h3 className="font-semibold text-xs text-slate-300 uppercase tracking-wider">
           Initiative List
@@ -301,19 +357,31 @@ export const InitiativePanel: React.FC<InitiativePanelProps> = () => {
           <p className="text-xs text-slate-500 py-2">No initiative entries yet.</p>
         ) : (
           <div className="space-y-1.5">
-            {entries.map((entry) => (
+            {[...entries].sort((a, b) => (b.total ?? 0) - (a.total ?? 0)).map((entry) => (
               <div key={entry.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5 flex items-center justify-between text-xs">
                 <div>
                   <span className="font-bold text-slate-200">{entry.sourceName}</span>
+                  <span className="ml-2">Total: {entry.total}</span>
+                  <p className="text-[10px] text-slate-400">d20 {entry.rollValue} + modifier {entry.modifier}</p>
                   <p className="text-[10px] text-slate-500">{entry.visibility}</p>
                 </div>
                 {isGM && (
+                  <div className="flex items-center gap-2">
+                  <input aria-label={`Total for ${entry.sourceName}`} type="number" defaultValue={entry.total ?? 0} key={`${entry.id}-${entry.total}`} className="w-14 bg-slate-800" onBlur={async (event) => {
+                    const total = Number(event.target.value);
+                    if (!Number.isFinite(total) || total === entry.total) return;
+                    const result = await updateEntry(entry.id, { total });
+                    if (!result.success) showToast(result.error || 'Failed to update total', 'error');
+                  }} />
+                  <button title={entry.visibility === 'public' ? 'Make GM Only' : 'Make Public to Players'} onClick={() => handleToggleEntryVisibility(entry)}>{entry.visibility === 'public' ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
                   <button
+                    title="Remove from initiative"
                     onClick={() => deleteEntry(entry.id)}
                     className="p-1 text-slate-400 hover:text-rose-400"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
+                  </div>
                 )}
               </div>
             ))}

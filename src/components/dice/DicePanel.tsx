@@ -331,7 +331,14 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
       ];
     }
 
-    return [];
+    const legacy = roll.rollResults;
+    return [{
+      dice: legacy.dice ?? [],
+      modifier: legacy.modifier ?? 0,
+      subtotal: legacy.total ?? 0,
+      total: legacy.total ?? 0,
+      plotDie: legacy.plotDie ?? roll.plotDiceResults?.[0] ?? null,
+    }];
   }, [roll.rollResults]);
 
   const mode = (roll.rollResults as { mode?: RollMode })?.mode || 'normal';

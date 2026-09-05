@@ -5,6 +5,7 @@ import { useMapStore } from '../stores/mapStore';
 import { dbMapToMap, type DbMap, type Map, type FogRegion, type DrawingRegion, type MapEffectTile } from '../types';
 import { nanoid } from 'nanoid';
 import { broadcastActiveMap } from '../lib/tokenBroadcast';
+import { enqueueWrite } from '../lib/writeQueue';
 
 const getMapSettingsErrorMessage = (message: string, code?: string) => {
   if (
@@ -281,27 +282,43 @@ export const useMap = () => {
       mapId: string,
       drawingData: DrawingRegion[]
     ): Promise<{ success: boolean; error?: string }> => {
-      try {
-        const { error } = await supabase
-          .from('maps')
-          .update({ drawing_data: drawingData })
-          .eq('id', mapId);
+      return enqueueWrite(`drawings:${mapId}`, async () => {
+        try {
+          const { error } = await supabase
+            .from('maps')
+            .update({ drawing_data: drawingData })
+            .eq('id', mapId);
 
-        if (error) {
-          return { success: false, error: error.message };
+          if (error) {
+            return { success: false, error: error.message };
+          }
+
+          updateMap(mapId, { drawingData });
+          return { success: true };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          };
         }
-
-        updateMap(mapId, { drawingData });
-        return { success: true };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
-      }
+      });
     },
     [getMapById, updateMap]
   );
+
+  const eraseDrawingRegions = useCallback(async (mapId: string, ids: string[]) => {
+    return enqueueWrite(`drawings:${mapId}`, async () => {
+      try {
+        const { error } = await supabase.rpc('erase_map_drawings', { p_map_id: mapId, p_drawing_ids: ids });
+        if (error) return { success: false, error: error.message };
+        const map = useMapStore.getState().maps.find((item) => item.id === mapId);
+        if (map) updateMap(mapId, { drawingData: map.drawingData.filter((drawing) => !ids.includes(drawing.id)) });
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unable to erase drawings' };
+      }
+    });
+  }, [updateMap]);
 
   /**
    * Update map effect tiles
@@ -384,6 +401,7 @@ export const useMap = () => {
     updateMapSettings,
     updateFogData,
     updateDrawingData,
+    eraseDrawingRegions,
     updateEffectData,
     deleteMap,
   };

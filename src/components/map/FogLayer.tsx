@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Image as KonvaImage, Group, Line, Rect } from 'react-konva';
 import type { FogRegion } from '../../types';
 
@@ -32,17 +32,17 @@ export const FogLayer: React.FC<FogLayerProps> = ({
   // For GM: show fog as semi-transparent (0.5 opacity)
   // For players: show fog as solid (1.0 opacity)
   const fogOpacity = isGM ? 0.5 : 1;
-  const [maskCanvas, setMaskCanvas] = useState<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    if (width <= 0 || height <= 0) return;
+  const maskCanvas = useMemo(() => {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
 
     // Create offscreen canvas for single-layer fog compositing
     const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(width);
-    canvas.height = Math.ceil(height);
+    const scale = Math.min(1, 4096 / width, 4096 / height);
+    canvas.width = Math.max(1, Math.ceil(width * scale));
+    canvas.height = Math.max(1, Math.ceil(height * scale));
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) return null;
+    ctx.scale(canvas.width / width, canvas.height / height);
 
     // 1. Fill base initial fog state
     if (defaultState === 'fogged') {
@@ -99,7 +99,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({
       }
     });
 
-    setMaskCanvas(canvas);
+    return canvas;
   }, [width, height, fogData, defaultState]);
 
   // Live stroke / rect preview while mouse dragging
@@ -150,7 +150,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({
 
   return (
     <Group listening={false}>
-      {maskCanvas && (
+      {maskCanvas ? (
         <KonvaImage
           image={maskCanvas}
           width={width}
@@ -158,7 +158,7 @@ export const FogLayer: React.FC<FogLayerProps> = ({
           opacity={fogOpacity}
           listening={false}
         />
-      )}
+      ) : <Rect width={width} height={height} fill="#000000" opacity={fogOpacity} listening={false} />}
       {previewElement}
     </Group>
   );

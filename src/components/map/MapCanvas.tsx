@@ -21,6 +21,7 @@ import { MapEffectsLayer } from './MapEffectsLayer';
 import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile, MapPing } from '../../types';
 import { isDrawingColor } from '../../types';
 import { nanoid } from 'nanoid';
+import { useToast } from '../shared/Toast';
 
 const TOKEN_SIZE_ORDER: TokenSize[] = [
   'tiny',
@@ -167,7 +168,20 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
   const measureShape = useMapStore((state) => state.measureShape);
   const { characters, moveCharacterPosition, updateCharacterDetails } = useCharacters();
   const { currentMapNPCs, moveNPCPosition, updateNPCInstanceDetails } = useNPCs();
-  const { updateFogData, updateDrawingData, updateEffectData } = useMap();
+  const { updateFogData, updateDrawingData, updateEffectData, eraseDrawingRegions } = useMap();
+  const { showToast } = useToast();
+  const erasedByMap = useRef(new Map<string, Set<string>>());
+  const flushErasing = useCallback(() => {
+    for (const [mapId, ids] of erasedByMap.current) {
+      void eraseDrawingRegions(mapId, [...ids]).then((result) => {
+        if (!result.success) showToast(result.error || 'Unable to save erasing; reload to restore server state', 'error');
+      });
+    }
+    erasedByMap.current.clear();
+  }, [eraseDrawingRegions, showToast]);
+  const flushErasingRef = useRef(flushErasing);
+  flushErasingRef.current = flushErasing;
+  useEffect(() => () => flushErasingRef.current(), [activeMap?.id, drawingTool]);
   const canDrawOnMap = isGM || Boolean(session?.allowPlayersDrawings);
 
   const placedCharacters = useMemo(() => {
@@ -372,12 +386,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
       const multiDrag = selectedTokenKeys.includes(draggedKey) && selectedTokenKeys.length > 1;
 
       try {
+        let results: { success: boolean; error?: string }[] = [];
         if (multiDrag) {
           const start = groupDragStartPositions[draggedKey];
           if (start) {
             const deltaX = x - start.x;
             const deltaY = y - start.y;
-            await Promise.all(
+            results = await Promise.all(
               selectedTokenKeys.map((key) => {
                 const [tokenType, tokenId] = key.split(':') as ['character' | 'npc', string];
                 const origin = groupDragStartPositions[key];
@@ -391,19 +406,23 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
             );
           }
         } else if (type === 'character') {
-          await moveCharacterPosition(id, x, y);
+          results = [await moveCharacterPosition(id, x, y)];
         } else {
-          await moveNPCPosition(id, x, y);
+          results = [await moveNPCPosition(id, x, y)];
         }
+        const failures = results.filter((result) => !result.success);
+        if (failures.length) showToast(`${failures.length} token move(s) failed: ${failures[0].error || 'Unable to save position'}`, 'error');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : 'Unable to save token position', 'error');
       } finally {
         setGroupDragStartPositions({});
         clearTokenLock(tokenKey);
-        await broadcastTokenUnlock({
+        void broadcastTokenUnlock({
           sessionId: session.id,
           tokenId: id,
           tokenType: type,
           username: currentUser.username,
-        });
+        }).catch(() => undefined);
       }
     },
     [
@@ -415,6 +434,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
       selectedTokenKeys,
       groupDragStartPositions,
       clearTokenLock,
+      showToast,
     ]
   );
 
@@ -605,7 +625,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
         return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
       };
 
-      const reversed = [...drawingData].reverse();
+      const reversed = [...useMapStore.getState().drawingData].reverse();
       const erased = reversed.find((region) => {
         const hitRadius = Math.max(24, (region.strokeWidth || 3) * 4);
         const { minX, maxX, minY, maxY } = getDrawingBounds(region);
@@ -639,9 +659,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
       });
 
       if (erased) {
-        const newDrawingData = drawingData.filter((region) => region.id !== erased.id);
+        const ids = erasedByMap.current.get(activeMap.id) ?? new Set<string>();
+        ids.add(erased.id);
+        erasedByMap.current.set(activeMap.id, ids);
         removeDrawingRegion(activeMap.id, erased.id);
-        void updateDrawingData(activeMap.id, newDrawingData);
       }
     },
     [activeMap, canDrawOnMap, drawingData, getDrawingBounds, removeDrawingRegion, updateDrawingData]
@@ -721,6 +742,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
     (_e?: unknown) => {
       if (drawingTool === 'eraser') {
         setIsErasing(false);
+        flushErasing();
         return;
       }
 
@@ -751,6 +773,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
     drawingData,
     addDrawingRegion,
     updateDrawingData,
+    flushErasing,
+    drawingTool,
+    canDrawOnMap,
   ]);
 
 

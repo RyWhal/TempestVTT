@@ -152,7 +152,7 @@ export const useInitiative = () => {
         entry_id: existingEntryId,
       });
 
-      if (logError) return { success: false as const, error: logError.message };
+      if (logError) return { success: false as const, entrySaved: true as const, error: `Initiative saved, but the audit log failed: ${logError.message}` };
       return { success: true as const, rollValue, total };
     },
     [session, currentUser]
@@ -177,11 +177,11 @@ export const useInitiative = () => {
   );
 
   const addPlayerInitiative = useCallback(
-    async (phase: InitiativePhase, visibility: InitiativeVisibility) => {
+    async (phase: InitiativePhase, visibility: InitiativeVisibility, modifierOverride?: number) => {
       if (!session || !currentUser) return { success: false, error: 'No session' };
 
       const player = players.find((p) => p.username === currentUser.username);
-      const modifier = player?.initiativeModifier ?? 0;
+      const modifier = modifierOverride ?? player?.initiativeModifier ?? 0;
       const source = {
         sourceType: 'player' as const,
         sourceId: currentCharacter?.id || null,
@@ -215,12 +215,17 @@ export const useInitiative = () => {
     ) => {
       if (!session || !currentUser?.isGm) return { success: false, error: 'GM only' };
 
-      const npcs = npcIds
+      const uniqueIds = [...new Set(npcIds)];
+      const npcs = uniqueIds
         .map((id) => npcInstances.find((npc) => npc.id === id))
         .filter((npc): npc is NonNullable<typeof npc> => Boolean(npc));
 
-      if (npcs.length === 0) return { success: false, error: 'No NPCs selected' };
+      if (uniqueIds.length === 0) return { success: false, error: 'No NPCs selected' };
 
+      let added = 0;
+      const failures: string[] = uniqueIds.filter((id) => !npcs.some((npc) => npc.id === id)).map((id) => `NPC ${id} is no longer available`);
+      const failedIds: string[] = [];
+      const auditFailures: string[] = [];
       for (const npc of npcs) {
         const rollValue = Math.floor(Math.random() * 20) + 1;
         const result = await upsertRollForSource(
@@ -235,9 +240,19 @@ export const useInitiative = () => {
           rollValue
         );
 
-        if (!result.success) return result;
+        if (!result.success) {
+          if (result.entrySaved) {
+            added += 1;
+            auditFailures.push(`${npc.displayName || 'NPC'}: ${result.error}`);
+          } else {
+            failures.push(`${npc.displayName || 'NPC'}: ${result.error}`);
+            failedIds.push(npc.id);
+          }
+        }
+        else added += 1;
       }
 
+      if (failures.length || auditFailures.length) return { success: false, failedIds, error: `Added ${added} NPCs; ${failures.length} failed to add; ${auditFailures.length} audit logs failed. ${[...failures, ...auditFailures].join('; ')}` };
       return { success: true };
     },
     [session, currentUser, npcInstances, upsertRollForSource]
@@ -247,7 +262,7 @@ export const useInitiative = () => {
     async (
       source: RollSource,
       phase: InitiativePhase,
-      visibility: InitiativeVisibility = 'public'
+      visibility?: InitiativeVisibility
     ) => {
       if (!session || !currentUser) return { success: false, error: 'No session' };
 
@@ -256,7 +271,7 @@ export const useInitiative = () => {
       if (existingEntryId) {
         const { error } = await supabase
           .from('initiative_entries')
-          .update({ phase, visibility })
+          .update({ phase, ...(currentUser.isGm && visibility !== undefined ? { visibility } : {}) })
           .eq('id', existingEntryId);
 
         if (error) return { success: false, error: error.message };
@@ -272,7 +287,7 @@ export const useInitiative = () => {
           roll_value: 0,
           total: 0,
           phase,
-          visibility,
+          visibility: currentUser.isGm ? visibility ?? 'public' : 'public',
         });
 
         if (error) return { success: false, error: error.message };

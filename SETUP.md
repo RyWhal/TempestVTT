@@ -192,6 +192,16 @@ Existing Stormlight databases that previously enabled the extracted campaign sch
 
 13. `013_remove_legacy_campaign_schema.sql`
 14. `014_map_medium_token_scale.sql`
+15. `015_allow_player_pc_renames.sql`
+16. `016_character_map_placements.sql`
+17. `017_atomic_drawing_erase.sql`
+
+Apply migrations 016 and 017 before releasing the session regression fixes. PC
+placements now persist per map, and removing a PC from a map preserves its character
+record. Migration 016 recovers legacy coordinates on the session's active map;
+previous client-only placements on other maps cannot be recovered from the database.
+Migration 017 batches eraser strokes into atomic removals instead of saving complete
+drawing arrays for each pointer movement.
 
 ### 6.1 Notes about storage policies
 

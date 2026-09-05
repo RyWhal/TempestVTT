@@ -423,6 +423,10 @@ describe('useSession.createSession', () => {
   });
 
   it('loads deferred chat, initiative, and npc library data only when requested', async () => {
+    useSessionStore.setState({
+      session: { id: 'session_001' } as Session,
+      currentUser: { username: 'GM', characterId: null, isGm: true },
+    });
     fromMock.mockImplementation((table: string) => {
       if (table === 'chat_messages' || table === 'dice_rolls' || table === 'initiative_roll_logs') {
         return {
@@ -521,5 +525,14 @@ describe('useSession.createSession', () => {
 
     expect(loader).toHaveBeenCalledTimes(2);
     expect(callOrder).toEqual(['start:1', 'end:1', 'start:2', 'end:2']);
+  });
+
+  it('refuses to fetch NPC library rows for non-GMs even when the loader is called directly', async () => {
+    useSessionStore.setState({ currentUser: { username: 'Player', characterId: null, isGm: false } });
+    let load!: ReturnType<typeof useSession>['loadNpcTemplateData'];
+    const Harness = () => { load = useSession().loadNpcTemplateData; return null; };
+    renderToString(<Harness />);
+    await load('session_001');
+    expect(fromMock).not.toHaveBeenCalled();
   });
 });

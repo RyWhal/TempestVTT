@@ -1,18 +1,21 @@
 /* @vitest-environment jsdom */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Token } from './Token';
+
+const handlers = vi.hoisted(() => ({ dragEnd: null as null | ((event: unknown) => Promise<void>) }));
 
 vi.mock('use-image', () => ({
   default: () => [null],
 }));
 
 vi.mock('react-konva', () => ({
-  Group: React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(({ children }, ref) => (
-    <div ref={ref}>{children}</div>
-  )),
+  Group: React.forwardRef<HTMLDivElement, { children: React.ReactNode; onDragEnd: typeof handlers.dragEnd }>(({ children, onDragEnd }, ref) => {
+    if (onDragEnd) handlers.dragEnd = onDragEnd;
+    return <div ref={ref}>{children}</div>;
+  }),
   Circle: (props: { radius: number }) => <div data-testid="token-circle" data-radius={String(props.radius)} />,
   Text: (props: { text: string }) => <div>{props.text}</div>,
   Image: () => <div />,
@@ -20,6 +23,20 @@ vi.mock('react-konva', () => ({
 }));
 
 describe('Token token-size override rendering', () => {
+  it('restores the rendered node to its saved coordinates when a drag cannot be saved', async () => {
+    const onDragEnd = vi.fn().mockResolvedValue(undefined);
+    render(<Token id="pc" type="character" name="PC" imageUrl={null}
+      x={10} y={20} size="medium" gridCellSize={50} tokenSizeOverrideEnabled={false}
+      mediumTokenSizePx={null} isSelected isDraggable isHidden={false} isGM
+      onSelect={() => {}} onDragEnd={onDragEnd} />);
+    const batchDraw = vi.fn();
+    const node = { x: () => 200, y: () => 300, position: vi.fn(), getLayer: () => ({ batchDraw }) };
+    await act(async () => { await handlers.dragEnd?.({ target: node }); });
+    expect(onDragEnd).toHaveBeenCalledWith(200, 300);
+    expect(node.position).toHaveBeenCalledWith({ x: 10, y: 20 });
+    expect(batchDraw).toHaveBeenCalledOnce();
+  });
+
   it('uses mediumTokenSizePx when computing footprint with override enabled', () => {
     render(
       <Token
