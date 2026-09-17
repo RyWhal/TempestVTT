@@ -15,6 +15,7 @@ import {
 import { MapCanvas } from '../map/MapCanvas';
 import { ChatPanel } from '../chat/ChatPanel';
 import { DicePanel } from '../dice/DicePanel';
+import { DiceRollOverlay } from '../dice/DiceRollOverlay';
 import { MapManager } from '../gm/MapManager';
 import { GMSettings } from '../gm/GMSettings';
 import { InitiativePanel } from '../initiative/InitiativePanel';
@@ -157,6 +158,8 @@ export const PlaySession: React.FC = () => {
         <div className="absolute inset-0 z-0">
           <MapCanvas isMeasureMode={isMeasureMode} isPingMode={isPingMode} />
         </div>
+
+        <DiceRollOverlay drawerOpen={activePanel !== null} />
 
         {/* Floating Left Toolbar */}
         <LeftToolbar

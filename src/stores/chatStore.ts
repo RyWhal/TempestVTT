@@ -7,6 +7,10 @@ interface ChatState {
 
   // Dice rolls
   diceRolls: DiceRoll[];
+  rollAnimationQueue: DiceRoll[];
+  recentRollIds: string[];
+  finishRollAnimation: (id: string) => void;
+  clearRollAnimations: () => void;
 
   // UI state
   unreadCount: number;
@@ -33,11 +37,17 @@ interface ChatState {
 
 const MAX_MESSAGES = 500;
 const MAX_DICE_ROLLS = 100;
+const MAX_ANIMATION_QUEUE = 8;
+const MAX_RECENT_ROLL_IDS = 1000;
+const rememberRolls = (previous: string[], ids: string[]) =>
+  Array.from(new Set([...previous, ...ids])).slice(-MAX_RECENT_ROLL_IDS);
 
 export const useChatStore = create<ChatState>()((set) => ({
   // Initial state
   messages: [],
   diceRolls: [],
+  rollAnimationQueue: [],
+  recentRollIds: [],
   unreadCount: 0,
   isNewRollAnimating: false,
 
@@ -52,15 +62,39 @@ export const useChatStore = create<ChatState>()((set) => ({
   clearMessages: () => set({ messages: [] }),
 
   // Dice roll actions
-  setDiceRolls: (rolls) => set({ diceRolls: rolls.slice(-MAX_DICE_ROLLS) }),
+  // Hydrating history must not enqueue animations, even when its realtime echo arrives later.
+  setDiceRolls: (rolls) => set((state) => ({
+    diceRolls: rolls.slice(-MAX_DICE_ROLLS),
+    recentRollIds: rememberRolls(state.recentRollIds, rolls.map(roll => roll.id)),
+  })),
 
   addDiceRoll: (roll) =>
-    set((state) => ({
-      diceRolls: [...state.diceRolls.filter((existing) => existing.id !== roll.id), roll].slice(-MAX_DICE_ROLLS),
-      isNewRollAnimating: true,
-    })),
+    set((state) => {
+      const alreadySeen = state.recentRollIds.includes(roll.id);
+      let queue = state.rollAnimationQueue;
+      if (!alreadySeen) {
+        // Preserve the current animation during bursts; history retains skipped pending rolls.
+        queue = queue.length >= MAX_ANIMATION_QUEUE
+          ? [queue[0], ...queue.slice(-(MAX_ANIMATION_QUEUE - 2)), roll]
+          : [...queue, roll];
+      }
+      return {
+        diceRolls: [...state.diceRolls.filter((existing) => existing.id !== roll.id), roll].slice(-MAX_DICE_ROLLS),
+        recentRollIds: rememberRolls(state.recentRollIds, [roll.id]),
+        rollAnimationQueue: queue,
+        isNewRollAnimating: queue.length > 0,
+      };
+    }),
 
-  clearDiceRolls: () => set({ diceRolls: [] }),
+  finishRollAnimation: (id) => set((state) => {
+    if (state.rollAnimationQueue[0]?.id !== id) return state;
+    const queue = state.rollAnimationQueue.slice(1);
+    return { rollAnimationQueue: queue, isNewRollAnimating: queue.length > 0 };
+  }),
+
+  clearRollAnimations: () => set({ rollAnimationQueue: [], isNewRollAnimating: false }),
+
+  clearDiceRolls: () => set({ diceRolls: [], rollAnimationQueue: [], isNewRollAnimating: false }),
 
   // UI actions
   incrementUnread: () =>
@@ -74,6 +108,8 @@ export const useChatStore = create<ChatState>()((set) => ({
     set({
       messages: [],
       diceRolls: [],
+      rollAnimationQueue: [],
+      recentRollIds: [],
       unreadCount: 0,
       isNewRollAnimating: false,
     }),

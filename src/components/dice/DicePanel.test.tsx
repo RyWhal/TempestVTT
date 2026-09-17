@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DicePanel } from './DicePanel';
 
@@ -117,6 +117,14 @@ describe('DicePanel', () => {
       }
     );
     vi.stubGlobal('confirm', vi.fn(() => true));
+  });
+
+  it('includes percentile dice when rolling a mixed selection', async () => {
+    render(<DicePanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'd20' }));
+    fireEvent.click(screen.getByRole('button', { name: 'd100' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /roll!/i })); });
+    expect(rollDiceMock).toHaveBeenCalledWith('1d20+1d100', expect.any(Object));
   });
 
   it('keeps rolling disabled for modifier-only selections', () => {

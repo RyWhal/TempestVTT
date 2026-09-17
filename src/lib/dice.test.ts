@@ -18,6 +18,9 @@ describe('validateRollRequest', () => {
 });
 
 describe('buildDiceExpression', () => {
+  it('includes selected percentile dice in a mixed expression', () => {
+    expect(buildDiceExpression({ 20: 1, 100: 2 }, 3)).toBe('1d20+2d100+3');
+  });
   it('formats positive modifiers without duplicating the plus separator', () => {
     expect(
       buildDiceExpression({ 8: 1, 10: 1, 12: 1, 20: 1 }, 4)
@@ -86,5 +89,20 @@ describe('createRollResults', () => {
     expect(results.keptAttemptIndex).toBe(1);
     expect(results.total).toBe(3);
     expect(results.dice).toEqual(results.attempts?.[1]?.dice);
+  });
+});
+
+describe('physical dice budget', () => {
+  it('rejects oversized mixed rolls rather than silently losing dice', () => {
+    expect(() => createRollResults('60d6+41d20')).toThrow(/100/);
+    expect(() => createRollResults('101d6+1d20')).toThrow(/100/);
+    expect(() => createRollResults('999999999999999999999d6')).toThrow(/100/);
+  });
+  it('counts percentile pairs, attempts, and plot dice', () => {
+    expect(() => createRollResults('51d100')).toThrow(/100/);
+    expect(() => createRollResults('26d100', { mode: 'advantage' })).toThrow(/100/);
+    expect(() => createRollResults('50d20', { mode: 'disadvantage', plotDieEnabled: true })).toThrow(/100/);
+    expect(() => createRollResults('50d20', { mode: 'advantage' })).not.toThrow();
+    expect(() => createRollResults('100d6')).not.toThrow();
   });
 });
