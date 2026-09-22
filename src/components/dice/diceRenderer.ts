@@ -6,6 +6,7 @@ import {
 } from 'three';
 import { createDieShape, getResultRotation, type DieShape } from './diceGeometry';
 import type { DisplayDie } from './dicePresentation';
+import { drawCenteredDieLabel } from './diceLabels';
 
 const PALETTE: Record<number, string> = { 4: '#8050b9', 6: '#b87928', 8: '#238baf', 10: '#27826c', 12: '#365fac', 20: '#5849a6' };
 const CELL = 256;
@@ -77,8 +78,9 @@ function makeDieAsset(die: DisplayDie) {
         ctx.translate(centerX + v.x * pixels * 0.56, centerY - v.y * pixels * 0.56);
         // Each corner label reads toward its vertex on all three adjoining faces.
         ctx.rotate(Math.atan2(-v.y, v.x) + Math.PI / 2);
-        ctx.font = `bold ${face.radius * pixels * 0.86}px Georgia, serif`;
-        ctx.fillText(String(value), 0, 0);
+        const fontSize = face.radius * pixels * 0.86;
+        ctx.font = `bold ${fontSize}px Georgia, serif`;
+        drawCenteredDieLabel(ctx, String(value), 0, 0, fontSize);
         ctx.restore();
       });
     } else if (die.kind === 'plot') {
@@ -88,10 +90,7 @@ function makeDieAsset(die: DisplayDie) {
         : die.kind === 'percentile-ones' ? String(face.value % 10) : String(face.value);
       const fontSize = face.radius * pixels * (value.length > 1 ? 1.22 : 1.65);
       ctx.font = `bold ${fontSize}px Georgia, serif`;
-      ctx.fillText(value, centerX, centerY + fontSize * 0.04);
-      if (value === '6' || value === '9') {
-        ctx.fillRect(centerX - fontSize * 0.19, centerY + fontSize * 0.49, fontSize * 0.38, fontSize * 0.045);
-      }
+      drawCenteredDieLabel(ctx, value, centerX, centerY, fontSize, value === '6' || value === '9');
     }
     for (let i = 1; i < face.vertices.length - 1; i++) {
       for (const vertexIndex of [0, i, i + 1]) {
@@ -272,4 +271,3 @@ export function createDiceRenderer(
   } catch (error) { dispose(); throw error; }
   return { dispose };
 }
-

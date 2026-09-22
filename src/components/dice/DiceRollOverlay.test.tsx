@@ -37,6 +37,52 @@ async function finish(hold = 12000) {
 }
 
 describe('map roll overlay', () => {
+  it('reveals history at final settlement rather than when the animation starts or fades', async () => {
+    reduceMotion = false;
+    let settle = () => {};
+    rendererMock.mockImplementation((_host, _dice, callbacks) => {
+      settle = callbacks.onSettled;
+      return { dispose: vi.fn() };
+    });
+    const roll = makeRoll();
+    roll.rollResults.dice = [{ type: 'd6', count: 21, results: Array(21).fill(4) }];
+    roll.rollResults.total = 84;
+    useChatStore.getState().addDiceRoll(roll);
+    const view = render(<DiceRollOverlay drawerOpen={false} />);
+    await flush();
+    act(() => settle());
+    expect(useChatStore.getState().revealedRollId).toBeNull();
+    expect(view.container.querySelector('.map-dice-total strong')?.textContent).toBe('…');
+    await finish(1800);
+    await flush();
+    expect(useChatStore.getState().revealedRollId).toBeNull();
+    act(() => settle());
+    expect(useChatStore.getState().revealedRollId).toBe(roll.id);
+    expect(view.container.querySelector('.map-dice-total strong')?.textContent).toBe('84');
+    expect(useChatStore.getState().rollAnimationQueue).toHaveLength(1);
+  });
+
+  it('does not spoil the kept attempt or final result before both attempts settle', async () => {
+    reduceMotion = false;
+    rendererMock.mockImplementation((_host, _dice, callbacks) => {
+      callbacks.onSettled();
+      return { dispose: vi.fn() };
+    });
+    const roll = makeRoll();
+    roll.rollResults.mode = 'advantage';
+    roll.rollResults.keptAttemptIndex = 0;
+    roll.rollResults.attempts = [17, 4].map(value => ({ dice: [{ type: 'd20', count: 1, results: [value] }], modifier: 3, subtotal: value, total: value + 3, plotDie: null }));
+    useChatStore.getState().addDiceRoll(roll);
+    render(<DiceRollOverlay drawerOpen={false} />);
+    await flush();
+    expect(screen.queryByText('Kept')).toBeNull();
+    expect(screen.queryByText(/Final result/)).toBeNull();
+    await finish(1800);
+    await flush();
+    expect(screen.getByText(/Final result/).textContent).toContain('20');
+    expect(useChatStore.getState().revealedRollId).toBe(roll.id);
+  });
+
   it('does not animate or display loaded history', () => {
     useChatStore.getState().setDiceRolls([makeRoll()]);
     render(<DiceRollOverlay drawerOpen={false} />);

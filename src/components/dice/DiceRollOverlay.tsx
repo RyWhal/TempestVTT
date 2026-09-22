@@ -34,6 +34,10 @@ function DiceBatch({ roll, presentation, batch, isFinalBatch, onComplete, onDism
   const reducedMotion = useReducedMotion();
   const [phase, setPhase] = useState<'loading' | 'rolling' | 'settled' | 'fallback' | 'fading'>('loading');
   const [staticResults, setStaticResults] = useState(false);
+  const revealResults = useChatStore(state => state.revealRollResults);
+  useEffect(() => {
+    if (isFinalBatch && (phase === 'settled' || phase === 'fallback')) revealResults(roll.id);
+  }, [phase, isFinalBatch, revealResults, roll.id]);
   useEffect(() => {
     let cancelled = false;
     let failed = false;
@@ -105,7 +109,7 @@ function DiceBatch({ roll, presentation, batch, isFinalBatch, onComplete, onDism
   const multipleAttempts = presentation.attemptCount > 1;
   const visibility = roll.visibility === 'gm_only' ? 'GM only' : roll.visibility === 'self' ? 'Only you' : null;
   return (
-    <div className="map-dice-roll" data-phase={phase} data-kept={batch.kept}>
+    <div className="map-dice-roll" data-phase={phase} data-kept={resultVisible && isFinalBatch ? batch.kept : undefined}>
       <div className="map-dice-stage" ref={host} />
       <div ref={feedback} className="map-dice-feedback" role="status" aria-live="polite" aria-atomic="true">
         <div className="map-dice-result">
@@ -118,17 +122,17 @@ function DiceBatch({ roll, presentation, batch, isFinalBatch, onComplete, onDism
             <div className="map-dice-expression">{roll.rollExpression}</div>
             <div className="map-dice-caption">
               {!resultVisible ? 'Rolling…' : multipleAttempts ? `${presentation.mode} · Attempt ${batch.attemptIndex + 1}` : 'Click elsewhere to dismiss'}
-              {resultVisible && multipleAttempts && <span className={`map-dice-tag ${batch.kept ? 'map-dice-kept' : ''}`}>{batch.kept ? 'Kept' : 'Discarded'}</span>}
+              {resultVisible && isFinalBatch && multipleAttempts && <span className={`map-dice-tag ${batch.kept ? 'map-dice-kept' : ''}`}>{batch.kept ? 'Kept' : 'Discarded'}</span>}
               {resultVisible && batch.dice.some(d => d.kind === 'percentile-tens') && <span>00 + 0 = 100</span>}
             </div>
           </div>
           <div className="map-dice-total">
             <span>{multipleAttempts ? 'Attempt' : 'Total'}</span>
-            <strong>{resultVisible ? batch.total : '…'}</strong>
+            <strong>{resultVisible && batch.part === batch.parts ? batch.total : '…'}</strong>
           </div>
         </div>
         {resultVisible && <div className={staticResults ? 'map-dice-values' : 'map-dice-values map-dice-values-compact'}>{batch.summary}</div>}
-        {resultVisible && multipleAttempts && <div className="map-dice-final">Final result <strong>{presentation.total}</strong></div>}
+        {resultVisible && isFinalBatch && multipleAttempts && <div className="map-dice-final">Final result <strong>{presentation.total}</strong></div>}
       </div>
     </div>
   );

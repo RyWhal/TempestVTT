@@ -3,6 +3,7 @@ import { Dices } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useDiceSettingsStore } from '../../stores/diceSettingsStore';
+import { useChatStore } from '../../stores/chatStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { buildDiceExpression, getPlotDieFaceName, normalizePlotDieResult } from '../../lib/dice';
 import { useToast } from '../shared/Toast';
@@ -329,6 +330,9 @@ interface DiceRollItemProps {
 }
 
 const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
+  const animationsEnabled = useDiceSettingsStore(state => state.showDiceAnimations);
+  const pending = useChatStore(state => state.revealedRollId !== roll.id && state.rollAnimationQueue.some(item => item.id === roll.id));
+  const active = useChatStore(state => state.rollAnimationQueue[0]?.id === roll.id);
   const attempts = useMemo(() => {
     const rawAttempts = (roll.rollResults as { attempts?: RollAttempt[] })?.attempts;
     if (Array.isArray(rawAttempts) && rawAttempts.length > 0) {
@@ -386,7 +390,7 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
         </span>
       </div>
 
-      <div className="space-y-1">
+      {animationsEnabled && pending ? <div role="status" className="p-2 text-slate-400">{active ? 'Rolling…' : 'Waiting to roll…'}</div> : <div className="space-y-1">
         {attempts.map((att, idx) => {
           const isKept = attempts.length === 1 || keptAttemptIndex === idx;
           const flatRolls = att.dice.flatMap((d) => d.results);
@@ -434,7 +438,7 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
             </div>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 };

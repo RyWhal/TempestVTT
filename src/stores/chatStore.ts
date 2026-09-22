@@ -8,6 +8,8 @@ interface ChatState {
   // Dice rolls
   diceRolls: DiceRoll[];
   rollAnimationQueue: DiceRoll[];
+  revealedRollId: string | null;
+  revealRollResults: (id: string) => void;
   recentRollIds: string[];
   finishRollAnimation: (id: string) => void;
   clearRollAnimations: () => void;
@@ -47,6 +49,7 @@ export const useChatStore = create<ChatState>()((set) => ({
   messages: [],
   diceRolls: [],
   rollAnimationQueue: [],
+  revealedRollId: null,
   recentRollIds: [],
   unreadCount: 0,
   isNewRollAnimating: false,
@@ -86,15 +89,18 @@ export const useChatStore = create<ChatState>()((set) => ({
       };
     }),
 
+  revealRollResults: (id) => set((state) =>
+    state.rollAnimationQueue[0]?.id === id ? { revealedRollId: id } : state),
+
   finishRollAnimation: (id) => set((state) => {
     if (state.rollAnimationQueue[0]?.id !== id) return state;
     const queue = state.rollAnimationQueue.slice(1);
-    return { rollAnimationQueue: queue, isNewRollAnimating: queue.length > 0 };
+    return { rollAnimationQueue: queue, revealedRollId: null, isNewRollAnimating: queue.length > 0 };
   }),
 
-  clearRollAnimations: () => set({ rollAnimationQueue: [], isNewRollAnimating: false }),
+  clearRollAnimations: () => set({ rollAnimationQueue: [], revealedRollId: null, isNewRollAnimating: false }),
 
-  clearDiceRolls: () => set({ diceRolls: [], rollAnimationQueue: [], isNewRollAnimating: false }),
+  clearDiceRolls: () => set({ diceRolls: [], rollAnimationQueue: [], revealedRollId: null, isNewRollAnimating: false }),
 
   // UI actions
   incrementUnread: () =>
@@ -109,6 +115,7 @@ export const useChatStore = create<ChatState>()((set) => ({
       messages: [],
       diceRolls: [],
       rollAnimationQueue: [],
+      revealedRollId: null,
       recentRollIds: [],
       unreadCount: 0,
       isNewRollAnimating: false,

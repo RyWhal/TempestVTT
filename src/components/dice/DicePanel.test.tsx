@@ -3,6 +3,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DicePanel } from './DicePanel';
+import { useChatStore } from '../../stores/chatStore';
+import { useDiceSettingsStore } from '../../stores/diceSettingsStore';
+import type { DiceRoll } from '../../types';
 
 const {
   rollDiceMock,
@@ -84,6 +87,8 @@ vi.mock('../shared/Toast', () => ({
 
 describe('DicePanel', () => {
   beforeEach(() => {
+    useChatStore.getState().clearChatState();
+    useDiceSettingsStore.getState().setShowDiceAnimations(true);
     rollDiceMock.mockClear();
     clearDiceHistoryMock.mockClear();
     mockSessionState.currentUser.isGm = false;
@@ -117,6 +122,31 @@ describe('DicePanel', () => {
       }
     );
     vi.stubGlobal('confirm', vi.fn(() => true));
+  });
+
+  it('holds history results until settlement, then reveals them during the hold', () => {
+    useChatStore.getState().addDiceRoll(mockDiceRolls[0] as DiceRoll);
+    render(<DicePanel />);
+    expect(screen.getByText('Rolling…')).toBeTruthy();
+    expect(screen.queryByText('= 20')).toBeNull();
+    expect(screen.queryByText('[18] + 2')).toBeNull();
+    act(() => useChatStore.getState().revealRollResults('roll_001'));
+    expect(screen.getByText('= 20')).toBeTruthy();
+    expect(useChatStore.getState().rollAnimationQueue).toHaveLength(1);
+  });
+
+  it('reveals queued results immediately when animations are disabled or cleared', () => {
+    useChatStore.getState().addDiceRoll({ ...mockDiceRolls[0], id: 'earlier' } as DiceRoll);
+    useChatStore.getState().addDiceRoll(mockDiceRolls[0] as DiceRoll);
+    render(<DicePanel />);
+    expect(screen.getByText('Waiting to roll…')).toBeTruthy();
+    act(() => useDiceSettingsStore.getState().setShowDiceAnimations(false));
+    expect(screen.getByText('= 20')).toBeTruthy();
+    act(() => {
+      useDiceSettingsStore.getState().setShowDiceAnimations(true);
+      useChatStore.getState().clearRollAnimations();
+    });
+    expect(screen.getByText('= 20')).toBeTruthy();
   });
 
   it('includes percentile dice when rolling a mixed selection', async () => {
