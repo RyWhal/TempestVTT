@@ -74,6 +74,7 @@ export interface MapPing {
   x: number;
   y: number;
   createdAt: number;
+  username?: string;
 }
 
 export type HandoutKind = 'image' | 'text';

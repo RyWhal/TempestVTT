@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useChatStore } from '../../stores/chatStore';
 import { useDiceSettingsStore } from '../../stores/diceSettingsStore';
 import { useSessionStore } from '../../stores/sessionStore';
+import { usePlayerAccent } from '../../hooks/usePlayerAccents';
 import type { DiceRoll } from '../../types';
 import { buildRollPresentation, canViewRoll, type RollBatch, type RollPresentation } from './dicePresentation';
 import type { DiceRenderer } from './diceRenderer';
@@ -29,6 +30,7 @@ function DiceBatch({ roll, presentation, batch, isFinalBatch, onComplete, onDism
   onDismiss: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const accent = usePlayerAccent(roll.username);
   const feedback = useRef<HTMLDivElement>(null);
   const dismissed = useRef(false);
   const reducedMotion = useReducedMotion();
@@ -115,7 +117,7 @@ function DiceBatch({ roll, presentation, batch, isFinalBatch, onComplete, onDism
         <div className="map-dice-result">
           <div className="map-dice-copy">
             <div className="map-dice-eyebrow">
-              <span>{roll.characterName || roll.username}</span>
+              <span style={{ color: accent }}>{roll.characterName || roll.username}</span>
               {visibility && <span className="map-dice-tag">{visibility}</span>}
               {batch.parts > 1 && <span className="map-dice-tag">Batch {batch.part}/{batch.parts}</span>}
             </div>

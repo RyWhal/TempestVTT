@@ -163,6 +163,7 @@ export type MapPingPayload = {
   x: number;
   y: number;
   id: string;
+  username?: string;
 };
 
 export const broadcastActiveMap = async (payload: ActiveMapPayload) => {

@@ -4,6 +4,7 @@ import { useChat } from '../../hooks/useChat';
 import { useCharacters } from '../../hooks/useCharacters';
 import { useDiceSettingsStore } from '../../stores/diceSettingsStore';
 import { useChatStore } from '../../stores/chatStore';
+import { usePlayerAccent } from '../../hooks/usePlayerAccents';
 import { useSessionStore } from '../../stores/sessionStore';
 import { buildDiceExpression, getPlotDieFaceName, normalizePlotDieResult } from '../../lib/dice';
 import { useToast } from '../shared/Toast';
@@ -330,6 +331,7 @@ interface DiceRollItemProps {
 }
 
 const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
+  const accent = usePlayerAccent(roll.username);
   const animationsEnabled = useDiceSettingsStore(state => state.showDiceAnimations);
   const pending = useChatStore(state => state.revealedRollId !== roll.id && state.rollAnimationQueue.some(item => item.id === roll.id));
   const active = useChatStore(state => state.rollAnimationQueue[0]?.id === roll.id);
@@ -378,7 +380,7 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
   }, [roll.createdAt]);
 
   return (
-    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-2.5 text-xs space-y-1.5 shadow-sm">
+    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-2.5 text-xs space-y-1.5 shadow-sm" style={{ borderLeft: `3px solid ${accent}` }}>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-slate-400">
         <span className="min-w-0 break-words font-semibold text-slate-200">
           {roll.characterName || roll.username}
