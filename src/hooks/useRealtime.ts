@@ -365,11 +365,11 @@ export const useRealtime = () => {
         const roll = dbDiceRollToDiceRoll(payload.new as DbDiceRoll);
         const activeUser = currentUserRef.current;
         if (roll.visibility === 'public') {
-          addDiceRoll(roll);
+          addDiceRoll(roll, false);
         } else if (roll.visibility === 'gm_only' && activeUser?.isGm) {
-          addDiceRoll(roll);
+          addDiceRoll(roll, false);
         } else if (roll.visibility === 'self' && roll.username === activeUser?.username) {
-          addDiceRoll(roll);
+          addDiceRoll(roll, false);
         }
       }
     );
@@ -475,13 +475,13 @@ export const useRealtime = () => {
       const roll = rollPayload.roll as DiceRoll;
       const activeUser = currentUserRef.current;
       if (roll.visibility === 'public') {
-        addDiceRoll(roll);
+        addDiceRoll(roll, false);
         playDiceRollSound();
       } else if (roll.visibility === 'gm_only' && activeUser?.isGm) {
-        addDiceRoll(roll);
+        addDiceRoll(roll, false);
         playDiceRollSound();
       } else if (roll.visibility === 'self' && roll.username === activeUser?.username) {
-        addDiceRoll(roll);
+        addDiceRoll(roll, false);
         playDiceRollSound();
       }
     });

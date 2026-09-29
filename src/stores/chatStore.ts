@@ -25,7 +25,7 @@ interface ChatState {
 
   // Actions - Dice rolls
   setDiceRolls: (rolls: DiceRoll[]) => void;
-  addDiceRoll: (roll: DiceRoll) => void;
+  addDiceRoll: (roll: DiceRoll, animate?: boolean) => void;
   clearDiceRolls: () => void;
 
   // Actions - UI
@@ -71,11 +71,13 @@ export const useChatStore = create<ChatState>()((set) => ({
     recentRollIds: rememberRolls(state.recentRollIds, rolls.map(roll => roll.id)),
   })),
 
-  addDiceRoll: (roll) =>
+  // Remote deliveries update history only. They must not consume the local
+  // animation ID: a realtime echo can arrive before the insert response.
+  addDiceRoll: (roll, animate = true) =>
     set((state) => {
       const alreadySeen = state.recentRollIds.includes(roll.id);
       let queue = state.rollAnimationQueue;
-      if (!alreadySeen) {
+      if (animate && !alreadySeen) {
         // Preserve the current animation during bursts; history retains skipped pending rolls.
         queue = queue.length >= MAX_ANIMATION_QUEUE
           ? [queue[0], ...queue.slice(-(MAX_ANIMATION_QUEUE - 2)), roll]
@@ -83,7 +85,7 @@ export const useChatStore = create<ChatState>()((set) => ({
       }
       return {
         diceRolls: [...state.diceRolls.filter((existing) => existing.id !== roll.id), roll].slice(-MAX_DICE_ROLLS),
-        recentRollIds: rememberRolls(state.recentRollIds, [roll.id]),
+        recentRollIds: animate ? rememberRolls(state.recentRollIds, [roll.id]) : state.recentRollIds,
         rollAnimationQueue: queue,
         isNewRollAnimating: queue.length > 0,
       };

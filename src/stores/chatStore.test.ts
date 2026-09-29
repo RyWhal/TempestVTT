@@ -10,6 +10,24 @@ const roll = (id: string): DiceRoll => ({
 
 beforeEach(() => useChatStore.getState().clearChatState());
 describe('roll animation delivery', () => {
+  it('keeps remote results in history without animations, including bursts', () => {
+    for (let i = 0; i < 12; i++) useChatStore.getState().addDiceRoll(roll(String(i)), false);
+    expect(useChatStore.getState().diceRolls).toHaveLength(12);
+    expect(useChatStore.getState().rollAnimationQueue).toEqual([]);
+    expect(useChatStore.getState().isNewRollAnimating).toBe(false);
+  });
+  it('animates locally once even when the realtime echo arrives first', () => {
+    const store = useChatStore.getState();
+    store.addDiceRoll(roll('own'), false);
+    store.addDiceRoll(roll('own'));
+    store.addDiceRoll(roll('own'), false);
+    expect(useChatStore.getState().diceRolls).toHaveLength(1);
+    expect(useChatStore.getState().rollAnimationQueue.map(r => r.id)).toEqual(['own']);
+    store.finishRollAnimation('own');
+    store.addDiceRoll(roll('own'), false);
+    store.addDiceRoll(roll('own'));
+    expect(useChatStore.getState().rollAnimationQueue).toEqual([]);
+  });
   it('does not replay hydrated history or its duplicate broadcasts', () => {
     useChatStore.getState().setDiceRolls([roll('old')]);
     useChatStore.getState().addDiceRoll(roll('old'));

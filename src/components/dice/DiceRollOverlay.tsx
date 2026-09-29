@@ -159,7 +159,7 @@ export function DiceRollOverlay({ drawerOpen }: { drawerOpen: boolean }) {
   const viewer = useSessionStore(state => state.currentUser);
   const enabled = useDiceSettingsStore(state => state.showDiceAnimations);
   const clearAnimations = useChatStore(state => state.clearRollAnimations);
-  const visible = enabled && roll && canViewRoll(roll, sessionId, viewer);
+  const visible = enabled && roll && roll.username === viewer?.username && canViewRoll(roll, sessionId, viewer);
   useEffect(() => {
     if (!enabled && roll) clearAnimations();
     else if (roll && !visible) finish(roll.id);
