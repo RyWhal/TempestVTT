@@ -6,7 +6,7 @@ import {
 } from 'three';
 import { createDieShape, getResultRotation, type DieShape } from './diceGeometry';
 import type { DisplayDie } from './dicePresentation';
-import { drawCenteredDieLabel } from './diceLabels';
+import { drawCenteredDieLabel, drawPlotFace } from './diceLabels';
 
 const PALETTE: Record<number, string> = { 4: '#8050b9', 6: '#b87928', 8: '#238baf', 10: '#27826c', 12: '#365fac', 20: '#5849a6' };
 const CELL = 256;
@@ -20,15 +20,6 @@ function seededRandom(seed: string) {
     state ^= state + Math.imul(state ^ state >>> 7, 61 | state);
     return ((state ^ state >>> 14) >>> 0) / 4294967296;
   };
-}
-
-function drawPlotFace(ctx: CanvasRenderingContext2D, value: number, x: number, y: number, size: number) {
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `bold ${size * 0.85}px Georgia, serif`;
-  ctx.fillText(value <= 2 ? '✦' : value <= 4 ? '○' : '!', x, y - size * 0.12);
-  ctx.font = `bold ${size * 0.23}px system-ui, sans-serif`;
-  ctx.fillText(value <= 2 ? 'OPPORTUNITY' : value <= 4 ? 'BLANK' : value === 5 ? '+2' : '+4', x, y + size * 0.43);
 }
 
 /** A numbered atlas is fixed per die type, shared by all copies in a batch. */
@@ -84,7 +75,7 @@ function makeDieAsset(die: DisplayDie) {
         ctx.restore();
       });
     } else if (die.kind === 'plot') {
-      drawPlotFace(ctx, face.value, centerX, centerY, face.radius * pixels * 1.5);
+      drawPlotFace(ctx, face.value, centerX, centerY, face.radius * pixels);
     } else {
       const value = die.kind === 'percentile-tens' ? `${face.value % 10}0`
         : die.kind === 'percentile-ones' ? String(face.value % 10) : String(face.value);
