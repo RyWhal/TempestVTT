@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Map as MapIcon,
-  Users,
   Crown,
   Wifi,
   WifiOff,
@@ -15,11 +14,14 @@ import {
 import { MapCanvas } from '../map/MapCanvas';
 import { ChatPanel } from '../chat/ChatPanel';
 import { DicePanel } from '../dice/DicePanel';
+import { DiceRollOverlay } from '../dice/DiceRollOverlay';
 import { MapManager } from '../gm/MapManager';
 import { GMSettings } from '../gm/GMSettings';
 import { InitiativePanel } from '../initiative/InitiativePanel';
 import { LeftToolbar, type ActivePanelTab } from './LeftToolbar';
 import { TokenHubPanel } from './TokenHubPanel';
+import { PlayerAccentPicker } from './PlayerAccentPicker';
+import { PlayerAccentList } from './PlayerAccentList';
 import { useSessionStore, useIsGM } from '../../stores/sessionStore';
 import { useAudioStore } from '../../stores/audioStore';
 import { useSession } from '../../hooks/useSession';
@@ -33,7 +35,6 @@ export const PlaySession: React.FC = () => {
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
   const connectionStatus = useSessionStore((state) => state.connectionStatus);
-  const players = useSessionStore((state) => state.players);
   const isGM = useIsGM();
   const { leaveSession, claimGM, releaseGM, loadChatData, loadInitiativeData, loadNpcTemplateData } = useSession();
 
@@ -103,10 +104,8 @@ export const PlaySession: React.FC = () => {
               )}
             </span>
 
-            <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-              <Users className="h-3.5 w-3.5" />
-              {players.length}
-            </span>
+            <PlayerAccentPicker />
+            <PlayerAccentList />
 
             {isGM ? (
               <button
@@ -157,6 +156,8 @@ export const PlaySession: React.FC = () => {
         <div className="absolute inset-0 z-0">
           <MapCanvas isMeasureMode={isMeasureMode} isPingMode={isPingMode} />
         </div>
+
+        <DiceRollOverlay drawerOpen={activePanel !== null} />
 
         {/* Floating Left Toolbar */}
         <LeftToolbar

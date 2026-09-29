@@ -365,11 +365,11 @@ export const useRealtime = () => {
         const roll = dbDiceRollToDiceRoll(payload.new as DbDiceRoll);
         const activeUser = currentUserRef.current;
         if (roll.visibility === 'public') {
-          addDiceRoll(roll);
+          addDiceRoll(roll, false);
         } else if (roll.visibility === 'gm_only' && activeUser?.isGm) {
-          addDiceRoll(roll);
+          addDiceRoll(roll, false);
         } else if (roll.visibility === 'self' && roll.username === activeUser?.username) {
-          addDiceRoll(roll);
+          addDiceRoll(roll, false);
         }
       }
     );
@@ -475,13 +475,13 @@ export const useRealtime = () => {
       const roll = rollPayload.roll as DiceRoll;
       const activeUser = currentUserRef.current;
       if (roll.visibility === 'public') {
-        addDiceRoll(roll);
+        addDiceRoll(roll, false);
         playDiceRollSound();
       } else if (roll.visibility === 'gm_only' && activeUser?.isGm) {
-        addDiceRoll(roll);
+        addDiceRoll(roll, false);
         playDiceRollSound();
       } else if (roll.visibility === 'self' && roll.username === activeUser?.username) {
-        addDiceRoll(roll);
+        addDiceRoll(roll, false);
         playDiceRollSound();
       }
     });
@@ -515,15 +515,18 @@ export const useRealtime = () => {
         x: number;
         y: number;
         id: string;
+        username?: string;
       };
 
-      if (pingPayload.sessionId !== sessionId) return;
+      if (!pingPayload || pingPayload.sessionId !== sessionId || typeof pingPayload.mapId !== 'string'
+          || !Number.isFinite(pingPayload.x) || !Number.isFinite(pingPayload.y)) return;
       useMapStore.getState().addPing({
         id: pingPayload.id || `ping_${Date.now()}_${Math.random()}`,
         mapId: pingPayload.mapId,
         x: pingPayload.x,
         y: pingPayload.y,
         createdAt: Date.now(),
+        username: typeof pingPayload.username === 'string' ? pingPayload.username.slice(0, 80) : undefined,
       });
     });
 

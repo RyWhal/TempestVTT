@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle, Text, Group, Wedge } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Circle, Text, Group } from 'react-konva';
 import useImage from 'use-image';
 import {
   ZoomIn,
@@ -22,6 +22,10 @@ import type { FogRegion, DrawingRegion, DrawingShape, TokenSize, MapEffectTile, 
 import { isDrawingColor } from '../../types';
 import { nanoid } from 'nanoid';
 import { useToast } from '../shared/Toast';
+import { useSharedMeasurements } from '../../hooks/useSharedMeasurements';
+import { useMeasurementSettingsStore } from '../../stores/measurementSettingsStore';
+import { MeasurementOverlay } from './MeasurementOverlay';
+import { usePlayerAccent } from '../../hooks/usePlayerAccents';
 
 const TOKEN_SIZE_ORDER: TokenSize[] = [
   'tiny',
@@ -38,6 +42,7 @@ interface PingMarkerProps {
 }
 
 const PingMarker: React.FC<PingMarkerProps> = ({ ping, onComplete }) => {
+  const accent = usePlayerAccent(ping.username);
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
@@ -77,35 +82,37 @@ const PingMarker: React.FC<PingMarkerProps> = ({ ping, onComplete }) => {
     <Group x={ping.x} y={ping.y}>
       <Circle
         radius={ripple1Radius}
-        stroke="#ef4444"
+        stroke={accent}
         strokeWidth={3}
         opacity={ripple1Opacity * 0.9}
         listening={false}
       />
       <Circle
         radius={ripple2Radius}
-        stroke="#f87171"
+        stroke={accent}
         strokeWidth={2}
         opacity={ripple2Opacity * 0.7}
         listening={false}
       />
       <Circle
         radius={18}
-        fill="#ef4444"
+        fill={accent}
         opacity={0.35 * dotOpacity}
         listening={false}
       />
       <Circle
         radius={dotRadius}
-        fill="#ef4444"
+        fill={accent}
         stroke="#ffffff"
         strokeWidth={2.5}
-        shadowColor="#ef4444"
+        shadowColor={accent}
         shadowBlur={18}
         shadowOpacity={1}
         opacity={dotOpacity}
         listening={false}
       />
+      {ping.username && <Text x={-90} y={-40} width={180} align="center" text={ping.username}
+        fontSize={14} fontStyle="bold" fill={accent} stroke="#0f172a" strokeWidth={0.5} listening={false} />}
     </Group>
   );
 };
@@ -119,9 +126,6 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
 
-  const [rulerStart, setRulerStart] = useState<{ x: number; y: number } | null>(null);
-  const [rulerEnd, setRulerEnd] = useState<{ x: number; y: number } | null>(null);
-  const [isMeasuring, setIsMeasuring] = useState(false);
 
   const activeMap = useMapStore((state) => state.activeMap);
   const {
@@ -164,6 +168,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
   const isGM = useIsGM();
+  const { showOthers, privateMeasurement, setShowOthers, setPrivateMeasurement } = useMeasurementSettingsStore();
+  const sharedMeasurements = useSharedMeasurements({ sessionId: session?.id, mapId: activeMap?.id,
+    owner: currentUser?.username, privateMeasurement: isGM && privateMeasurement });
+  const { begin: beginMeasurement, move: moveMeasurement, release: releaseMeasurement,
+    dismiss: dismissMeasurement, isDragging: isMeasuring } = sharedMeasurements;
   const tokenPositionsByMap = useMapStore((state) => state.tokenPositionsByMap);
   const measureShape = useMapStore((state) => state.measureShape);
   const { characters, moveCharacterPosition, updateCharacterDetails } = useCharacters();
@@ -266,11 +275,19 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
 
   useEffect(() => {
     if (!isMeasureMode) {
-      setRulerStart(null);
-      setRulerEnd(null);
-      setIsMeasuring(false);
+      dismissMeasurement();
     }
-  }, [isMeasureMode]);
+  }, [isMeasureMode, dismissMeasurement]);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      const isMapCanvas = target instanceof HTMLCanvasElement && containerRef.current?.contains(target);
+      if (!isMapCanvas) dismissMeasurement();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [dismissMeasurement]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setEffectPulse((prev) => (prev + 1) % 100000), 40);
@@ -961,6 +978,17 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
       className="w-full h-full bg-slate-950 overflow-hidden relative"
       style={{ cursor: isPingMode || effectPaintMode || fogToolMode || (canDrawOnMap && drawingTool) ? 'crosshair' : 'default' }}
     >
+      {isMeasureMode && <div className="absolute top-3 left-3 z-20 rounded-lg border border-slate-600 bg-slate-950/90 px-3 py-2 text-xs text-slate-200 shadow-lg">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={showOthers} onChange={(event) => setShowOthers(event.target.checked)} />
+          Show other players’ measurements
+        </label>
+        {isGM && <label className="mt-2 flex items-center gap-2">
+          <input type="checkbox" checked={privateMeasurement} onChange={(event) => setPrivateMeasurement(event.target.checked)} />
+          Measure privately
+        </label>}
+        <p className="mt-2 text-slate-400">Clears after 10 seconds or when you click elsewhere.</p>
+      </div>}
       {activeMap ? (
           <Stage
             ref={stageRef}
@@ -974,6 +1002,19 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
             onWheel={handleWheel}
             onDragEnd={handleDragEnd}
             onClick={handleStageClick}
+            onTouchStart={(event) => {
+              if (!isMeasureMode) return;
+              event.evt.preventDefault();
+              const pointer = stageRef.current?.getPointerPosition();
+              if (pointer) beginMeasurement(clampToMapBounds(screenToMap(pointer.x, pointer.y)), measureShape);
+            }}
+            onTouchMove={(event) => {
+              if (!isMeasureMode || !isMeasuring) return;
+              event.evt.preventDefault();
+              const pointer = stageRef.current?.getPointerPosition();
+              if (pointer) moveMeasurement(clampToMapBounds(screenToMap(pointer.x, pointer.y)));
+            }}
+            onTouchEnd={() => { if (isMeasureMode) releaseMeasurement(); }}
             onMouseDown={(e) => {
               if (isPingMode) {
                 const stage = stageRef.current;
@@ -987,6 +1028,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
                     x: mapPos.x,
                     y: mapPos.y,
                     createdAt: Date.now(),
+                    username: currentUser?.username,
                   };
                   addPing(ping);
                   if (session?.id) {
@@ -996,6 +1038,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
                       x: mapPos.x,
                       y: mapPos.y,
                       id: pingId,
+                      username: currentUser?.username,
                     });
                   }
                 }
@@ -1006,12 +1049,11 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
                 if (stage) {
                   const pointer = stage.getPointerPosition();
                   const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
-                  setRulerStart(mapPos);
-                  setRulerEnd(mapPos);
-                  setIsMeasuring(true);
+                  beginMeasurement(mapPos, measureShape);
                 }
                 return;
               }
+              dismissMeasurement();
               if (effectPaintMode) handleEffectPaint(e);
               else if (fogToolMode) handleFogMouseDown(e);
               else if (canDrawOnMap && drawingTool) handleDrawingMouseDown(e);
@@ -1022,7 +1064,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
                 if (stage) {
                   const pointer = stage.getPointerPosition();
                   const mapPos = clampToMapBounds(screenToMap(pointer.x, pointer.y));
-                  setRulerEnd(mapPos);
+                  moveMeasurement(mapPos);
                 }
                 return;
               }
@@ -1031,7 +1073,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
             }}
             onMouseUp={(e) => {
               if (isMeasureMode && isMeasuring) {
-                setIsMeasuring(false);
+                releaseMeasurement();
                 return;
               }
               if (fogToolMode) handleFogMouseUp(e);
@@ -1162,162 +1204,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
               </Layer>
             )}
 
-            {/* Distance / AoE Measurement Ruler Layer */}
-            {rulerStart && rulerEnd && (
-              <Layer listening={false} hitGraphEnabled={false}>
-                {(() => {
-                  const dx = rulerEnd.x - rulerStart.x;
-                  const dy = rulerEnd.y - rulerStart.y;
-                  const distancePx = Math.hypot(dx, dy);
-                  const cellSize = activeMap?.gridCellSize || 50;
-                  const feet = Math.round((distancePx / cellSize) * 5);
-                  const squares = (distancePx / cellSize).toFixed(1);
-
-                  if (measureShape === 'radius') {
-                    const midX = (rulerStart.x + rulerEnd.x) / 2;
-                    const midY = (rulerStart.y + rulerEnd.y) / 2;
-
-                    return (
-                      <>
-                        <Circle
-                          x={rulerStart.x}
-                          y={rulerStart.y}
-                          radius={distancePx}
-                          fill="rgba(56, 189, 248, 0.25)"
-                          stroke="#38bdf8"
-                          strokeWidth={2 / viewportScale}
-                          dash={[8 / viewportScale, 4 / viewportScale]}
-                        />
-                        <Line
-                          points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
-                          stroke="#38bdf8"
-                          strokeWidth={3 / viewportScale}
-                          dash={[6 / viewportScale, 3 / viewportScale]}
-                        />
-                        <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
-                        <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
-
-                        <Group x={midX} y={midY - 18 / viewportScale}>
-                          <Rect
-                            x={-70 / viewportScale}
-                            y={-12 / viewportScale}
-                            width={140 / viewportScale}
-                            height={24 / viewportScale}
-                            fill="rgba(15, 23, 42, 0.9)"
-                            stroke="#38bdf8"
-                            strokeWidth={1 / viewportScale}
-                            cornerRadius={6 / viewportScale}
-                          />
-                          <Text
-                            x={-70 / viewportScale}
-                            y={-6 / viewportScale}
-                            width={140 / viewportScale}
-                            align="center"
-                            text={`Radius: ${feet} ft (${squares} sq)`}
-                            fontSize={11 / viewportScale}
-                            fontStyle="bold"
-                            fill="#38bdf8"
-                          />
-                        </Group>
-                      </>
-                    );
-                  }
-
-                  if (measureShape === 'cone') {
-                    const angleRad = Math.atan2(dy, dx);
-                    const angleDeg = (angleRad * 180) / Math.PI;
-                    const rotationDeg = angleDeg - 30;
-
-                    return (
-                      <>
-                        <Wedge
-                          x={rulerStart.x}
-                          y={rulerStart.y}
-                          radius={distancePx}
-                          angle={60}
-                          rotation={rotationDeg}
-                          fill="rgba(56, 189, 248, 0.25)"
-                          stroke="#38bdf8"
-                          strokeWidth={2 / viewportScale}
-                          dash={[8 / viewportScale, 4 / viewportScale]}
-                        />
-                        <Line
-                          points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
-                          stroke="#38bdf8"
-                          strokeWidth={3 / viewportScale}
-                          dash={[6 / viewportScale, 3 / viewportScale]}
-                        />
-                        <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
-                        <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
-
-                        <Group x={rulerEnd.x} y={rulerEnd.y - 18 / viewportScale}>
-                          <Rect
-                            x={-65 / viewportScale}
-                            y={-12 / viewportScale}
-                            width={130 / viewportScale}
-                            height={24 / viewportScale}
-                            fill="rgba(15, 23, 42, 0.9)"
-                            stroke="#38bdf8"
-                            strokeWidth={1 / viewportScale}
-                            cornerRadius={6 / viewportScale}
-                          />
-                          <Text
-                            x={-65 / viewportScale}
-                            y={-6 / viewportScale}
-                            width={130 / viewportScale}
-                            align="center"
-                            text={`Cone: ${feet} ft (${squares} sq)`}
-                            fontSize={11 / viewportScale}
-                            fontStyle="bold"
-                            fill="#38bdf8"
-                          />
-                        </Group>
-                      </>
-                    );
-                  }
-
-                  // Default Line measurement
-                  const midX = (rulerStart.x + rulerEnd.x) / 2;
-                  const midY = (rulerStart.y + rulerEnd.y) / 2;
-
-                  return (
-                    <>
-                      <Line
-                        points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
-                        stroke="#38bdf8"
-                        strokeWidth={4 / viewportScale}
-                        dash={[8 / viewportScale, 4 / viewportScale]}
-                      />
-                      <Circle x={rulerStart.x} y={rulerStart.y} radius={5 / viewportScale} fill="#38bdf8" />
-                      <Circle x={rulerEnd.x} y={rulerEnd.y} radius={5 / viewportScale} fill="#38bdf8" />
-
-                      <Group x={midX} y={midY - 18 / viewportScale}>
-                        <Rect
-                          x={-55 / viewportScale}
-                          y={-12 / viewportScale}
-                          width={110 / viewportScale}
-                          height={24 / viewportScale}
-                          fill="rgba(15, 23, 42, 0.9)"
-                          stroke="#38bdf8"
-                          strokeWidth={1 / viewportScale}
-                          cornerRadius={6 / viewportScale}
-                        />
-                        <Text
-                          x={-55 / viewportScale}
-                          y={-6 / viewportScale}
-                          width={110 / viewportScale}
-                          align="center"
-                          text={`${feet} ft (${squares} sq)`}
-                          fontSize={11 / viewportScale}
-                          fontStyle="bold"
-                          fill="#38bdf8"
-                        />
-                      </Group>
-                    </>
-                  );
-                })()}
-              </Layer>
-            )}
+            <MeasurementOverlay measurements={sharedMeasurements.measurements} scale={viewportScale}
+              cellSize={activeMap.gridCellSize || 50} owner={currentUser?.username}
+              showOthers={showOthers} now={sharedMeasurements.now} />
 
             {/* Pings Overlay Layer */}
             <Layer key="pings-layer">

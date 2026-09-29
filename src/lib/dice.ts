@@ -1,5 +1,7 @@
 import type { PlotDieFace, PlotDieResult, RollAttempt, RollMode, RollResults } from '../types';
 
+import { MAX_ROLL_DICE, physicalDiceCount } from './diceLimits';
+
 // Dice notation parser and roller
 
 interface ParsedDice {
@@ -175,8 +177,17 @@ export const normalizePlotDieResult = (
 
 export const validateRollRequest = (
   expression: string,
-  options: Pick<RollRequestOptions, 'plotDieEnabled'> = {}
+  options: RollRequestOptions = {}
 ): RollValidationResult => {
+  // Check raw groups before parsing, which historically discarded oversized groups.
+  let physicalCount = options.plotDieEnabled ? 1 : 0;
+  for (const match of expression.replace(/\s/g, '').toLowerCase().matchAll(/(\d*)d(\d+)/g)) {
+    physicalCount += physicalDiceCount(Number(match[2]), Number(match[1] || 1));
+  }
+  physicalCount *= options.mode && options.mode !== 'normal' ? 2 : 1;
+  if (!Number.isFinite(physicalCount) || physicalCount > MAX_ROLL_DICE) {
+    return { valid: false, error: `Roll up to ${MAX_ROLL_DICE} dice, including percentile pairs, extra attempts, and plot dice.` };
+  }
   const parsed = parseDiceNotation(expression);
   const hasStandardDice = parsed.dice.some((die) => Math.abs(die.count) > 0);
 
@@ -221,7 +232,7 @@ export const createRollResults = (
   options: RollRequestOptions = {}
 ): RollResults => {
   const { mode = 'normal', plotDieEnabled = false } = options;
-  const validation = validateRollRequest(expression, { plotDieEnabled });
+  const validation = validateRollRequest(expression, { plotDieEnabled, mode });
 
   if (!validation.valid || !validation.parsed) {
     throw new Error(validation.error || 'Invalid roll');
@@ -304,7 +315,7 @@ export const buildDiceExpression = (
   const diceParts: string[] = [];
 
   // Standard dice sizes
-  const diceTypes = [4, 6, 8, 10, 12, 20];
+  const diceTypes = [4, 6, 8, 10, 12, 20, 100];
 
   for (const sides of diceTypes) {
     const count = dice[sides] || 0;

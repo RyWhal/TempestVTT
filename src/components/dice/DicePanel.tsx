@@ -2,6 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Dices } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useCharacters } from '../../hooks/useCharacters';
+import { useDiceSettingsStore } from '../../stores/diceSettingsStore';
+import { useChatStore } from '../../stores/chatStore';
+import { usePlayerAccent } from '../../hooks/usePlayerAccents';
 import { useSessionStore } from '../../stores/sessionStore';
 import { buildDiceExpression, getPlotDieFaceName, normalizePlotDieResult } from '../../lib/dice';
 import { useToast } from '../shared/Toast';
@@ -9,7 +12,7 @@ import type { DiceRoll, RollAttempt, RollMode, RollVisibility } from '../../type
 
 import { playDiceRollSound } from '../../lib/audio';
 
-const DICE_TYPES = [4, 6, 8, 10, 12, 20] as const;
+const DICE_TYPES = [4, 6, 8, 10, 12, 20, 100] as const;
 const ROLL_MODE_OPTIONS: Array<{ value: RollMode; label: string }> = [
   { value: 'normal', label: 'Normal' },
   { value: 'advantage', label: 'Advantage' },
@@ -41,11 +44,12 @@ const DiceIcon: React.FC<{ sides: number; className?: string }> = ({ sides, clas
           <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="9" fontWeight="bold">8</text>
         </svg>
       );
+    case 100:
     case 10:
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className}>
           <polygon points="12 2 21 8 16.5 21 7.5 21 3 8" />
-          <text x="12" y="14.8" textAnchor="middle" fill="currentColor" stroke="none" fontSize="8" fontWeight="bold">10</text>
+          <text x="12" y="14.8" textAnchor="middle" fill="currentColor" stroke="none" fontSize={sides === 100 ? "6.5" : "8"} fontWeight="bold">{sides}</text>
         </svg>
       );
     case 12:
@@ -74,6 +78,8 @@ export const DicePanel: React.FC = () => {
   const { myCharacter } = useCharacters();
   const session = useSessionStore((state) => state.session);
   const currentUser = useSessionStore((state) => state.currentUser);
+  const showDiceAnimations = useDiceSettingsStore(state => state.showDiceAnimations);
+  const setShowDiceAnimations = useDiceSettingsStore(state => state.setShowDiceAnimations);
   const plotDiceFeatureEnabled = Boolean(session?.enablePlotDice);
   const isGM = currentUser?.isGm ?? false;
 
@@ -145,11 +151,21 @@ export const DicePanel: React.FC = () => {
   const sortedRolls = useMemo(() => [...diceRolls].reverse(), [diceRolls]);
 
   return (
-    <div className="h-full flex flex-col bg-transparent text-slate-100">
+    <div className="h-full min-w-0 flex flex-col bg-transparent text-slate-100">
       {/* Iconographic dice controls header */}
       <div className="p-3 border-b border-white/10 space-y-2.5">
+        <label className="flex cursor-pointer items-center justify-between gap-3 text-xs text-slate-300">
+          <span>Show 3D dice <span className="text-[10px] text-slate-500">(this device)</span></span>
+          <input
+            type="checkbox"
+            checked={showDiceAnimations}
+            onChange={event => setShowDiceAnimations(event.target.checked)}
+            aria-label="Show 3D dice"
+            className="h-4 w-4 accent-blue-500"
+          />
+        </label>
         {/* Dice Shape Selector Row */}
-        <div className="grid grid-cols-6 gap-1.5">
+        <div className="grid grid-cols-7 gap-1">
           {DICE_TYPES.map((sides) => {
             const count = dice[sides] || 0;
             const isActive = count > 0;
@@ -159,13 +175,13 @@ export const DicePanel: React.FC = () => {
                 onClick={() => addDie(sides)}
                 title={`Add d${sides}`}
                 aria-label={`d${sides}`}
-                className={`relative flex items-center justify-center p-2 rounded-2xl border transition-all ${
+                className={`relative min-w-0 flex items-center justify-center p-1 rounded-xl border transition-all ${
                   isActive
                     ? 'border-blue-500/80 bg-blue-600/30 text-blue-300 shadow-lg shadow-blue-500/20'
                     : 'border-white/10 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60 hover:text-white'
                 }`}
               >
-                <DiceIcon sides={sides} className="h-8 w-8" />
+                <DiceIcon sides={sides} className="h-6 w-6" />
                 {isActive && (
                   <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-blue-600 font-mono text-[10px] font-extrabold text-white shadow-md">
                     {count}
@@ -176,6 +192,9 @@ export const DicePanel: React.FC = () => {
           })}
         </div>
 
+        <p className="mt-2 text-center text-[10px] text-slate-400">
+          3D rolls on the map · 20 dice per batch · 100 dice max, including extra attempts and percentile pairs.
+        </p>
         {/* Selected Dice Pills & Clear Button */}
         {totalDice > 0 && (
           <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-800/60">
@@ -312,6 +331,10 @@ interface DiceRollItemProps {
 }
 
 const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
+  const accent = usePlayerAccent(roll.username);
+  const animationsEnabled = useDiceSettingsStore(state => state.showDiceAnimations);
+  const pending = useChatStore(state => state.revealedRollId !== roll.id && state.rollAnimationQueue.some(item => item.id === roll.id));
+  const active = useChatStore(state => state.rollAnimationQueue[0]?.id === roll.id);
   const attempts = useMemo(() => {
     const rawAttempts = (roll.rollResults as { attempts?: RollAttempt[] })?.attempts;
     if (Array.isArray(rawAttempts) && rawAttempts.length > 0) {
@@ -357,19 +380,19 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
   }, [roll.createdAt]);
 
   return (
-    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-2.5 text-xs space-y-1.5 shadow-sm">
-      <div className="flex items-center justify-between text-slate-400">
-        <span className="font-semibold text-slate-200">
+    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-2.5 text-xs space-y-1.5 shadow-sm" style={{ borderLeft: `3px solid ${accent}` }}>
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-slate-400">
+        <span className="min-w-0 break-words font-semibold text-slate-200">
           {roll.characterName || roll.username}
         </span>
-        <span className="font-mono text-[10px] text-slate-500 flex items-center gap-1.5">
+        <span className="min-w-0 flex flex-wrap items-center gap-1.5 break-all font-mono text-[10px] text-slate-500">
           {formattedTime && <span>{formattedTime}</span>}
           {formattedTime && <span>•</span>}
           <span>{roll.rollExpression}</span>
         </span>
       </div>
 
-      <div className="space-y-1">
+      {animationsEnabled && pending ? <div role="status" className="p-2 text-slate-400">{active ? 'Rolling…' : 'Waiting to roll…'}</div> : <div className="space-y-1">
         {attempts.map((att, idx) => {
           const isKept = attempts.length === 1 || keptAttemptIndex === idx;
           const flatRolls = att.dice.flatMap((d) => d.results);
@@ -417,7 +440,7 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
             </div>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 };
