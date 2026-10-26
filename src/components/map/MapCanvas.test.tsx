@@ -5,12 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MapCanvas } from './MapCanvas';
 import { useMapStore } from '../../stores/mapStore';
 import { useSessionStore } from '../../stores/sessionStore';
-import type { DrawingRegion, Map, Session } from '../../types';
+import type { Character, DrawingRegion, Map, NPCInstance, Session } from '../../types';
+import type { TokenProps } from './Token';
 
 const mocks = vi.hoisted(() => ({
   erase: vi.fn().mockResolvedValue({ success: true }), update: vi.fn(), toast: vi.fn(),
   pointer: { x: 20, y: 20 },
   stageProps: {} as Record<string, (event: unknown) => void>,
+  characters: [] as Character[], npcs: [] as NPCInstance[],
+  tokens: [] as TokenProps[], opacity: undefined as number | undefined,
 }));
 vi.mock('react-konva', () => ({
   Stage: React.forwardRef((props: { children: React.ReactNode }, ref) => {
@@ -25,8 +28,11 @@ vi.mock('react-konva', () => ({
 vi.mock('use-image', () => ({ default: () => [null] }));
 vi.mock('./TokenPopover', () => ({ TokenPopover: () => null }));
 vi.mock('./DrawingLayer', () => ({ DrawingLayer: () => null }));
-vi.mock('../../hooks/useCharacters', () => ({ useCharacters: () => ({ characters: [], moveCharacterPosition: vi.fn() }) }));
-vi.mock('../../hooks/useNPCs', () => ({ useNPCs: () => ({ currentMapNPCs: [] }) }));
+vi.mock('../../hooks/useCharacters', () => ({ useCharacters: () => ({ characters: mocks.characters, moveCharacterPosition: vi.fn() }) }));
+vi.mock('../../hooks/useNPCs', () => ({ useNPCs: () => ({ currentMapNPCs: mocks.npcs }) }));
+vi.mock('./TokenLayer', () => ({ TokenLayer: ({ tokens, opacity }: { tokens: TokenProps[]; opacity?: number }) => {
+  mocks.tokens = tokens; mocks.opacity = opacity; return null;
+} }));
 vi.mock('../../hooks/useMap', () => ({ useMap: () => ({ eraseDrawingRegions: mocks.erase, updateDrawingData: mocks.update }) }));
 vi.mock('../shared/Toast', () => ({ useToast: () => ({ showToast: mocks.toast }) }));
 
@@ -36,6 +42,7 @@ describe('map eraser persistence', () => {
   beforeEach(() => {
     mocks.erase.mockClear(); mocks.update.mockClear(); mocks.toast.mockClear();
     mocks.pointer = { x: 20, y: 20 };
+    mocks.characters = []; mocks.npcs = []; mocks.tokens = [];
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     useSessionStore.setState({ session: { id: 'session' } as Session, currentUser: { username: 'GM', characterId: null, isGm: true } });
     useMapStore.getState().clearMapState();
@@ -64,5 +71,26 @@ describe('map eraser persistence', () => {
     await act(async () => useMapStore.setState({ activeMap: { ...useMapStore.getState().activeMap!, id: 'b' }, drawingData: [] }));
     expect(mocks.erase).toHaveBeenCalledTimes(1);
     expect(mocks.erase).toHaveBeenCalledWith('a', ['first']);
+  });
+
+  it('excludes hidden NPCs and disabled PCs from both rendering passes and forwards shared opacity', () => {
+    mocks.characters = [{ id: 'pc', name: 'PC' } as Character];
+    mocks.npcs = [
+      { id: 'public', displayName: 'Public', isVisible: true } as NPCInstance,
+      { id: 'secret', displayName: 'Secret', isVisible: false } as NPCInstance,
+    ];
+    useSessionStore.setState({ currentUser: { username: 'Player', isGm: false, characterId: null } });
+    useMapStore.setState({
+      activeMap: { ...useMapStore.getState().activeMap!, showPlayerTokens: false },
+      tokenPositionsByMap: { a: { characters: { pc: { x: 10, y: 20 } }, npcs: {} } },
+    });
+    render(<MapCanvas />);
+    expect(mocks.tokens.map(token => token.id)).toEqual(['public']);
+    act(() => useMapStore.setState({ activeMap: { ...useMapStore.getState().activeMap!, showPlayerTokens: true } }));
+    expect(mocks.tokens.map(token => token.id)).toEqual(['public', 'pc']);
+    act(() => useSessionStore.getState().updateSession({ tokenOpacity: 0 }));
+    expect(mocks.opacity).toBe(0);
+    act(() => useSessionStore.setState({ currentUser: { username: 'GM', isGm: true, characterId: null } }));
+    expect(mocks.tokens.map(token => token.id)).toEqual(['public', 'secret', 'pc']);
   });
 });

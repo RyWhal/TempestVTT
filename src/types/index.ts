@@ -1,4 +1,5 @@
 // types/index.ts - TypeScript type definitions for Tempest Table
+import { normalizeTokenOpacity } from '../lib/tokenAppearance';
 
 export type TokenSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
 
@@ -24,6 +25,7 @@ export interface Session {
   enableInitiativePhase: boolean;
   enablePlotDice: boolean;
   allowPlayersDrawings: boolean;
+  tokenOpacity: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -363,6 +365,7 @@ export interface DbSession {
   enable_initiative_phase: boolean;
   enable_plot_dice: boolean;
   allow_players_drawings: boolean;
+  token_opacity?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -525,6 +528,7 @@ export function dbSessionToSession(db: DbSession): Session {
     enableInitiativePhase: db.enable_initiative_phase ?? true,
     enablePlotDice: db.enable_plot_dice ?? true,
     allowPlayersDrawings: db.allow_players_drawings ?? true,
+    tokenOpacity: normalizeTokenOpacity(db.token_opacity),
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };

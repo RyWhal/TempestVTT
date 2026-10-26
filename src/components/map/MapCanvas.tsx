@@ -12,7 +12,8 @@ import { useCharacters } from '../../hooks/useCharacters';
 import { useNPCs } from '../../hooks/useNPCs';
 import { useMap } from '../../hooks/useMap';
 import { broadcastTokenLock, broadcastTokenUnlock, broadcastMapPing } from '../../lib/tokenBroadcast';
-import { Token } from './Token';
+import { TokenLayer } from './TokenLayer';
+import type { TokenProps } from './Token';
 import { TokenPopover } from './TokenPopover';
 import { GridOverlay } from './GridOverlay';
 import { FogLayer } from './FogLayer';
@@ -972,6 +973,34 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
     ? TOKEN_SIZE_ORDER.indexOf(selectedNpc.size || 'medium')
     : -1;
 
+  const tokenItems: TokenProps[] = [
+    ...currentMapNPCs.filter(npc => npc.isVisible || isGM).map((npc): TokenProps => ({
+      id: npc.id, type: 'npc', name: npc.displayName || 'NPC', imageUrl: npc.tokenUrl,
+      x: npc.positionX, y: npc.positionY, size: npc.size || 'medium', gridCellSize,
+      tokenSizeOverrideEnabled, mediumTokenSizePx,
+      isSelected: selectedTokenKeys.includes(buildTokenKey('npc', npc.id)),
+      isDraggable: canMoveToken('npc', npc.id), isHidden: !npc.isVisible, isGM,
+      statusRingColor: npc.statusRingColor,
+      showResizeControls: isGM || session?.allowPlayersMoveNpcs,
+      onResize: direction => handleNPCResize(npc.id, direction),
+      onSelect: event => handleNPCSelect(npc.id, event),
+      onDragStart: () => { void handleTokenDragStart(npc.id, 'npc'); },
+      onDragEnd: (x, y) => handleTokenDragEnd(npc.id, 'npc', x, y),
+    })),
+    ...(activeMap?.showPlayerTokens ? placedCharacters.map((char): TokenProps => ({
+      id: char.id, type: 'character', name: char.name, imageUrl: char.tokenUrl,
+      x: char.positionX, y: char.positionY, size: char.size || 'medium', gridCellSize,
+      tokenSizeOverrideEnabled, mediumTokenSizePx,
+      isSelected: selectedTokenKeys.includes(buildTokenKey('character', char.id)),
+      isDraggable: canMoveToken('character', char.id), isHidden: false, isGM,
+      statusRingColor: char.statusRingColor, showResizeControls: isGM,
+      onResize: direction => handleCharacterResize(char.id, direction),
+      onSelect: event => handleCharacterSelect(char.id, event),
+      onDragStart: () => { void handleTokenDragStart(char.id, 'character'); },
+      onDragEnd: (x, y) => handleTokenDragEnd(char.id, 'character', x, y),
+    })) : []),
+  ];
+
   return (
     <div
       ref={containerRef}
@@ -1123,67 +1152,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
               </Layer>
             )}
 
-            {/* NPC tokens (below player tokens) */}
-            <Layer listening={!isMeasureMode && !isPingMode}>
-              {currentMapNPCs
-                .filter((npc) => npc.isVisible || isGM)
-                .map((npc) => (
-                  <Token
-                    key={npc.id}
-                    id={npc.id}
-                    type="npc"
-                    name={npc.displayName || 'NPC'}
-                    imageUrl={npc.tokenUrl}
-                    x={npc.positionX}
-                    y={npc.positionY}
-                    size={npc.size || 'medium'}
-                    gridCellSize={gridCellSize}
-                    tokenSizeOverrideEnabled={tokenSizeOverrideEnabled}
-                    mediumTokenSizePx={mediumTokenSizePx}
-                    isSelected={selectedTokenKeys.includes(buildTokenKey('npc', npc.id))}
-                    isDraggable={canMoveToken('npc', npc.id)}
-                    isHidden={!npc.isVisible}
-                    isGM={isGM}
-                    statusRingColor={npc.statusRingColor}
-                    showResizeControls={isGM || session?.allowPlayersMoveNpcs}
-                    onResize={(direction) => handleNPCResize(npc.id, direction)}
-                    onSelect={(event) => handleNPCSelect(npc.id, event)}
-                    onDragStart={() => handleTokenDragStart(npc.id, 'npc')}
-                    onDragEnd={(x, y) => handleTokenDragEnd(npc.id, 'npc', x, y)}
-                  />
-                ))}
-            </Layer>
-
-            {/* Player character tokens */}
-            {activeMap.showPlayerTokens && (
-              <Layer listening={!isMeasureMode && !isPingMode}>
-                {placedCharacters.map((char) => (
-                  <Token
-                    key={char.id}
-                    id={char.id}
-                    type="character"
-                    name={char.name}
-                    imageUrl={char.tokenUrl}
-                    x={char.positionX}
-                    y={char.positionY}
-                    size={char.size || 'medium'}
-                    gridCellSize={gridCellSize}
-                    tokenSizeOverrideEnabled={tokenSizeOverrideEnabled}
-                    mediumTokenSizePx={mediumTokenSizePx}
-                    isSelected={selectedTokenKeys.includes(buildTokenKey('character', char.id))}
-                    isDraggable={canMoveToken('character', char.id)}
-                    isHidden={false}
-                    isGM={isGM}
-                    statusRingColor={char.statusRingColor}
-                    showResizeControls={isGM}
-                    onResize={(direction) => handleCharacterResize(char.id, direction)}
-                    onSelect={(event) => handleCharacterSelect(char.id, event)}
-                    onDragStart={() => handleTokenDragStart(char.id, 'character')}
-                    onDragEnd={(x, y) => handleTokenDragEnd(char.id, 'character', x, y)}
-                  />
-                ))}
-              </Layer>
-            )}
+            <TokenLayer key={activeMap.id} tokens={tokenItems} opacity={session?.tokenOpacity}
+              interactionEnabled={!isMeasureMode && !isPingMode} />
 
             {/* Fog of war layer */}
             {activeMap.fogEnabled && (

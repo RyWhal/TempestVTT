@@ -4,7 +4,7 @@ import useImage from 'use-image';
 import { getTokenPixelSize } from '../../lib/tokenSizing';
 import type { TokenSize } from '../../types';
 
-interface TokenProps {
+export interface TokenProps {
   id: string;
   type: 'character' | 'npc';
   name: string;
@@ -23,6 +23,7 @@ interface TokenProps {
   isSpotlighted?: boolean;
   onSelect: (event: any) => void;
   onDragStart?: () => void;
+  onDragMove?: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void | Promise<void>;
   showResizeControls?: boolean;
   onResize?: (direction: 'increase' | 'decrease') => void;
@@ -49,6 +50,8 @@ const getColorForName = (name: string): string => {
 };
 
 export const Token: React.FC<TokenProps> = ({
+  id,
+  type,
   name,
   imageUrl,
   x,
@@ -65,6 +68,7 @@ export const Token: React.FC<TokenProps> = ({
   statusRingColor,
   isSpotlighted,
   onDragStart,
+  onDragMove,
   onDragEnd,
 }) => {
   const groupRef = useRef<any>(null);
@@ -80,8 +84,6 @@ export const Token: React.FC<TokenProps> = ({
     size,
   });
   const radius = pixelSize / 2;
-  // Keep short names readable even when the grid and token footprint are tiny.
-  const labelWidth = Math.max(80, pixelSize, gridCellSize * 1.8);
   const color = getColorForName(name);
 
   // Don't render hidden NPCs for non-GMs
@@ -114,121 +116,116 @@ export const Token: React.FC<TokenProps> = ({
   return (
     <Group
       ref={groupRef}
+      name={`token:${type}:${id}`}
       x={x}
       y={y}
       draggable={isDraggable}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragMove={onDragMove ? event => onDragMove(event.target.x(), event.target.y()) : undefined}
       onClick={onSelect}
       onTap={onSelect}
       opacity={opacity}
     >
-      {/* Selection ring */}
-      {isSelected && (
-        <Ring
-          x={radius}
-          y={radius}
-          innerRadius={radius - 2}
-          outerRadius={radius + 4}
-          fill="rgba(59, 130, 246, 0.5)"
-          stroke="#3b82f6"
-          strokeWidth={2}
-        />
-      )}
-
-      {isSpotlighted && (
-        <Ring
-          x={radius}
-          y={radius}
-          innerRadius={radius + 4}
-          outerRadius={radius + 10}
-          fill="rgba(251, 191, 36, 0.35)"
-          stroke="#f59e0b"
-          strokeWidth={2}
-        />
-      )}
-
-      {/* Token body */}
-      {image ? (
-        // Image token
-        <Group>
-          <Circle
+      <Group listening={false}>
+        {/* Selection ring */}
+        {isSelected && (
+          <Ring
             x={radius}
             y={radius}
-            radius={radius}
-            fill="#1f2937"
-            stroke={isSelected ? '#3b82f6' : '#374151'}
+            innerRadius={radius - 2}
+            outerRadius={radius + 4}
+            fill="rgba(59, 130, 246, 0.5)"
+            stroke="#3b82f6"
             strokeWidth={2}
           />
-          <Group
-            clipFunc={(ctx: any) => {
-              ctx.arc(radius, radius, radius - 2, 0, Math.PI * 2);
-            }}
-          >
-            <KonvaImage
-              image={image}
-              x={0}
-              y={0}
-              width={pixelSize}
-              height={pixelSize}
-            />
-          </Group>
-        </Group>
-      ) : (
-        // Default token (colored circle with initial)
-        <Group>
-          <Circle
+        )}
+
+        {isSpotlighted && (
+          <Ring
             x={radius}
             y={radius}
-            radius={radius}
-            fill={color}
-            stroke={isSelected ? '#3b82f6' : '#1f2937'}
-            strokeWidth={3}
-            shadowColor="black"
-            shadowBlur={5}
-            shadowOpacity={0.3}
+            innerRadius={radius + 4}
+            outerRadius={radius + 10}
+            fill="rgba(251, 191, 36, 0.35)"
+            stroke="#f59e0b"
+            strokeWidth={2}
           />
-          <Text
-            x={0}
-            y={radius - pixelSize * 0.2}
-            width={pixelSize}
-            height={pixelSize * 0.5}
-            text={name.charAt(0).toUpperCase()}
-            fontSize={pixelSize * 0.5}
-            fontStyle="bold"
-            fill="white"
-            align="center"
-            verticalAlign="middle"
+        )}
+
+        {/* Token body */}
+        {image ? (
+          // Image token
+          <Group>
+            <Circle
+              x={radius}
+              y={radius}
+              radius={radius}
+              fill="#1f2937"
+              stroke={isSelected ? '#3b82f6' : '#374151'}
+              strokeWidth={2}
+            />
+            <Group
+              clipFunc={(ctx: any) => {
+                ctx.arc(radius, radius, radius - 2, 0, Math.PI * 2);
+              }}
+            >
+              <KonvaImage
+                image={image}
+                x={0}
+                y={0}
+                width={pixelSize}
+                height={pixelSize}
+              />
+            </Group>
+          </Group>
+        ) : (
+          // Default token (colored circle with initial)
+          <Group>
+            <Circle
+              x={radius}
+              y={radius}
+              radius={radius}
+              fill={color}
+              stroke={isSelected ? '#3b82f6' : '#1f2937'}
+              strokeWidth={3}
+              shadowColor="black"
+              shadowBlur={5}
+              shadowOpacity={0.3}
+            />
+            <Text
+              x={0}
+              y={radius - pixelSize * 0.2}
+              width={pixelSize}
+              height={pixelSize * 0.5}
+              text={name.charAt(0).toUpperCase()}
+              fontSize={pixelSize * 0.5}
+              fontStyle="bold"
+              fill="white"
+              align="center"
+              verticalAlign="middle"
+            />
+          </Group>
+        )}
+
+        {/* Optional status ring */}
+        {statusRingColor && (
+          <Ring
+            x={radius}
+            y={radius}
+            innerRadius={radius + 2}
+            outerRadius={radius + 8}
+            fill={statusRingColor}
+            stroke={statusRingColor}
+            strokeWidth={1}
+            opacity={0.9}
           />
-        </Group>
-      )}
+        )}
 
-      {/* Optional status ring */}
-      {statusRingColor && (
-        <Ring
-          x={radius}
-          y={radius}
-          innerRadius={radius + 2}
-          outerRadius={radius + 8}
-          fill={statusRingColor}
-          stroke={statusRingColor}
-          strokeWidth={1}
-          opacity={0.9}
-        />
-      )}
-
-      {/* Name label */}
-      <Text
-        x={(pixelSize - labelWidth) / 2}
-        y={pixelSize + 4}
-        width={labelWidth}
-        text={name}
-        fontSize={12}
-        fill="#e5e7eb"
-        align="center"
-        ellipsis
-        wrap="none"
-      />
+      </Group>
+      {/* The sole interactive shape: no labels, image corners, or decorative rings. */}
+      <Circle name="token-hit-area" x={radius} y={radius} radius={radius}
+        fill="rgba(0,0,0,0)" strokeEnabled={false} />
     </Group>
   );
 };

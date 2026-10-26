@@ -566,10 +566,18 @@ export const useSession = () => {
           | 'enableInitiativePhase'
           | 'enablePlotDice'
           | 'allowPlayersDrawings'
+          | 'tokenOpacity'
         >
       >
     ) => {
       if (!session) return { success: false, error: 'Not in a session' };
+
+      if (settings.tokenOpacity !== undefined) {
+        if (!currentUser?.isGm) return { success: false, error: 'GM only' };
+        if (!Number.isFinite(settings.tokenOpacity) || settings.tokenOpacity < 0 || settings.tokenOpacity > 1) {
+          return { success: false, error: 'Token opacity must be between 0 and 1.' };
+        }
+      }
 
       try {
         const dbUpdates: Record<string, unknown> = {};
@@ -592,11 +600,14 @@ export const useSession = () => {
         if (settings.allowPlayersDrawings !== undefined) {
           dbUpdates.allow_players_drawings = settings.allowPlayersDrawings;
         }
+        if (settings.tokenOpacity !== undefined) {
+          dbUpdates.token_opacity = settings.tokenOpacity;
+        }
 
         const { error } = await supabase.from('sessions').update(dbUpdates).eq('id', session.id);
         if (error) return { success: false, error: error.message };
 
-        updateSession(settings);
+        if (useSessionStore.getState().session?.id === session.id) updateSession(settings);
         return { success: true };
       } catch (error) {
         return {
@@ -605,7 +616,7 @@ export const useSession = () => {
         };
       }
     },
-    [session, updateSession]
+    [session, currentUser?.isGm, updateSession]
   );
 
   return {
