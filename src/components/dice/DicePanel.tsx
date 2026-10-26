@@ -112,16 +112,16 @@ export const DicePanel: React.FC = () => {
   };
 
   const handleRoll = async () => {
-    const expression = buildDiceExpression(dice, modifier);
-    if (!canRoll || expression === '0') return;
+    const expression = isPlotOnly ? 'Plot die' : buildDiceExpression(dice, modifier);
+    if (!canRoll) return;
 
     playDiceRollSound();
     setIsRolling(true);
     const result = await rollDice(expression || '0', {
       visibility,
-      plotDieEnabled: plotDiceFeatureEnabled && plotDieEnabled,
+      plotDieEnabled: hasPlotDie,
       characterName: myCharacter?.name,
-      mode: rollMode,
+      mode: isPlotOnly ? 'normal' : rollMode,
     });
     setIsRolling(false);
 
@@ -130,10 +130,11 @@ export const DicePanel: React.FC = () => {
     }
   };
 
-  const totalDice = Object.values(dice).reduce((a, b) => a + b, 0);
-  const hasSelectedD20 = useMemo(() => (dice[20] || 0) > 0, [dice]);
-  const hasInvalidPlotDieSelection = plotDiceFeatureEnabled && plotDieEnabled && !hasSelectedD20;
-  const canRoll = !isRolling && totalDice > 0 && !hasInvalidPlotDieSelection;
+  const standardDiceCount = Object.values(dice).reduce((a, b) => a + b, 0);
+  const hasPlotDie = plotDiceFeatureEnabled && plotDieEnabled;
+  const isPlotOnly = hasPlotDie && standardDiceCount === 0;
+  const totalDice = standardDiceCount + (hasPlotDie ? 1 : 0);
+  const canRoll = !isRolling && totalDice > 0;
 
   const handleClearHistory = async () => {
     if (!isGM) return;
@@ -165,7 +166,7 @@ export const DicePanel: React.FC = () => {
           />
         </label>
         {/* Dice Shape Selector Row */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className={`grid ${plotDiceFeatureEnabled ? 'grid-cols-8' : 'grid-cols-7'} gap-1`}>
           {DICE_TYPES.map((sides) => {
             const count = dice[sides] || 0;
             const isActive = count > 0;
@@ -190,6 +191,23 @@ export const DicePanel: React.FC = () => {
               </button>
             );
           })}
+          {plotDiceFeatureEnabled && (
+            <button
+              type="button"
+              aria-label="Plot die"
+              aria-pressed={hasPlotDie}
+              title="Select plot die (can be rolled alone)"
+              onClick={() => setPlotDieEnabled(prev => !prev)}
+              className={`min-w-0 flex flex-col items-center justify-center rounded-xl border p-1 transition-all ${
+                hasPlotDie
+                  ? 'border-amber-400/80 bg-amber-500/20 text-amber-200 shadow-lg shadow-amber-500/10'
+                  : 'border-white/10 bg-slate-900/40 text-amber-300 hover:bg-slate-800/60 hover:text-amber-100'
+              }`}
+            >
+              <span aria-hidden="true" className="text-lg leading-4">✦</span>
+              <span className="text-[9px] font-bold leading-3">Plot</span>
+            </button>
+          )}
         </div>
 
         <p className="mt-2 text-center text-[10px] text-slate-400">
@@ -213,6 +231,16 @@ export const DicePanel: React.FC = () => {
                     </span>
                   )
               )}
+              {hasPlotDie && (
+                <button
+                  type="button"
+                  aria-label="Remove plot die"
+                  onClick={() => setPlotDieEnabled(false)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-200 hover:bg-amber-500/20"
+                >
+                  Plot die <span aria-hidden="true">×</span>
+                </button>
+              )}
             </div>
             <button
               onClick={clearDice}
@@ -225,28 +253,32 @@ export const DicePanel: React.FC = () => {
 
         {/* Modifier, Mode, Visibility & Roll Action Bar */}
         <div className="grid grid-cols-12 gap-1.5 items-center text-xs">
-          <div className="col-span-3 flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-900/80 px-2 py-1">
+          <div className="col-span-4 flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-900/80 px-2 py-1">
             <button
               onClick={() => setModifier((prev) => prev - 1)}
-              className="text-slate-400 hover:text-slate-200 font-bold px-1"
+              disabled={isPlotOnly}
+              className="text-slate-400 hover:text-slate-200 font-bold px-1 disabled:opacity-40"
             >
               -
             </button>
             <span className="font-mono text-xs font-semibold text-slate-200">
-              {modifier >= 0 ? `+${modifier}` : modifier}
+              {isPlotOnly ? '—' : modifier >= 0 ? `+${modifier}` : modifier}
             </span>
             <button
               onClick={() => setModifier((prev) => prev + 1)}
-              className="text-slate-400 hover:text-slate-200 font-bold px-1"
+              disabled={isPlotOnly}
+              className="text-slate-400 hover:text-slate-200 font-bold px-1 disabled:opacity-40"
             >
               +
             </button>
           </div>
 
           <select
-            value={rollMode}
+            aria-label="Roll mode"
+            disabled={isPlotOnly}
+            value={isPlotOnly ? 'normal' : rollMode}
             onChange={(e) => setRollMode(e.target.value as RollMode)}
-            className="col-span-4 rounded-xl border border-slate-800/80 bg-slate-900/80 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+            className="col-span-8 min-w-0 rounded-xl border border-slate-800/80 bg-slate-900/80 px-2 py-1 text-xs text-slate-200 focus:outline-none disabled:opacity-40"
           >
             {ROLL_MODE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -255,11 +287,11 @@ export const DicePanel: React.FC = () => {
             ))}
           </select>
 
-          <div className="col-span-5 flex items-center gap-1">
+          <div className="col-span-12 flex min-w-0 items-center gap-1">
             <select
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as RollVisibility)}
-              className="flex-1 rounded-xl border border-slate-800/80 bg-slate-900/80 px-1.5 py-1 text-[11px] text-slate-300 focus:outline-none"
+              className="min-w-0 flex-1 rounded-xl border border-slate-800/80 bg-slate-900/80 px-1.5 py-1 text-[11px] text-slate-300 focus:outline-none"
             >
               <option value="public">Public</option>
               <option value="gm_only">GM Only</option>
@@ -276,23 +308,7 @@ export const DicePanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Plot Die Checkbox if enabled */}
-        {plotDiceFeatureEnabled && (
-          <div className="flex items-center justify-between text-xs px-1">
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={plotDieEnabled}
-                onChange={(e) => setPlotDieEnabled(e.target.checked)}
-                className="rounded accent-blue-600"
-              />
-              Use plot die
-            </label>
-            {hasInvalidPlotDieSelection && (
-              <span className="text-[10px] text-amber-300">Plot die requires a d20</span>
-            )}
-          </div>
-        )}
+        {isPlotOnly && <p className="text-[10px] text-amber-200">Plot die only · no modifier or advantage/disadvantage.</p>}
       </div>
 
       {/* Expanded Roll history */}
@@ -425,10 +441,10 @@ const DiceRollItem: React.FC<DiceRollItemProps> = ({ roll }) => {
                   </span>
                 )}
               </div>
-              <div className="mt-1 font-mono text-[11px] text-slate-300">
+              {flatRolls.length > 0 && <div className="mt-1 font-mono text-[11px] text-slate-300">
                 [{flatRolls.join(', ')}]
                 {att.modifier !== 0 && (att.modifier > 0 ? ` + ${att.modifier}` : ` ${att.modifier}`)}
-              </div>
+              </div>}
               {plotResult && (
                 <div className="mt-1 text-[10px] font-semibold text-amber-300">
                   Plot Die: {getPlotDieFaceName(plotResult.face)}

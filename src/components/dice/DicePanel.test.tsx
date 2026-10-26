@@ -92,6 +92,7 @@ describe('DicePanel', () => {
     rollDiceMock.mockClear();
     clearDiceHistoryMock.mockClear();
     mockSessionState.currentUser.isGm = false;
+    mockSessionState.session.enablePlotDice = true;
     mockDiceRolls.splice(
       0,
       mockDiceRolls.length,
@@ -175,14 +176,59 @@ describe('DicePanel', () => {
     expect(screen.getByText(/^Result$/i)).toBeTruthy();
   });
 
-  it('blocks plot-die rolls that do not include a d20', () => {
+  it('rolls a standalone plot die without stale modifiers or advantage', async () => {
     render(<DicePanel />);
+    fireEvent.click(screen.getByRole('button', { name: '+' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Roll mode' }), { target: { value: 'advantage' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Plot die' }));
+    expect(screen.queryByRole('checkbox', { name: /use plot die/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Plot die' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: '+' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('combobox', { name: 'Roll mode' }).hasAttribute('disabled')).toBe(true);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /roll!/i })); });
+    expect(rollDiceMock).toHaveBeenCalledWith('Plot die', expect.objectContaining({ plotDieEnabled: true, mode: 'normal' }));
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /d6/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /use plot die/i }));
+  it('keeps combined plot rolls and their modifiers and mode', async () => {
+    render(<DicePanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'd20' }));
+    fireEvent.click(screen.getByRole('button', { name: '+' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Roll mode' }), { target: { value: 'advantage' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Plot die' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /roll!/i })); });
+    expect(rollDiceMock).toHaveBeenCalledWith('1d20+1', expect.objectContaining({ plotDieEnabled: true, mode: 'advantage' }));
+  });
 
-    expect(screen.getByText(/plot die requires a d20/i)).not.toBeNull();
+  it('can deselect a plot die using its selector or selection pill and clear it', () => {
+    render(<DicePanel />);
+    const plot = screen.getByRole('button', { name: 'Plot die' });
+    fireEvent.click(plot);
+    fireEvent.click(plot);
     expect(screen.getByRole('button', { name: /roll!/i }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(plot);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove plot die' }));
+    expect(screen.getByRole('button', { name: /roll!/i }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(plot);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(plot.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: /roll!/i }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('hides the plot selector when the session feature is disabled', () => {
+    mockSessionState.session.enablePlotDice = false;
+    render(<DicePanel />);
+    expect(screen.queryByRole('button', { name: 'Plot die' })).toBeNull();
+    expect(screen.getByRole('button', { name: /roll!/i }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('shows plot-only history without an empty numeric dice breakdown', () => {
+    Object.assign(mockDiceRolls[0], { rollExpression: 'Plot die', rollResults: {
+      dice: [], modifier: 0, total: 4,
+      plotDie: { face: 'complication_bonus_4', kind: 'complication', bonus: 4, label: 'Complication +4' },
+    } });
+    render(<DicePanel />);
+    expect(screen.getByText('Plot Die: Complication +4')).toBeTruthy();
+    expect(screen.queryByText('[]')).toBeNull();
   });
 
   it('lets the GM clear shared roll history', () => {

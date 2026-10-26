@@ -9,11 +9,10 @@ describe('validateRollRequest', () => {
     });
   });
 
-  it('requires at least one d20 when the plot die is enabled', () => {
-    expect(validateRollRequest('2d6+1', { plotDieEnabled: true })).toEqual({
-      valid: false,
-      error: 'Plot die requires at least one d20 in the roll.',
-    });
+  it('allows a plot die alone or alongside dice other than a d20', () => {
+    expect(validateRollRequest('Plot die', { plotDieEnabled: true }).valid).toBe(true);
+    expect(validateRollRequest('2d6+1', { plotDieEnabled: true }).valid).toBe(true);
+    expect(validateRollRequest('Plot die').valid).toBe(false);
   });
 });
 
@@ -37,6 +36,32 @@ describe('buildDiceExpression', () => {
 describe('createRollResults', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it.each([
+    [0, 'opportunity', 0], [1, 'opportunity', 0],
+    [2, 'blank', 0], [3, 'blank', 0],
+    [4, 'complication_bonus_2', 2], [5, 'complication_bonus_4', 4],
+  ])('rolls only plot face %i with no standard dice', (faceIndex, face, bonus) => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(Number(faceIndex) / 6 + 0.01);
+    const results = createRollResults('Plot die', { plotDieEnabled: true });
+    expect(results.dice).toEqual([]);
+    expect(results.modifier).toBe(0);
+    expect(results.mode).toBe('normal');
+    expect(results.attempts).toHaveLength(1);
+    expect(results.plotDie).toMatchObject({ face, bonus });
+    expect(results.total).toBe(bonus);
+    expect(random).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['advantage', 'disadvantage'] as const)('ignores modifiers and %s for plot-only requests', mode => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.95);
+    const results = createRollResults('+8', { plotDieEnabled: true, mode });
+    expect(results.mode).toBe('normal');
+    expect(results.modifier).toBe(0);
+    expect(results.total).toBe(4);
+    expect(results.attempts).toHaveLength(1);
+    expect(random).toHaveBeenCalledTimes(1);
   });
 
   it('applies plot-die complication bonuses to the final total', () => {

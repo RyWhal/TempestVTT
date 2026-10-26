@@ -9,6 +9,20 @@ const makeRoll = (dice = [{ type: 'd20', count: 1, results: [17] }]): DiceRoll =
 });
 
 describe('roll presentation', () => {
+  it('presents a standalone plot roll as exactly one labeled plot die', () => {
+    const roll = makeRoll([]);
+    roll.rollExpression = 'Plot die';
+    roll.rollResults = {
+      dice: [], modifier: 0, total: 2,
+      plotDie: { face: 'complication_bonus_2', kind: 'complication', bonus: 2, label: 'Complication +2' },
+    };
+    const result = buildRollPresentation(roll);
+    expect(result.batches).toHaveLength(1);
+    expect(result.batches[0].dice).toHaveLength(1);
+    expect(result.batches[0].dice[0]).toMatchObject({ kind: 'plot', sides: 6, value: 5, label: 'Complication +2' });
+    expect(result.batches[0].summary).toBe('Plot: Complication +2');
+    expect(result.total).toBe(2);
+  });
   it('preserves every value and uses the actual polyhedron', () => {
     const roll = makeRoll([4, 6, 8, 10, 12, 20].map(n => ({ type: `d${n}`, count: 2, results: [1, n] })));
     const result = buildRollPresentation(roll);
