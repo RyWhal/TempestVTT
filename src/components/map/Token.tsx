@@ -80,6 +80,8 @@ export const Token: React.FC<TokenProps> = ({
     size,
   });
   const radius = pixelSize / 2;
+  // Keep short names readable even when the grid and token footprint are tiny.
+  const labelWidth = Math.max(80, pixelSize, gridCellSize * 1.8);
   const color = getColorForName(name);
 
   // Don't render hidden NPCs for non-GMs
@@ -217,9 +219,9 @@ export const Token: React.FC<TokenProps> = ({
 
       {/* Name label */}
       <Text
-        x={-(Math.max(pixelSize, gridCellSize * 1.8) - pixelSize) / 2}
+        x={(pixelSize - labelWidth) / 2}
         y={pixelSize + 4}
-        width={Math.max(pixelSize, gridCellSize * 1.8)}
+        width={labelWidth}
         text={name}
         fontSize={12}
         fill="#e5e7eb"
