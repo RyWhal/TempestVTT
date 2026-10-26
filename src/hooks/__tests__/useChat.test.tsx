@@ -1,7 +1,7 @@
 /* @vitest-environment jsdom */
 
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChat } from '../useChat';
 
 const {
@@ -65,6 +65,7 @@ vi.mock('../../lib/tokenBroadcast', () => ({
 }));
 
 describe('useChat', () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(() => {
     fromMock.mockReset();
     addDiceRollMock.mockReset();
@@ -93,6 +94,32 @@ describe('useChat', () => {
       error: 'Select at least one die to roll.',
     });
     expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it('persists and broadcasts a standalone plot roll using the existing result format', async () => {
+    const insertMock = vi.fn((payload: Record<string, unknown>) => ({
+      select: () => ({ single: async () => ({
+        data: { ...payload, id: 'plot_roll', created_at: '2026-10-26T12:00:00Z' }, error: null,
+      }) }),
+    }));
+    fromMock.mockReturnValue({ insert: insertMock });
+    vi.spyOn(Math, 'random').mockReturnValue(0.95);
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      const response = await result.current.rollDice('Plot die', { plotDieEnabled: true });
+      expect(response.success).toBe(true);
+    });
+    expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({
+      roll_expression: 'Plot die', visibility: 'public',
+      roll_results: expect.objectContaining({ dice: [], modifier: 0, total: 4, mode: 'normal' }),
+      plot_dice_results: [expect.objectContaining({ face: 'complication_bonus_4', bonus: 4 })],
+    }));
+    expect(addDiceRollMock).toHaveBeenCalledWith(expect.objectContaining({
+      rollExpression: 'Plot die', rollResults: expect.objectContaining({ dice: [], total: 4 }),
+    }));
+    expect(broadcastDiceRollMock).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'session_001', roll: expect.objectContaining({ rollExpression: 'Plot die' }),
+    }));
   });
 
   it('stores structured advantage roll metadata and keeps the visible roll in local state', async () => {

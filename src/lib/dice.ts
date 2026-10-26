@@ -191,22 +191,15 @@ export const validateRollRequest = (
   const parsed = parseDiceNotation(expression);
   const hasStandardDice = parsed.dice.some((die) => Math.abs(die.count) > 0);
 
-  if (!hasStandardDice) {
+  if (!hasStandardDice && !options.plotDieEnabled) {
     return {
       valid: false,
       error: 'Select at least one die to roll.',
     };
   }
 
-  if (options.plotDieEnabled) {
-    const hasD20 = parsed.dice.some((die) => die.sides === 20 && Math.abs(die.count) > 0);
-    if (!hasD20) {
-      return {
-        valid: false,
-        error: 'Plot die requires at least one d20 in the roll.',
-      };
-    }
-  }
+  // A standalone plot die reports its face/bonus, without a numeric modifier.
+  if (!hasStandardDice) parsed.modifier = 0;
 
   return {
     valid: true,
@@ -231,13 +224,14 @@ export const createRollResults = (
   expression: string,
   options: RollRequestOptions = {}
 ): RollResults => {
-  const { mode = 'normal', plotDieEnabled = false } = options;
-  const validation = validateRollRequest(expression, { plotDieEnabled, mode });
+  const { plotDieEnabled = false } = options;
+  const validation = validateRollRequest(expression, options);
 
   if (!validation.valid || !validation.parsed) {
     throw new Error(validation.error || 'Invalid roll');
   }
 
+  const mode = validation.parsed.dice.length ? options.mode ?? 'normal' : 'normal';
   const attemptCount = mode === 'normal' ? 1 : 2;
   const attempts = Array.from({ length: attemptCount }, () =>
     createAttempt(validation.parsed as ParsedDice, plotDieEnabled)
