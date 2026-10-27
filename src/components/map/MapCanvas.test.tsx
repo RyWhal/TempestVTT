@@ -30,8 +30,8 @@ vi.mock('./TokenPopover', () => ({ TokenPopover: () => null }));
 vi.mock('./DrawingLayer', () => ({ DrawingLayer: () => null }));
 vi.mock('../../hooks/useCharacters', () => ({ useCharacters: () => ({ characters: mocks.characters, moveCharacterPosition: vi.fn() }) }));
 vi.mock('../../hooks/useNPCs', () => ({ useNPCs: () => ({ currentMapNPCs: mocks.npcs }) }));
-vi.mock('./TokenLayer', () => ({ TokenLayer: ({ tokens, opacity }: { tokens: TokenProps[]; opacity?: number }) => {
-  mocks.tokens = tokens; mocks.opacity = opacity; return null;
+vi.mock('./TokenLayer', () => ({ TokenLayer: ({ tokens, nameOpacity }: { tokens: TokenProps[]; nameOpacity?: number }) => {
+  mocks.tokens = tokens; mocks.opacity = nameOpacity; return null;
 } }));
 vi.mock('../../hooks/useMap', () => ({ useMap: () => ({ eraseDrawingRegions: mocks.erase, updateDrawingData: mocks.update }) }));
 vi.mock('../shared/Toast', () => ({ useToast: () => ({ showToast: mocks.toast }) }));

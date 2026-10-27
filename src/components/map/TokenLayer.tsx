@@ -6,14 +6,14 @@ import { normalizeTokenOpacity } from '../../lib/tokenAppearance';
 
 interface TokenLayerProps {
   tokens: TokenProps[];
-  opacity?: number;
+  nameOpacity?: number;
   interactionEnabled?: boolean;
 }
 interface DragPosition { x: number; y: number; sequence: number }
 
 /** A single label pass below every body, including labels for the PC/NPC boundary. */
-export function TokenLayer({ tokens, opacity, interactionEnabled = true }: TokenLayerProps) {
-  const alpha = normalizeTokenOpacity(opacity);
+export function TokenLayer({ tokens, nameOpacity, interactionEnabled = true }: TokenLayerProps) {
+  const alpha = normalizeTokenOpacity(nameOpacity);
   const [dragPositions, setDragPositions] = useState<Record<string, DragPosition>>({});
   const sequences = useRef<Record<string, number>>({});
   const nextSequence = useRef(0);
@@ -27,7 +27,7 @@ export function TokenLayer({ tokens, opacity, interactionEnabled = true }: Token
         return <TokenNameLabel key={key} {...token} x={position?.x ?? token.x} y={position?.y ?? token.y} />;
       })}
     </Layer>
-    <Layer name="token-bodies" opacity={alpha} listening={interactionEnabled && alpha > 0}>
+    <Layer name="token-bodies" listening={interactionEnabled}>
       {visibleTokens.map(token => {
         const key = `${token.type}:${token.id}`;
         return <Token key={key} {...token}
