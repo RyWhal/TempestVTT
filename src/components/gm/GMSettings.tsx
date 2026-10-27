@@ -5,6 +5,7 @@ import { useSession } from '../../hooks/useSession';
 import { useMap } from '../../hooks/useMap';
 import { useToast } from '../shared/Toast';
 import { SessionExport } from './SessionExport';
+import { TokenTransparencyControl } from './TokenTransparencyControl';
 
 export const GMSettings: React.FC = () => {
   const { showToast } = useToast();
@@ -49,6 +50,7 @@ export const GMSettings: React.FC = () => {
     <div className="h-full overflow-y-auto p-4 space-y-4">
       <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
         <h3 className="text-slate-100 font-semibold">Game Settings</h3>
+        <TokenTransparencyControl key={session.id} />
 
         <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
           <span>Enable player NPC renaming</span>

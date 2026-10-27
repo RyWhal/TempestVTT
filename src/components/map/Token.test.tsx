@@ -16,7 +16,7 @@ vi.mock('react-konva', () => ({
     if (onDragEnd) handlers.dragEnd = onDragEnd;
     return <div ref={ref}>{children}</div>;
   }),
-  Circle: (props: { radius: number }) => <div data-testid="token-circle" data-radius={String(props.radius)} />,
+  Circle: (props: { radius: number; name?: string }) => props.name === 'token-hit-area' ? null : <div data-testid="token-circle" data-radius={String(props.radius)} />,
   Text: (props: { text: string }) => <div>{props.text}</div>,
   Image: () => <div />,
   Ring: () => <div />,

@@ -80,6 +80,7 @@ describe('PlaySession modern layout', () => {
         enableInitiativePhase: false,
         enablePlotDice: false,
         allowPlayersDrawings: true,
+        tokenOpacity: 1,
         createdAt: '2026-04-01T00:00:00.000Z',
         updatedAt: '2026-04-01T00:00:00.000Z',
       },

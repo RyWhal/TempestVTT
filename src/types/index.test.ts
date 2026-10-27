@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dbMapToMap, dbSessionToSession } from './index';
+import type { DbSession } from './index';
 
 describe('dbMapToMap', () => {
   it('hydrates token size override fields from the db row', () => {
@@ -34,6 +35,13 @@ describe('dbMapToMap', () => {
 });
 
 describe('dbSessionToSession', () => {
+  it.each([undefined, null, Number.NaN, Infinity, -0.5, 1.5])('defaults invalid legacy opacity %s to opaque', value => {
+    expect(dbSessionToSession({ token_opacity: value } as DbSession).tokenOpacity).toBe(1);
+  });
+
+  it.each([0, 0.5, 1])('preserves stored opacity %s including invisible', value => {
+    expect(dbSessionToSession({ token_opacity: value } as DbSession).tokenOpacity).toBe(value);
+  });
   it('hydrates the player PC rename setting from the db row', () => {
     const session = dbSessionToSession({
       id: 'session_001',
