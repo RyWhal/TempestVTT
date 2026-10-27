@@ -160,7 +160,9 @@ export const useRealtime = () => {
         const updated = dbSessionToSession(payload.new as DbSession);
         updateSession(updated);
 
-        if (updated.activeMapId !== session.activeMapId) {
+        // The subscription can outlive session hydration and map switches.
+        // Settings updates must not re-activate a map and reset zoom/selection.
+        if (updated.activeMapId !== (useMapStore.getState().activeMap?.id ?? null)) {
           const activeMap = mapsRef.current.find((m) => m.id === updated.activeMapId);
           setActiveMap(activeMap || null);
         }

@@ -25,6 +25,7 @@ export interface Session {
   enableInitiativePhase: boolean;
   enablePlotDice: boolean;
   allowPlayersDrawings: boolean;
+  /** Opacity of token names; persisted in the existing token_opacity column. */
   tokenOpacity: number;
   createdAt: string;
   updatedAt: string;

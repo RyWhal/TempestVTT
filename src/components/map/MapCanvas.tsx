@@ -1152,7 +1152,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({ isMeasureMode = false, isP
               </Layer>
             )}
 
-            <TokenLayer key={activeMap.id} tokens={tokenItems} opacity={session?.tokenOpacity}
+            <TokenLayer key={activeMap.id} tokens={tokenItems} nameOpacity={session?.tokenOpacity}
               interactionEnabled={!isMeasureMode && !isPingMode} />
 
             {/* Fog of war layer */}

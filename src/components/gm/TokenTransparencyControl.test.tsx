@@ -20,7 +20,7 @@ describe('shared transparency control', () => {
   it.each([[0, 1], [50, 0.5], [100, 0]])('saves %s percent transparency as opacity %s on release', async (value, tokenOpacity) => {
     useSessionStore.getState().updateSession({ tokenOpacity: 0.25 });
     render(<TokenTransparencyControl />);
-    const slider = screen.getByRole('slider', { name: 'Token transparency' });
+    const slider = screen.getByRole('slider', { name: 'Token name transparency' });
     fireEvent.change(slider, { target: { value: String(value) } });
     expect(mocks.save).not.toHaveBeenCalled();
     await act(async () => { fireEvent.pointerUp(slider); });
@@ -32,7 +32,7 @@ describe('shared transparency control', () => {
     let finish!: (value: { success: boolean; error: string }) => void;
     mocks.save.mockReturnValue(new Promise(resolve => { finish = resolve; }));
     render(<TokenTransparencyControl />);
-    const slider = screen.getByRole('slider', { name: 'Token transparency' });
+    const slider = screen.getByRole('slider', { name: 'Token name transparency' });
     fireEvent.change(slider, { target: { value: '50' } });
     fireEvent.pointerUp(slider); fireEvent.blur(slider);
     expect(mocks.save).toHaveBeenCalledTimes(1);
@@ -45,7 +45,7 @@ describe('shared transparency control', () => {
 
   it('supports keyboard saves and reflects remote session updates', async () => {
     render(<TokenTransparencyControl />);
-    const slider = screen.getByRole('slider', { name: 'Token transparency' });
+    const slider = screen.getByRole('slider', { name: 'Token name transparency' });
     fireEvent.change(slider, { target: { value: '100' } });
     await act(async () => { fireEvent.keyUp(slider, { key: 'End' }); });
     expect(mocks.save).toHaveBeenCalledWith({ tokenOpacity: 0 });

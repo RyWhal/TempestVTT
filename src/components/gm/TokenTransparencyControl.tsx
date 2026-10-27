@@ -28,12 +28,12 @@ export function TokenTransparencyControl() {
       const result = await updateSessionSettings({ tokenOpacity });
       if (!result.success && useSessionStore.getState().session?.id === session.id) {
         setTransparency(Math.round((1 - normalizeTokenOpacity(useSessionStore.getState().session?.tokenOpacity)) * 100));
-        showToast(result.error || 'Failed to save token transparency', 'error');
+        showToast(result.error || 'Failed to save token name transparency', 'error');
       }
     } catch {
       if (useSessionStore.getState().session?.id === session.id) {
         setTransparency(Math.round((1 - normalizeTokenOpacity(useSessionStore.getState().session?.tokenOpacity)) * 100));
-        showToast('Failed to save token transparency', 'error');
+        showToast('Failed to save token name transparency', 'error');
       }
     } finally {
       busy.current = false;
@@ -44,16 +44,16 @@ export function TokenTransparencyControl() {
   if (!session || !isGM) return null;
   return <div className="space-y-2 border-t border-slate-700/60 pt-3">
     <label htmlFor={id} className="flex items-center justify-between text-sm text-slate-300">
-      <span>Token transparency</span><span className="font-mono text-xs">{transparency}%</span>
+      <span>Token name transparency</span><span className="font-mono text-xs">{transparency}%</span>
     </label>
     <input id={id} type="range" min={0} max={100} step={1} value={transparency} disabled={saving}
-      aria-label="Token transparency" aria-valuetext={`${transparency}% transparent`}
+      aria-label="Token name transparency" aria-valuetext={`${transparency}% transparent`}
       onChange={event => setTransparency(Number(event.target.value))}
       onPointerUp={() => void save()} onBlur={() => void save()}
       onKeyUp={event => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) void save(); }}
       className="w-full accent-blue-500 disabled:opacity-50" />
     <div className="flex justify-between text-[10px] text-slate-400"><span>Opaque</span><span>Invisible</span></div>
-    <p className="text-xs text-slate-400">Applies to all tokens and names for everyone at this table.</p>
+    <p className="text-xs text-slate-400">Controls name text for everyone at this table.</p>
     {saving && <p role="status" className="text-xs text-slate-400">Saving…</p>}
   </div>;
 }

@@ -575,7 +575,7 @@ export const useSession = () => {
       if (settings.tokenOpacity !== undefined) {
         if (!currentUser?.isGm) return { success: false, error: 'GM only' };
         if (!Number.isFinite(settings.tokenOpacity) || settings.tokenOpacity < 0 || settings.tokenOpacity > 1) {
-          return { success: false, error: 'Token opacity must be between 0 and 1.' };
+          return { success: false, error: 'Token name opacity must be between 0 and 1.' };
         }
       }
 
