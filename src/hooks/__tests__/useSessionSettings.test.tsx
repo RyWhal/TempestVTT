@@ -47,4 +47,3 @@ describe('shared token opacity settings', () => {
     expect(useSessionStore.getState().session?.tokenOpacity).toBe(1);
   });
 });
-
